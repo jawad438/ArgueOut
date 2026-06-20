@@ -97,22 +97,19 @@ io.on('connection', socket => {
     if (!room) { socket.emit('room-not-found'); return; }
 
     const slot = room.users.find(u => u.userId === decoded.uid);
-    if (!slot)  { socket.emit('room-not-found'); return; }
+    if (!slot) { socket.emit('room-not-found'); return; }
 
+    // Register this debate-page socket in the slot and Socket.io room
     slot.socketId = socket.id;
-
-    if (!socketUsers.has(socket.id)) {
-      socketUsers.set(socket.id, {
-        userId:     decoded.uid,
-        username:   slot.username,
-        politicalX: slot.politicalX,
-        politicalY: slot.politicalY
-      });
-    }
-
+    socketUsers.set(socket.id, {
+      userId:     decoded.uid,
+      username:   slot.username,
+      politicalX: slot.politicalX,
+      politicalY: slot.politicalY
+    });
     socket.join(roomId);
 
-    const connected = room.users.filter(u => u.socketId);
+    const connected = room.users.filter(u => u.socketId !== null);
     if (connected.length === 2) {
       const [u1, u2] = room.users;
       io.to(u1.socketId).emit('start-webrtc', {
@@ -232,15 +229,15 @@ function attemptMatch(newSocketId) {
 
   const roomId = uuidv4();
 
+  // socketId starts as null — lobby sockets are NOT in the room.
+  // It gets set to the debate-page socket in join-debate-room.
+  // This prevents the lobby disconnect from prematurely closing the room.
   rooms.set(roomId, {
     users: [
-      { ...newUser,   socketId: newSocketId   },
-      { ...matchUser, socketId: matchSocketId }
+      { ...newUser,   socketId: null },
+      { ...matchUser, socketId: null }
     ]
   });
-
-  s1.join(roomId);
-  s2.join(roomId);
 
   s1.emit('match-found', {
     roomId,

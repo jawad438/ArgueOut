@@ -226,6 +226,13 @@ if (step1Form) {
   });
 }
 
+// Bio char counter
+const bioField    = document.getElementById('bio');
+const bioCount    = document.getElementById('bioCharCount');
+if (bioField && bioCount) {
+  bioField.addEventListener('input', () => { bioCount.textContent = bioField.value.length; });
+}
+
 if (step2Form) {
   const backBtn = document.getElementById('backBtn');
   if (backBtn) backBtn.addEventListener('click', () => goToStep(1));
@@ -237,6 +244,7 @@ if (step2Form) {
     const age      = document.getElementById('age').value;
     const gender   = document.getElementById('gender').value;
     const religion = document.getElementById('religion').value;
+    const bio      = (document.getElementById('bio')?.value || '').trim().slice(0, 280);
 
     const ageNum = parseInt(age);
     if (age && (isNaN(ageNum) || ageNum < 13 || ageNum > 120)) {
@@ -274,6 +282,7 @@ if (step2Form) {
         gender:     gender   || 'prefer_not_to_say',
         religion:   religion || 'prefer_not_to_say',
         age:        ageNum || 18,
+        bio:        bio || '',
         politicalX: 0,
         politicalY: 0,
         compassSet: false,

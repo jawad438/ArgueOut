@@ -122,6 +122,20 @@ function updateProfileUI(profile) {
     });
   }
 
+  // Bio
+  const bioText = document.getElementById('bioText');
+  if (bioText) {
+    if (profile.bio) {
+      bioText.textContent   = profile.bio;
+      bioText.style.color   = 'var(--text-2)';
+      bioText.style.fontStyle = 'normal';
+    } else {
+      bioText.textContent   = 'Add a bio...';
+      bioText.style.color   = 'var(--text-3)';
+      bioText.style.fontStyle = 'italic';
+    }
+  }
+
   if (posBadge) {
     const info = getQuadrantInfo(profile.politicalX || 0, profile.politicalY || 0);
     posBadge.innerHTML = `<span class="badge ${info.badge}">${info.label}</span>`;
@@ -225,6 +239,70 @@ auth.onAuthStateChanged(async (user) => {
     if (!socket.connected) socket.connect();
   } catch {
     showToast('Could not load profile. Check your connection.', 'error');
+  }
+});
+
+// ── Bio edit ──────────────────────────────────────────────────
+function startBioEdit() {
+  const bioDisplay  = document.getElementById('bioDisplay');
+  const bioEdit     = document.getElementById('bioEdit');
+  const bioInput    = document.getElementById('bioInput');
+  const bioText     = document.getElementById('bioText');
+  const bioEditCount = document.getElementById('bioEditCount');
+  if (!bioDisplay || !bioEdit || !bioInput) return;
+
+  const current = (bioText?.style.fontStyle === 'italic') ? '' : (bioText?.textContent || '');
+  bioInput.value = current;
+  if (bioEditCount) bioEditCount.textContent = current.length;
+  bioDisplay.style.display = 'none';
+  bioEdit.style.display    = 'block';
+  bioInput.focus();
+}
+
+function cancelBioEdit() {
+  document.getElementById('bioDisplay').style.display = 'block';
+  document.getElementById('bioEdit').style.display    = 'none';
+}
+
+async function saveBio() {
+  const bioInput  = document.getElementById('bioInput');
+  const saveBtn   = document.getElementById('saveBioBtn');
+  const bioText   = document.getElementById('bioText');
+  const user      = auth.currentUser;
+  if (!bioInput || !user) return;
+
+  const newBio = bioInput.value.trim().slice(0, 280);
+  saveBtn.disabled  = true;
+  saveBtn.textContent = 'Saving...';
+
+  try {
+    await firestoreDb.collection('users').doc(user.uid).update({ bio: newBio });
+    if (bioText) {
+      if (newBio) {
+        bioText.textContent   = newBio;
+        bioText.style.color   = 'var(--text-2)';
+        bioText.style.fontStyle = 'normal';
+      } else {
+        bioText.textContent   = 'Add a bio...';
+        bioText.style.color   = 'var(--text-3)';
+        bioText.style.fontStyle = 'italic';
+      }
+    }
+    cancelBioEdit();
+    showToast('Bio updated!', 'success');
+  } catch {
+    showToast('Could not save bio. Try again.', 'error');
+  } finally {
+    saveBtn.disabled    = false;
+    saveBtn.textContent = 'Save';
+  }
+}
+
+// Bio char counter (live)
+document.addEventListener('input', e => {
+  if (e.target.id === 'bioInput') {
+    const el = document.getElementById('bioEditCount');
+    if (el) el.textContent = e.target.value.length;
   }
 });
 
