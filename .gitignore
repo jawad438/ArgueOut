@@ -1,0 +1,8 @@
+node_modules/
+serviceAccountKey.json
+argueout-data.json
+server-out.txt
+server-err.txt
+.env
+.claude/
+skills-lock.json

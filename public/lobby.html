@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lobby — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <a href="/" class="nav-logo">ArgueOut</a>
+  <div class="nav-actions">
+    <div class="nav-user">
+      <div class="nav-avatar" id="navAvatar">?</div>
+      <span id="navUsername" style="color:var(--text-2)">Loading...</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign Out</button>
+  </div>
+</nav>
+
+<div class="lobby-layout">
+
+  <!-- Left panel: profile -->
+  <div class="profile-panel">
+
+    <div class="profile-card">
+      <!-- Profile picture (clickable to change) -->
+      <div style="position:relative;width:72px;height:72px;margin-bottom:16px;cursor:pointer" id="profilePicWrap" onclick="document.getElementById('profilePicInput').click()" title="Click to change profile picture">
+        <div class="profile-avatar-lg" id="profileAvatar" style="margin-bottom:0">?</div>
+        <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;opacity:0;transition:opacity 150ms;font-size:0.6rem;color:#fff;font-weight:700;letter-spacing:0.05em" id="avatarHover">
+          <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Change
+        </div>
+      </div>
+      <input type="file" id="profilePicInput" accept="image/*" style="display:none" />
+      <div class="profile-name"  id="profileName">Loading...</div>
+      <div class="profile-username" id="profileUsername">@loading</div>
+      <div class="profile-tags" id="profileTags"></div>
+      <div id="positionBadge" style="margin-bottom:16px"></div>
+      <a href="/compass.html" class="btn btn-ghost btn-sm btn-full">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></svg>
+        Update Position
+      </a>
+    </div>
+
+    <!-- Mini compass -->
+    <div class="profile-card" style="padding:20px">
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.08em;font-family:'Space Grotesk',sans-serif;margin-bottom:12px">Your Political Position</div>
+      <div class="mini-compass-wrap">
+        <canvas id="miniCompass" width="280" height="280"></canvas>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+        <span style="font-size:0.72rem;color:rgba(239,68,68,0.7);font-weight:600;letter-spacing:0.05em">◄ LEFT</span>
+        <span style="font-size:0.72rem;color:rgba(59,130,246,0.7);font-weight:600;letter-spacing:0.05em">RIGHT ►</span>
+      </div>
+    </div>
+
+    <!-- Queue size indicator -->
+    <div class="profile-card" style="padding:16px 20px; text-align:center">
+      <div style="font-size:0.78rem;color:var(--text-3);margin-bottom:4px">Users in queue</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;" class="gradient-text" id="queueSizeDisplay">—</div>
+    </div>
+  </div>
+
+  <!-- Right panel: matchmaking -->
+  <div class="match-panel">
+
+    <div class="match-card" id="idleCard">
+      <span class="match-icon">⚔️</span>
+      <div class="match-title">Ready to Debate?</div>
+      <p class="match-desc">
+        We'll find someone whose political views are as far from yours as possible. Expect a real clash of ideas — live, on video.
+      </p>
+      <button class="btn btn-debate btn-lg" id="findBtn">
+        Find Debate Partner
+      </button>
+    </div>
+
+    <!-- Queue state (shown while searching) -->
+    <div class="match-card" id="searchCard" style="display:none">
+      <div class="queue-state active" style="margin-bottom: 20px">
+        <div class="searching-ring"></div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700">Searching...</div>
+        <div class="queue-text">Looking for your political opposite</div>
+        <div class="queue-count" id="queuePosText">You are in the queue</div>
+      </div>
+      <button class="btn btn-ghost" id="cancelBtn" style="margin-top:8px">
+        Cancel Search
+      </button>
+    </div>
+
+    <!-- How it works -->
+    <div class="how-card">
+      <div class="how-title">How matching works</div>
+      <div class="how-step">
+        <div class="how-num">1</div>
+        <div class="how-text">You enter the queue. We measure your political position on both axes.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">2</div>
+        <div class="how-text">We find the person most politically distant from you in the queue.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">3</div>
+        <div class="how-text">Both of you are dropped into a live video room. The debate begins.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">4</div>
+        <div class="how-text">Either side can end the debate at any time. No obligations.</div>
+      </div>
+    </div>
+
+    <!-- Tips card -->
+    <div class="how-card" style="border-color:rgba(139,92,246,0.15)">
+      <div class="how-title" style="color:var(--purple)">Debate tips</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:0.85rem;color:var(--text-2);display:flex;gap:10px;align-items:flex-start">
+          <span style="color:var(--purple);flex-shrink:0">→</span>
+          Steel-man your opponent's position before attacking it.
+        </div>
+        <div style="font-size:0.85rem;color:var(--text-2);display:flex;gap:10px;align-items:flex-start">
+          <span style="color:var(--purple);flex-shrink:0">→</span>
+          Cite evidence, not anecdotes. Use the chat to share links.
+        </div>
+        <div style="font-size:0.85rem;color:var(--text-2);display:flex;gap:10px;align-items:flex-start">
+          <span style="color:var(--purple);flex-shrink:0">→</span>
+          Changing your mind is not weakness — it's the point.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/bg.js"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="/js/lobby.js"></script>
+</body>
+</html>

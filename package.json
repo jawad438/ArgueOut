@@ -1,0 +1,16 @@
+{
+  "name": "argueout",
+  "version": "1.0.0",
+  "description": "Political debate matchmaking platform — debate strangers with opposite views via video call",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "npx nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.3",
+    "firebase-admin": "^12.7.0",
+    "socket.io": "^4.7.4",
+    "uuid": "^9.0.0"
+  }
+}

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Set Your Position — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <a href="/" class="nav-logo">ArgueOut</a>
+  <div class="nav-actions" id="navActions">
+    <a href="/login.html" class="btn btn-ghost btn-sm" id="logoutBtn" style="display:none">Sign Out</a>
+  </div>
+</nav>
+
+<div class="compass-page">
+  <div class="compass-wrap z-1">
+    <div class="text-center" style="margin-bottom:36px">
+      <span class="hero-eyebrow" style="margin-bottom:16px; display:inline-flex">Step 2 of 2 — Political Position</span>
+      <h1 class="compass-title">Where do you stand?</h1>
+      <p class="compass-sub">Click or drag anywhere on the compass to set your political position. This is how ArgueOut finds you the best debate opponent.</p>
+    </div>
+
+    <!-- Axis labels -->
+    <div style="display:flex; justify-content:center; margin-bottom:6px">
+      <div style="font-size:0.75rem; font-weight:700; color:rgba(59,130,246,0.7); letter-spacing:0.08em; text-transform:uppercase; font-family:'Space Grotesk',sans-serif;">
+        ▲ AUTHORITARIAN
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:10px; justify-content:center">
+      <div style="font-size:0.75rem; font-weight:700; color:rgba(239,68,68,0.7); letter-spacing:0.08em; text-transform:uppercase; font-family:'Space Grotesk',sans-serif; writing-mode:vertical-rl; transform:rotate(180deg); user-select:none">
+        ◄ LEFT
+      </div>
+
+      <div class="compass-canvas-wrap" style="position:relative">
+        <canvas id="compassCanvas" width="420" height="420"></canvas>
+        <!-- Touch/click indicator -->
+        <div id="clickHint" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:0.72rem;color:var(--text-3);background:rgba(5,5,15,0.85);padding:6px 14px;border-radius:var(--r-full);border:1px solid var(--border);white-space:nowrap;pointer-events:none;backdrop-filter:blur(8px)">
+          Click or drag to set position
+        </div>
+      </div>
+
+      <div style="font-size:0.75rem; font-weight:700; color:rgba(59,130,246,0.7); letter-spacing:0.08em; text-transform:uppercase; font-family:'Space Grotesk',sans-serif; writing-mode:vertical-rl; user-select:none">
+        RIGHT ►
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:center; margin-top:6px; margin-bottom:20px">
+      <div style="font-size:0.75rem; font-weight:700; color:rgba(34,197,94,0.7); letter-spacing:0.08em; text-transform:uppercase; font-family:'Space Grotesk',sans-serif;">
+        ▼ LIBERTARIAN
+      </div>
+    </div>
+
+    <!-- Current position display -->
+    <div class="compass-position-label" id="positionDisplay">
+      <div class="position-quadrant" id="quadrantLabel" style="color:var(--text-2)">Click to set your position</div>
+      <div class="position-values" id="positionValues" style="color:var(--text-3)">Economic: — &nbsp;|&nbsp; Social: —</div>
+    </div>
+
+    <!-- Legend -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-md);background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:#f87171;font-family:'Space Grotesk',sans-serif">Auth-Left</div>
+          <div style="font-size:0.7rem;color:var(--text-3)">Socialism, Communism</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-md);background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#3b82f6;flex-shrink:0"></div>
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:#60a5fa;font-family:'Space Grotesk',sans-serif">Auth-Right</div>
+          <div style="font-size:0.7rem;color:var(--text-3)">Conservatism, Fascism</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-md);background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:#4ade80;font-family:'Space Grotesk',sans-serif">Lib-Left</div>
+          <div style="font-size:0.7rem;color:var(--text-3)">Anarchism, Green Politics</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-md);background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
+        <div>
+          <div style="font-size:0.78rem;font-weight:700;color:#fbbf24;font-family:'Space Grotesk',sans-serif">Lib-Right</div>
+          <div style="font-size:0.7rem;color:var(--text-3)">Libertarianism, Classical Lib.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="compassError" class="form-error" style="display:none; margin-bottom:12px">
+      <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="compassErrorText"></span>
+    </div>
+
+    <button class="btn btn-primary btn-full btn-lg" id="saveCompassBtn" disabled>
+      Save Position &amp; Enter Lobby
+    </button>
+    <div style="text-align:center; margin-top:12px; font-size:0.8rem; color:var(--text-3)">
+      You can update your position later from the lobby.
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/bg.js"></script>
+<script src="/js/compass.js"></script>
+</body>
+</html>

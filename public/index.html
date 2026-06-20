@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ArgueOut — Debate with Conviction</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+  <div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="/" class="nav-logo">ArgueOut</a>
+  <div class="nav-actions">
+    <a href="/login.html" class="btn btn-ghost btn-sm">Sign In</a>
+    <a href="/register.html" class="btn btn-primary btn-sm">Get Started</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="landing-hero">
+  <div class="container z-1">
+    <div class="hero-grid">
+      <div>
+        <h1 class="display hero-title">
+          Debate.<br>
+          <span class="debate-text">Disagree.</span><br>
+          Discover.
+        </h1>
+        <p class="hero-sub">
+          ArgueOut pairs you with someone who sees the world differently. Set your political compass, get matched with an opponent, and debate live — face to face, idea against idea.
+        </p>
+        <div class="hero-ctas">
+          <a href="/register.html" class="btn btn-debate btn-lg">Start Debating</a>
+          <a href="/login.html" class="btn btn-ghost">Already have an account?</a>
+        </div>
+        <div class="hero-stats">
+          <div>
+            <div class="stat-val">Live</div>
+            <div class="stat-label">Video Debates</div>
+          </div>
+          <div>
+            <div class="stat-val">4</div>
+            <div class="stat-label">Political Quadrants</div>
+          </div>
+          <div>
+            <div class="stat-val">∞</div>
+            <div class="stat-label">Topics to Argue</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animated compass preview -->
+      <div class="hero-compass-wrap">
+        <div class="hero-compass">
+          <canvas id="heroCompass" width="380" height="380"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features">
+  <div class="container">
+    <div class="text-center z-1" style="position:relative">
+      <div class="section-label">Why ArgueOut</div>
+      <h2 class="headline section-title">Built for <span class="gradient-text">Real Discourse</span></h2>
+      <p class="section-sub">We believe disagreement — done right — makes everyone sharper. Here's how we make it happen.</p>
+    </div>
+    <div class="features-grid z-1" style="position:relative">
+      <div class="feature-card">
+        <div class="feature-icon purple">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></svg>
+        </div>
+        <div class="feature-title">Political Compass</div>
+        <div class="feature-desc">Place yourself on an interactive 2D compass spanning economic and social axes. Your exact position drives who you debate.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon blue">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </div>
+        <div class="feature-title">Live Video Debate</div>
+        <div class="feature-desc">Real-time WebRTC video and audio. See your opponent, react to their arguments, and make your case — no hiding behind text.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon red">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="feature-title">Text Chat Included</div>
+        <div class="feature-desc">Drop links, share evidence, and follow threads in the integrated chat panel — all without leaving the debate room.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon purple">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="feature-title">Smart Matching</div>
+        <div class="feature-desc">Our algorithm pairs you with the most politically opposite person in the queue — maximising the clash of ideas.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon blue">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div class="feature-title">Rich Profiles</div>
+        <div class="feature-desc">Choose your name, username, age, gender, and religion. Your debate opponents see your political position — giving context to every argument.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon red">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div class="feature-title">Private & Secure</div>
+        <div class="feature-desc">Peer-to-peer WebRTC video means your stream never passes through our servers. JWT-authenticated sessions. No data sold.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section style="padding: 60px 0">
+  <div class="container">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; position:relative; z-index:1">
+      <div>
+        <div class="section-label">The Process</div>
+        <h2 class="headline" style="margin-bottom: 32px">From sign-up to <span class="gradient-text">debate</span> in minutes</h2>
+
+        <div style="display:flex; flex-direction:column; gap:24px">
+          <div class="how-step" style="align-items:flex-start; gap:16px">
+            <div style="width:40px; height:40px; border-radius:50%; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.3); display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:800; color:#a78bfa; flex-shrink:0; font-size:1rem">1</div>
+            <div>
+              <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; margin-bottom:4px">Create your account</div>
+              <div style="color:var(--text-2); font-size:0.9rem; line-height:1.6">Enter your name, username, age, gender, and religion — the context that shapes a debate.</div>
+            </div>
+          </div>
+          <div class="how-step" style="align-items:flex-start; gap:16px">
+            <div style="width:40px; height:40px; border-radius:50%; background:rgba(59,130,246,0.15); border:1px solid rgba(59,130,246,0.3); display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:800; color:#60a5fa; flex-shrink:0; font-size:1rem">2</div>
+            <div>
+              <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; margin-bottom:4px">Set your political position</div>
+              <div style="color:var(--text-2); font-size:0.9rem; line-height:1.6">Place your marker on an interactive compass spanning economic left–right and authoritarian–libertarian axes.</div>
+            </div>
+          </div>
+          <div class="how-step" style="align-items:flex-start; gap:16px">
+            <div style="width:40px; height:40px; border-radius:50%; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:800; color:#f87171; flex-shrink:0; font-size:1rem">3</div>
+            <div>
+              <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; margin-bottom:4px">Get matched & debate</div>
+              <div style="color:var(--text-2); font-size:0.9rem; line-height:1.6">Hit "Find Debate Partner" and we'll pair you with your political opposite. Video call + chat starts instantly.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:16px">
+        <div class="card" style="border-color:rgba(139,92,246,0.2)">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px">
+            <div class="nav-avatar" style="width:40px;height:40px;font-size:1rem">L</div>
+            <div>
+              <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:0.95rem">libertarian_dev</div>
+              <div class="badge badge-green" style="margin-top:4px">Libertarian Left</div>
+            </div>
+          </div>
+          <div style="font-size:0.88rem; color:var(--text-2); font-style:italic">"We need less government, not more. The free market solves resource allocation better than any central planner ever could."</div>
+        </div>
+        <div style="text-align:center; color:var(--text-3); font-size:0.8rem; letter-spacing:0.08em; text-transform:uppercase; font-weight:600">vs</div>
+        <div class="card" style="border-color:rgba(59,130,246,0.2)">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px">
+            <div class="nav-avatar" style="width:40px;height:40px;font-size:1rem;background:var(--grad-right)">A</div>
+            <div>
+              <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:0.95rem">auth_traditionalist</div>
+              <div class="badge badge-blue" style="margin-top:4px">Auth Right</div>
+            </div>
+          </div>
+          <div style="font-size:0.88rem; color:var(--text-2); font-style:italic">"Strong institutions and social order are prerequisites for individual liberty, not its enemy. Society needs structure."</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container z-1">
+    <div class="cta-card">
+      <span class="section-label">Ready?</span>
+      <h2 class="headline" style="margin-bottom:16px">Enter the arena.</h2>
+      <p style="color:var(--text-2); font-size:1.05rem; margin-bottom:36px; max-width:440px; margin-left:auto; margin-right:auto; line-height:1.7">
+        The best way to stress-test your beliefs is to defend them — live, on video, against someone who disagrees with everything you stand for.
+      </p>
+      <a href="/register.html" class="btn btn-debate btn-lg">Create Your Account</a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; position:relative; z-index:1">
+    <a href="/" class="nav-logo" style="font-size:1.1rem">ArgueOut</a>
+    <div style="color:var(--text-3); font-size:0.82rem">Built for those who dare to disagree.</div>
+  </div>
+</footer>
+
+<script>
+// Animated hero compass preview
+(function() {
+  const canvas = document.getElementById('heroCompass');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  let t = 0;
+
+  // Animated floating dot
+  const dots = [
+    { x: -0.55, y:  0.60, color: '#ef4444', label: 'Auth-Left' },
+    { x:  0.60, y:  0.55, color: '#3b82f6', label: 'Auth-Right' },
+    { x: -0.50, y: -0.55, color: '#22c55e', label: 'Lib-Left' },
+    { x:  0.45, y: -0.50, color: '#f59e0b', label: 'Lib-Right' },
+  ];
+
+  function toCanvas(px, py) {
+    return { cx: (px + 1) / 2 * W, cy: (1 - (py + 1) / 2) * H };
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Quadrant fills
+    const qColors = [
+      { x: 0, y: 0, w: W/2, h: H/2, color: 'rgba(59,130,246,0.08)' },   // top-right: auth-right
+      { x: W/2, y: 0, w: W/2, h: H/2, color: 'rgba(59,130,246,0.05)' }, // top-right
+      { x: 0, y: 0, w: W/2, h: H/2, color: 'rgba(239,68,68,0.08)' },     // top-left: auth-left
+      { x: 0, y: H/2, w: W/2, h: H/2, color: 'rgba(34,197,94,0.08)' },   // bottom-left: lib-left
+      { x: W/2, y: H/2, w: W/2, h: H/2, color: 'rgba(245,158,11,0.08)' },// bottom-right: lib-right
+    ];
+
+    ctx.fillStyle = 'rgba(239,68,68,0.07)';
+    ctx.fillRect(0, 0, W/2, H/2);
+    ctx.fillStyle = 'rgba(59,130,246,0.07)';
+    ctx.fillRect(W/2, 0, W/2, H/2);
+    ctx.fillStyle = 'rgba(34,197,94,0.07)';
+    ctx.fillRect(0, H/2, W/2, H/2);
+    ctx.fillStyle = 'rgba(245,158,11,0.07)';
+    ctx.fillRect(W/2, H/2, W/2, H/2);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+      ctx.beginPath(); ctx.moveTo(i * W/4, 0); ctx.lineTo(i * W/4, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * H/4); ctx.lineTo(W, i * H/4); ctx.stroke();
+    }
+
+    // Center axes
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+    // Quadrant labels
+    ctx.font = '600 11px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(239,68,68,0.6)';
+    ctx.fillText('AUTH-LEFT', W/4, 22);
+    ctx.fillStyle = 'rgba(59,130,246,0.6)';
+    ctx.fillText('AUTH-RIGHT', 3*W/4, 22);
+    ctx.fillStyle = 'rgba(34,197,94,0.6)';
+    ctx.fillText('LIB-LEFT', W/4, H - 10);
+    ctx.fillStyle = 'rgba(245,158,11,0.6)';
+    ctx.fillText('LIB-RIGHT', 3*W/4, H - 10);
+
+    // Animated dots
+    dots.forEach((dot, i) => {
+      const phase = t * 0.8 + i * Math.PI / 2;
+      const { cx, cy } = toCanvas(dot.x + Math.sin(phase) * 0.05, dot.y + Math.cos(phase * 0.7) * 0.04);
+
+      // Glow
+      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 22);
+      grd.addColorStop(0, dot.color + '55');
+      grd.addColorStop(1, dot.color + '00');
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(cx, cy, 22, 0, Math.PI * 2); ctx.fill();
+
+      // Dot
+      ctx.fillStyle = dot.color;
+      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // Animated connection lines
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < dots.length; i++) {
+      for (let j = i+1; j < dots.length; j++) {
+        const a = toCanvas(dots[i].x, dots[i].y);
+        const b = toCanvas(dots[j].x, dots[j].y);
+        ctx.beginPath(); ctx.moveTo(a.cx, a.cy); ctx.lineTo(b.cx, b.cy); ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
+
+    t += 0.012;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+<script src="/js/bg.js"></script>
+</body>
+</html>

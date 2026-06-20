@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <a href="/" class="nav-logo">ArgueOut</a>
+  <div class="nav-actions">
+    <a href="/register.html" class="btn btn-primary btn-sm">Create Account</a>
+  </div>
+</nav>
+
+<div class="page-center">
+  <div class="auth-card">
+    <div class="auth-logo text-center">
+      <a href="/" class="nav-logo" style="font-size:2rem">ArgueOut</a>
+    </div>
+    <div class="text-center" style="margin-bottom:28px">
+      <h1 class="auth-title">Welcome back</h1>
+      <p class="auth-sub" style="margin-bottom:0">Sign in to find your next debate partner.</p>
+    </div>
+
+    <form class="auth-form" id="loginForm" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" name="username"
+               placeholder="your_username" autocomplete="username" autocapitalize="none" required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div style="position:relative">
+          <input class="form-input" type="password" id="password" name="password"
+                 placeholder="••••••••" autocomplete="current-password" required
+                 style="padding-right:48px" />
+          <button type="button" id="togglePw" aria-label="Toggle password visibility"
+                  style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center">
+            <svg class="icon" id="eyeIcon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="loginError" class="form-error" style="display:none">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="loginErrorText"></span>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
+        Sign In
+      </button>
+    </form>
+
+    <div class="auth-footer-text">
+      Don't have an account? <a href="/register.html">Create one</a>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/bg.js"></script>
+<script src="/js/auth.js"></script>
+</body>
+</html>

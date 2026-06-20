@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <a href="/" class="nav-logo">ArgueOut</a>
+  <div class="nav-actions">
+    <a href="/login.html" class="btn btn-ghost btn-sm">Sign In</a>
+  </div>
+</nav>
+
+<div class="page-center">
+  <div class="auth-card" style="max-width:500px">
+    <div class="auth-logo text-center">
+      <a href="/" class="nav-logo" style="font-size:2rem">ArgueOut</a>
+    </div>
+
+    <!-- Step progress -->
+    <div class="step-progress" style="margin-bottom:28px">
+      <div class="step active" id="step-ind-1">
+        <div class="step-num">1</div>
+        <span>Identity</span>
+      </div>
+      <div class="step-line" id="line-1"></div>
+      <div class="step" id="step-ind-2">
+        <div class="step-num">2</div>
+        <span>Demographics</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Identity -->
+    <div id="step1">
+      <h1 class="auth-title" style="font-size:1.5rem">Create your account</h1>
+      <p class="auth-sub">Step 1 of 2 — Your public identity in every debate.</p>
+
+      <form class="auth-form" id="step1Form" novalidate>
+        <!-- Profile picture -->
+        <div class="avatar-upload" id="avatarUploadWrap">
+          <input type="file" id="avatarInput" accept="image/*" />
+          <div class="avatar-ring" id="avatarRing" onclick="document.getElementById('avatarInput').click()" role="button" tabindex="0" aria-label="Upload profile picture">
+            <div class="avatar-initials" id="avatarInitials">?</div>
+            <img class="avatar-preview" id="avatarPreview" src="" alt="Profile preview" style="display:none; position:absolute; inset:0;" />
+            <div class="avatar-overlay">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Upload
+            </div>
+          </div>
+          <div class="avatar-upload-hint">Click to upload a profile photo<br><span style="font-size:0.72rem">JPG, PNG, GIF · max 5 MB</span></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
+          <div class="form-group">
+            <label class="form-label" for="name">Full Name <span style="color:var(--red)">*</span></label>
+            <input class="form-input" type="text" id="name" placeholder="Jane Doe" autocomplete="name" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="username">Username <span style="color:var(--red)">*</span></label>
+            <input class="form-input" type="text" id="username" placeholder="jane_doe" autocomplete="username" autocapitalize="none" required />
+            <span class="form-helper">3–20 chars, letters/numbers/_</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password <span style="color:var(--red)">*</span></label>
+          <div style="position:relative">
+            <input class="form-input" type="password" id="password" placeholder="At least 6 characters"
+                   autocomplete="new-password" required style="padding-right:48px" />
+            <button type="button" id="togglePw1" aria-label="Toggle password"
+                    style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirm">Confirm Password <span style="color:var(--red)">*</span></label>
+          <input class="form-input" type="password" id="confirm" placeholder="Repeat password"
+                 autocomplete="new-password" required />
+        </div>
+
+        <div id="step1Error" class="form-error" style="display:none">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="step1ErrorText"></span>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">Continue</button>
+      </form>
+    </div>
+
+    <!-- Step 2: Demographics -->
+    <div id="step2" style="display:none">
+      <h1 class="auth-title" style="font-size:1.5rem">About you</h1>
+      <p class="auth-sub">Step 2 of 2 — Context for your debate opponents. All optional.</p>
+
+      <form class="auth-form" id="step2Form" novalidate>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
+          <div class="form-group">
+            <label class="form-label" for="age">Age</label>
+            <input class="form-input" type="number" id="age" placeholder="25" min="13" max="120" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="gender">Gender</label>
+            <div style="position:relative">
+              <select class="form-select" id="gender">
+                <option value="prefer_not_to_say">Prefer not to say</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="non_binary">Non-binary</option>
+                <option value="other">Other</option>
+              </select>
+              <svg class="icon icon-sm" viewBox="0 0 24 24" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-3)"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="religion">Religion / Worldview</label>
+          <div style="position:relative">
+            <select class="form-select" id="religion">
+              <option value="prefer_not_to_say">Prefer not to say</option>
+              <option value="atheist">Atheist / Agnostic</option>
+              <option value="christian">Christian</option>
+              <option value="muslim">Muslim</option>
+              <option value="jewish">Jewish</option>
+              <option value="hindu">Hindu</option>
+              <option value="buddhist">Buddhist</option>
+              <option value="sikh">Sikh</option>
+              <option value="spiritual">Spiritual (non-religious)</option>
+              <option value="other">Other</option>
+            </select>
+            <svg class="icon icon-sm" viewBox="0 0 24 24" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-3)"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+
+        <div id="step2Error" class="form-error" style="display:none">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="step2ErrorText"></span>
+        </div>
+
+        <div style="display:flex; gap:12px">
+          <button type="button" class="btn btn-ghost" id="backBtn" style="flex:0 0 auto; padding:13px 20px">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            Back
+          </button>
+          <button type="submit" class="btn btn-primary btn-full" id="registerBtn">
+            Create Account &amp; Continue
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="auth-footer-text">
+      Already have an account? <a href="/login.html">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/bg.js"></script>
+<script src="/js/auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Debate — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    body { overflow: hidden; }
+    .debate-layout { height: 100dvh; }
+  </style>
+</head>
+<body>
+
+<div class="debate-layout">
+
+  <!-- Header bar -->
+  <header class="debate-header">
+    <div style="display:flex;align-items:center;gap:12px;min-width:180px">
+      <a href="/lobby.html" class="nav-logo" style="font-size:1.1rem">ArgueOut</a>
+      <div class="badge badge-purple" id="debateBadge" style="font-size:0.65rem">LIVE</div>
+    </div>
+
+    <div class="debate-topic" id="debateTopicDisplay">
+      <span id="opponentInfo" style="color:var(--text-2)">Connecting...</span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:16px;min-width:180px;justify-content:flex-end">
+      <div style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:var(--text-3)">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" style="color:var(--green)"><circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.2"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
+        <span id="timerDisplay" class="debate-timer">00:00</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Video area -->
+  <div class="video-area">
+    <div class="video-grid">
+
+      <!-- Self video -->
+      <div class="video-panel self-panel" id="selfPanel">
+        <video id="selfVideo" autoplay muted playsinline></video>
+        <div class="video-no-cam" id="selfNoCam">
+          <div class="video-placeholder-avatar" id="selfPlaceholderAvatar">?</div>
+          <div class="video-placeholder-name" id="selfPlaceholderName">You</div>
+          <div style="font-size:0.78rem;color:var(--text-3);margin-top:4px">Camera off</div>
+        </div>
+        <div class="video-label">
+          <div class="video-dot"></div>
+          <span id="selfLabel">You</span>
+          <span id="selfPositionTag" style="font-size:0.7rem;color:var(--text-3)"></span>
+        </div>
+      </div>
+
+      <!-- Opponent video -->
+      <div class="video-panel opponent-panel" id="opponentPanel">
+        <video id="opponentVideo" autoplay playsinline></video>
+        <div class="video-no-cam" id="opponentNoCam" style="display:flex">
+          <div class="video-placeholder-avatar" id="opponentPlaceholderAvatar" style="background:var(--grad-right)">?</div>
+          <div class="video-placeholder-name" id="opponentPlaceholderName">Opponent</div>
+          <div id="connectingText" style="font-size:0.78rem;color:var(--text-3);margin-top:4px;display:flex;align-items:center;gap:8px">
+            <div class="spinner" style="width:14px;height:14px;border-width:2px"></div>
+            Connecting...
+          </div>
+        </div>
+        <div class="video-label">
+          <div class="video-dot" style="background:var(--blue);box-shadow:0 0 8px var(--blue)"></div>
+          <span id="opponentLabel">Opponent</span>
+          <span id="opponentPositionTag" style="font-size:0.7rem;color:var(--text-3)"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="debate-controls">
+    <div class="control-wrap">
+      <button class="btn-icon" id="muteBtn" title="Toggle microphone" aria-label="Toggle microphone">
+        <svg class="icon" id="micIcon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+      <div class="control-label">Mic</div>
+    </div>
+    <div class="control-wrap">
+      <button class="btn-icon" id="camBtn" title="Toggle camera" aria-label="Toggle camera">
+        <svg class="icon" id="camIcon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      </button>
+      <div class="control-label">Cam</div>
+    </div>
+    <div class="control-wrap">
+      <button class="btn-icon" id="chatToggleBtn" title="Toggle chat" aria-label="Toggle chat" style="position:relative">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span id="chatBadge" style="display:none;position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--red);border:2px solid var(--bg-0)"></span>
+      </button>
+      <div class="control-label">Chat</div>
+    </div>
+    <div class="control-wrap" style="margin-left:20px">
+      <button class="btn-icon danger" id="endBtn" title="End debate" aria-label="End debate">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07C9.44 17.29 7.76 15.19 6.7 12.77a19.79 19.79 0 0 1-3-8.59 2 2 0 0 1 1.99-2.18H8.5a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L9.5 9.9"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
+      </button>
+      <div class="control-label" style="color:var(--red)">End</div>
+    </div>
+  </div>
+
+  <!-- Chat sidebar -->
+  <aside class="chat-sidebar" id="chatSidebar">
+    <div class="chat-header">
+      <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Live Chat
+      <button id="closeChatBtn" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center" aria-label="Close chat">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-system-msg">Chat connected. Be respectful.</div>
+    </div>
+    <div class="chat-input-area">
+      <input type="file" id="chatImgInput" accept="image/*" style="display:none" />
+      <button class="chat-img-upload-btn" id="chatImgBtn" title="Share an image (expires when debate ends)" aria-label="Upload image to chat">
+        <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      </button>
+      <textarea class="chat-input" id="chatInput" placeholder="Type a message... (Enter to send)" rows="1" aria-label="Chat message"></textarea>
+      <button class="btn btn-primary btn-sm" id="sendBtn" aria-label="Send message" style="flex-shrink:0;padding:10px 14px;border-radius:var(--r-sm)">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </aside>
+
+</div>
+
+<!-- Debate ended overlay -->
+<div class="debate-ended-overlay" id="endedOverlay">
+  <div style="font-size:3rem;margin-bottom:8px">🏁</div>
+  <h2 style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;margin-bottom:8px">Debate Ended</h2>
+  <p style="color:var(--text-2);font-size:1rem;margin-bottom:32px;max-width:360px;line-height:1.7" id="endedReason">The debate has concluded.</p>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
+    <a href="/lobby.html" class="btn btn-primary btn-lg">Find Another Debate</a>
+    <a href="/lobby.html" class="btn btn-ghost">Back to Lobby</a>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/bg.js"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="/js/debate.js"></script>
+</body>
+</html>
