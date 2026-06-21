@@ -94,11 +94,25 @@ function setupSocket(user) {
     }
   });
 
-  socket.on('invite-joined', ({ roomId, opponent }) => {
-    localStorage.setItem('debateRoomId', roomId);
-    localStorage.setItem('debateOpponent', JSON.stringify(opponent));
+  let pendingRoomId = null, pendingOpponent = null;
+
+  socket.on('invite-waiting', ({ roomId, opponent }) => {
+    pendingRoomId   = roomId;
+    pendingOpponent = opponent;
+    const title = document.getElementById('joiningTitle');
+    const sub   = document.getElementById('joiningSubtitle');
+    if (title) title.textContent = 'Invite Sent!';
+    if (sub)   sub.textContent   = 'Waiting for the host to join...';
+    showState('joiningState');
+  });
+
+  socket.on('invite-start', ({ roomId }) => {
+    const rid = roomId || pendingRoomId;
+    if (!rid) return;
+    localStorage.setItem('debateRoomId', rid);
+    localStorage.setItem('debateOpponent', JSON.stringify(pendingOpponent || {}));
     localStorage.setItem('username', user.displayName || localStorage.getItem('username') || 'You');
-    window.location.href = `/debate?room=${encodeURIComponent(roomId)}`;
+    window.location.href = `/debate?room=${encodeURIComponent(rid)}`;
   });
 
   socket.on('invite-error', ({ error }) => {

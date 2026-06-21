@@ -101,6 +101,13 @@ const ICE_SERVERS = [
 
 let peerConn = null, localStream = null, rawMicStream = null;
 let micEnabled = true, camEnabled = true;
+let localMediaPromise = null;
+
+async function ensureLocalMedia() {
+  if (localStream) return localStream;
+  if (!localMediaPromise) localMediaPromise = getLocalMedia();
+  return localMediaPromise;
+}
 
 // ── RNNoise noise suppression ─────────────────────────────────
 let rnnoiseModule    = null;
@@ -301,11 +308,11 @@ socket.on('start-webrtc', async ({ isInitiator, opponent: opp }) => {
   const connTxt = document.getElementById('connectingText');
   if (connTxt) connTxt.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Establishing video...';
 
-  await getLocalMedia();
+  await ensureLocalMedia();
   if (isInitiator) await startAsInitiator();
 });
 
-socket.on('webrtc-offer',  async ({ offer })    => { if (!peerConn) await getLocalMedia(); await handleOffer(offer); });
+socket.on('webrtc-offer',  async ({ offer })    => { if (!peerConn) await ensureLocalMedia(); await handleOffer(offer); });
 socket.on('webrtc-answer', async ({ answer })   => { if (peerConn) await peerConn.setRemoteDescription(new RTCSessionDescription(answer)); });
 socket.on('webrtc-ice',    async ({ candidate }) => { if (peerConn) { try { await peerConn.addIceCandidate(new RTCIceCandidate(candidate)); } catch {} } });
 
@@ -471,10 +478,22 @@ if (camBtn) {
 
 if (endBtn) {
   endBtn.addEventListener('click', () => {
-    if (!confirm('End the debate?')) return;
     socket.emit('end-debate', { roomId });
   });
 }
+
+window.addEventListener('beforeunload', () => {
+  const uid = localStorage.getItem('userId');
+  if (roomId) {
+    socket.volatile.emit('end-debate', { roomId });
+    if (uid && navigator.sendBeacon) {
+      navigator.sendBeacon('/api/leave', new Blob(
+        [JSON.stringify({ roomId, userId: uid })],
+        { type: 'application/json' }
+      ));
+    }
+  }
+});
 
 // ── Chat sidebar ──────────────────────────────────────────────
 const chatToggle = document.getElementById('chatToggleBtn');

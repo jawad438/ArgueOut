@@ -167,7 +167,10 @@ socket.on('connect', () => {
 });
 
 socket.on('authenticated', () => {
-  // confirmed — nothing else needed here
+  if (new URLSearchParams(location.search).get('autoqueue') === '1') {
+    history.replaceState({}, '', '/lobby');
+    setTimeout(() => socket.emit('join-queue'), 300);
+  }
 });
 
 socket.on('auth-error', ({ error }) => {
@@ -316,7 +319,7 @@ socket.on('challenge-received', ({ from }) => {
   if (Notification.permission === 'granted') {
     new Notification('⚔️ ArgueOut Challenge', {
       body: `${from.username} is challenging you to a debate!`,
-      icon: '/icon.svg'
+      icon: '/logo.png'
     });
   }
 
@@ -342,6 +345,22 @@ socket.on('challenge-accepted', ({ roomId, opponent }) => {
 
 // ── Invite link events ────────────────────────────────────────
 let currentInviteUrl = '';
+let pendingInviteRoomId   = null;
+let pendingInviteOpponent = null;
+
+function joinInviteDebate() {
+  if (!pendingInviteRoomId) return;
+  localStorage.setItem('debateRoomId', pendingInviteRoomId);
+  localStorage.setItem('debateOpponent', JSON.stringify(pendingInviteOpponent || {}));
+  window.location.href = `/debate?room=${encodeURIComponent(pendingInviteRoomId)}`;
+}
+
+function dismissInviteNotif() {
+  const panel = document.getElementById('inviteNotifPanel');
+  if (panel) panel.classList.remove('active');
+  pendingInviteRoomId   = null;
+  pendingInviteOpponent = null;
+}
 
 socket.on('invite-generated', ({ url, expiresAt }) => {
   const fullUrl = window.location.origin + url;
@@ -357,11 +376,22 @@ socket.on('invite-generated', ({ url, expiresAt }) => {
 });
 
 socket.on('invite-accepted', ({ roomId, opponent }) => {
+  pendingInviteRoomId   = roomId;
+  pendingInviteOpponent = opponent;
+
   addToNotifHistory({ icon: '🔗', text: `${opponent.username} accepted your invite!` });
-  showToast(`${opponent.username} accepted your invite! Starting debate...`, 'success');
-  localStorage.setItem('debateRoomId', roomId);
-  localStorage.setItem('debateOpponent', JSON.stringify(opponent));
-  setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 800);
+
+  if (Notification.permission === 'granted') {
+    new Notification('🔗 ArgueOut Invite', {
+      body: `${opponent.username} accepted your invite! Tap to join the debate.`,
+      icon: '/logo.png'
+    });
+  }
+
+  const notifText = document.getElementById('inviteNotifText');
+  if (notifText) notifText.textContent = `${opponent.username} accepted your invite!`;
+  const panel = document.getElementById('inviteNotifPanel');
+  if (panel) panel.classList.add('active');
 });
 
 function copyInviteLink() {

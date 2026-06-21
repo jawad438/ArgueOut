@@ -51,6 +51,18 @@ app.use((req, res, next) => {
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
+app.post('/api/leave', express.json(), (req, res) => {
+  const { roomId, userId } = req.body || {};
+  if (roomId && userId) {
+    const room = rooms.get(roomId);
+    if (room && room.users.some(u => u.userId === userId)) {
+      const slot = room.users.find(u => u.userId === userId);
+      closeRoom(roomId, slot?.socketId || null, 'disconnect');
+    }
+  }
+  res.status(204).end();
+});
+
 app.get('/api/invite/:token', (req, res) => {
   const data = inviteTokens.get(req.params.token);
   if (!data || data.expiresAt < Date.now()) return res.json({ valid: false });
@@ -205,6 +217,11 @@ io.on('connection', socket => {
       });
     } else {
       socket.emit('waiting-for-opponent');
+      // If this is an invite room and the host just joined, tell the waiting guest to navigate
+      if (room.guestInviteSocketId) {
+        io.to(room.guestInviteSocketId).emit('invite-start', { roomId });
+        room.guestInviteSocketId = null;
+      }
     }
   });
 
@@ -343,11 +360,13 @@ io.on('connection', socket => {
       users: [
         { userId: hostUser.userId, username: hostUser.username, politicalX: hostUser.politicalX, politicalY: hostUser.politicalY, socketId: null },
         { userId: me.userId,       username: me.username,       politicalX: me.politicalX,       politicalY: me.politicalY,       socketId: null }
-      ]
+      ],
+      guestInviteSocketId: socket.id
     });
     const hostSock = io.sockets.sockets.get(hostSocketId);
     if (hostSock) hostSock.emit('invite-accepted', { roomId, opponent: { username: me.username, politicalX: me.politicalX, politicalY: me.politicalY } });
-    socket.emit('invite-joined', { roomId, opponent: { username: hostUser.username, politicalX: hostUser.politicalX, politicalY: hostUser.politicalY } });
+    // Guest waits on invite page until host joins the debate room
+    socket.emit('invite-waiting', { roomId, opponent: { username: hostUser.username, politicalX: hostUser.politicalX, politicalY: hostUser.politicalY } });
   });
 
   socket.on('reject-challenge', ({ challengerSocketId }) => {
