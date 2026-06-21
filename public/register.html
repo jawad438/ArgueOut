@@ -12,6 +12,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="ArgueOut" />
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
 </head>
 <body>
 <div class="bg-orbs" aria-hidden="true">
@@ -22,6 +23,16 @@
 <nav class="navbar">
   <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
   <div class="nav-actions">
+    <div class="theme-switcher">
+      <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme" title="Switch theme">
+        <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
+      </button>
+      <div class="theme-menu" id="themeMenu" style="display:none">
+        <button class="theme-menu-item" data-t="system" onclick="applyTheme('system')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>System<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+        <button class="theme-menu-item" data-t="light" onclick="applyTheme('light')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>Light<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+        <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+    </div>
     <a href="/login" class="btn btn-ghost btn-sm">Sign In</a>
   </div>
 </nav>
@@ -201,6 +212,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-init.js"></script>
 <script src="/js/bg.js"></script>
+<script src="/js/theme.js"></script>
 <script src="/js/auth.js"></script>
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
