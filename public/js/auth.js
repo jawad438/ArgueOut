@@ -102,7 +102,8 @@ async function handleGoogleSignIn(btnId) {
       sessionStorage.setItem('googleAuthPending', JSON.stringify({
         uid:         user.uid,
         displayName: user.displayName || '',
-        photoURL:    user.photoURL    || ''
+        photoURL:    user.photoURL    || '',
+        email:       user.email       || ''
       }));
       if (btn) setLoading(btn, false);
       window.location.href = '/register?mode=google';
@@ -230,12 +231,17 @@ if (step1Form) {
 
     const name     = document.getElementById('name').value.trim();
     const username = document.getElementById('username').value.trim();
+    const email    = (document.getElementById('email')?.value || '').trim();
     const password = document.getElementById('password').value;
     const confirm  = document.getElementById('confirm').value;
     const isGoogle = !!window._googlePending;
 
-    if (!name || !username || (!isGoogle && !password)) {
+    if (!name || !username || !email || (!isGoogle && !password)) {
       showError('step1Error', 'step1ErrorText', 'Please fill in all required fields.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError('step1Error', 'step1ErrorText', 'Please enter a valid email address.');
       return;
     }
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
@@ -261,7 +267,7 @@ if (step1Form) {
         showError('step1Error', 'step1ErrorText', 'Username already taken. Try another.');
         return;
       }
-      regData = isGoogle ? { name, username } : { name, username, password };
+      regData = isGoogle ? { name, username, email } : { name, username, password, email };
       goToStep(2);
     } catch {
       showError('step1Error', 'step1ErrorText', 'Network error. Check your connection.');
@@ -335,6 +341,7 @@ if (step2Form) {
       batch.set(firestoreDb.collection('users').doc(uid), {
         username:   regData.username,
         name:       regData.name,
+        email:      regData.email || '',
         gender:     gender   || 'prefer_not_to_say',
         religion:   religion || 'prefer_not_to_say',
         age:        ageNum || 18,
@@ -408,6 +415,15 @@ function goToStep(n) {
   if (nameEl && gd.displayName) {
     nameEl.value = gd.displayName;
     nameEl.dispatchEvent(new Event('input')); // update avatar initials
+  }
+
+  // Pre-fill email from Google account (read-only — they can't change their Google email here)
+  const emailEl = document.getElementById('email');
+  if (emailEl && gd.email) {
+    emailEl.value    = gd.email;
+    emailEl.readOnly = true;
+    emailEl.style.opacity = '0.7';
+    emailEl.style.cursor  = 'not-allowed';
   }
 
   // Hide password fields — not needed when signed in via Google

@@ -105,6 +105,12 @@ function updateProfileUI(profile) {
   if (profName)     profName.textContent     = profile.name || profile.username;
   if (profUsername) profUsername.textContent = `@${profile.username}`;
 
+  // Show display rows (they may be hidden from a previous edit session)
+  const nameDisplayRow     = document.getElementById('nameDisplayRow');
+  const usernameDisplayRow = document.getElementById('usernameDisplayRow');
+  if (nameDisplayRow)     nameDisplayRow.style.display     = 'flex';
+  if (usernameDisplayRow) usernameDisplayRow.style.display = 'flex';
+
   const savedAvatar = profile.avatarUrl || localStorage.getItem('avatarDataUrl');
   applyAvatar(savedAvatar, initial);
 
@@ -665,6 +671,118 @@ document.addEventListener('input', e => {
     if (el) el.textContent = e.target.value.length;
   }
 });
+
+// ── Name edit ──────────────────────────────────────────────────
+function startNameEdit() {
+  const nameEl = document.getElementById('profileName');
+  document.getElementById('nameDisplayRow').style.display = 'none';
+  document.getElementById('nameEditRow').style.display    = 'block';
+  const input = document.getElementById('nameInput');
+  if (input) { input.value = nameEl?.textContent || ''; input.focus(); }
+}
+
+function cancelNameEdit() {
+  document.getElementById('nameDisplayRow').style.display = 'flex';
+  document.getElementById('nameEditRow').style.display    = 'none';
+}
+
+async function saveName() {
+  const input = document.getElementById('nameInput');
+  const btn   = document.getElementById('saveNameBtn');
+  const user  = auth.currentUser;
+  if (!input || !user) return;
+
+  const newName = input.value.trim();
+  if (!newName) { showToast('Name cannot be empty.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  try {
+    await firestoreDb.collection('users').doc(user.uid).update({ name: newName });
+    const nameEl = document.getElementById('profileName');
+    if (nameEl) nameEl.textContent = newName;
+    cancelNameEdit();
+    showToast('Name updated!', 'success');
+  } catch {
+    showToast('Could not update name. Try again.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+// ── Username edit ──────────────────────────────────────────────
+function startUsernameEdit() {
+  const usernameEl = document.getElementById('profileUsername');
+  const current    = (usernameEl?.textContent || '').replace(/^@/, '');
+  document.getElementById('usernameDisplayRow').style.display = 'none';
+  document.getElementById('usernameEditRow').style.display    = 'block';
+  const input = document.getElementById('usernameInput');
+  if (input) { input.value = current; input.focus(); }
+}
+
+function cancelUsernameEdit() {
+  document.getElementById('usernameDisplayRow').style.display = 'flex';
+  document.getElementById('usernameEditRow').style.display    = 'none';
+}
+
+async function saveUsername() {
+  const input = document.getElementById('usernameInput');
+  const btn   = document.getElementById('saveUsernameBtn');
+  const user  = auth.currentUser;
+  if (!input || !user) return;
+
+  const newUsername = input.value.trim();
+  const oldUsername = localStorage.getItem('username') || '';
+
+  if (!newUsername) { showToast('Username cannot be empty.', 'error'); return; }
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
+    showToast('Username: 3–20 chars, letters/numbers/underscore only.', 'error');
+    return;
+  }
+  if (newUsername === oldUsername) { cancelUsernameEdit(); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+  try {
+    const existing = await firestoreDb.collection('usernames').doc(newUsername).get();
+    if (existing.exists) {
+      showToast('Username already taken. Try another.', 'error');
+      return;
+    }
+
+    btn.textContent = 'Saving...';
+
+    // Password-based accounts use username@argueout.app as Firebase Auth email — keep it in sync
+    const isPasswordAccount = user.email && user.email.endsWith('@argueout.app');
+    if (isPasswordAccount) {
+      await user.updateEmail(`${newUsername.toLowerCase().replace(/[^a-z0-9_]/g, '')}@argueout.app`);
+    }
+
+    const batch = firestoreDb.batch();
+    batch.update(firestoreDb.collection('users').doc(user.uid), { username: newUsername });
+    if (oldUsername) batch.delete(firestoreDb.collection('usernames').doc(oldUsername));
+    batch.set(firestoreDb.collection('usernames').doc(newUsername), { uid: user.uid });
+    await batch.commit();
+
+    localStorage.setItem('username', newUsername);
+    const usernameEl = document.getElementById('profileUsername');
+    const navUname   = document.getElementById('navUsername');
+    if (usernameEl) usernameEl.textContent = `@${newUsername}`;
+    if (navUname)   navUname.textContent   = newUsername;
+    cancelUsernameEdit();
+    showToast('Username updated!', 'success');
+  } catch (err) {
+    if (err.code === 'auth/requires-recent-login') {
+      showToast('Please sign out and sign back in to change your username.', 'error');
+    } else {
+      showToast('Could not update username. Try again.', 'error');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
 
 // ── Profile picture change ────────────────────────────────────
 const profilePicInput = document.getElementById('profilePicInput');
