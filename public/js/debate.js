@@ -102,6 +102,7 @@ const ICE_SERVERS = [
 let peerConn = null, localStream = null, rawMicStream = null;
 let micEnabled = true, camEnabled = true;
 let localMediaPromise = null;
+let currentFacingMode = 'user';
 
 async function ensureLocalMedia() {
   if (localStream) return localStream;
@@ -211,7 +212,7 @@ function updateNSBtn() {
 async function getLocalMedia() {
   try {
     rawMicStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
+      video: { facingMode: { ideal: 'user' } },
       audio: { echoCancellation: true, autoGainControl: true, noiseSuppression: false, sampleRate: 48000 }
     });
     const selfVideo = document.getElementById('selfVideo');
@@ -232,6 +233,53 @@ async function getLocalMedia() {
   } catch {
     showToast('Could not access camera/mic. Continuing with chat only.', 'info');
     return null;
+  }
+}
+
+async function flipCamera() {
+  const btn      = document.getElementById('flipCamBtn');
+  const nextMode = currentFacingMode === 'user' ? 'environment' : 'user';
+  if (btn) btn.disabled = true;
+
+  try {
+    const newVidStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: nextMode } },
+      audio: false
+    });
+    const newTrack = newVidStream.getVideoTracks()[0];
+    if (!newTrack) throw new Error('no track');
+
+    // Collect and stop old video tracks
+    const oldTracks = new Set([
+      ...(rawMicStream?.getVideoTracks() || []),
+      ...(localStream?.getVideoTracks()  || [])
+    ]);
+    rawMicStream?.getVideoTracks().forEach(t => rawMicStream.removeTrack(t));
+    localStream?.getVideoTracks().forEach(t => localStream.removeTrack(t));
+    oldTracks.forEach(t => t.stop());
+
+    // Add new track — respects current camEnabled state
+    newTrack.enabled = camEnabled;
+    if (rawMicStream) rawMicStream.addTrack(newTrack);
+    if (localStream && localStream !== rawMicStream) localStream.addTrack(newTrack);
+    else if (!rawMicStream && localStream)           localStream.addTrack(newTrack);
+
+    // Update peer connection without renegotiation
+    if (peerConn) {
+      const sender = peerConn.getSenders().find(s => s.track?.kind === 'video');
+      if (sender) await sender.replaceTrack(newTrack);
+    }
+
+    // Refresh self video preview
+    const selfVideo = document.getElementById('selfVideo');
+    if (selfVideo && localStream) selfVideo.srcObject = localStream;
+    if (camEnabled) document.getElementById('selfNoCam')?.classList.remove('active');
+
+    currentFacingMode = nextMode;
+  } catch {
+    showToast('Could not switch camera.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -475,6 +523,9 @@ if (camBtn) {
     camBtn.title = camEnabled ? 'Turn off camera' : 'Turn on camera';
   });
 }
+
+const flipCamBtn = document.getElementById('flipCamBtn');
+if (flipCamBtn) flipCamBtn.addEventListener('click', flipCamera);
 
 if (endBtn) {
   endBtn.addEventListener('click', () => {

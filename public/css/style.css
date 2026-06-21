@@ -1532,3 +1532,57 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 @media (min-width: 1025px) {
   #chatBackdrop { display: none !important; pointer-events: none !important; }
 }
+
+/* ── Flip camera button: mobile only ───────────────────────── */
+#flipCamWrap { display: none; }
+@media (max-width: 1024px) {
+  #flipCamWrap { display: flex; }
+}
+
+/* ── Google sign-in button ──────────────────────────────────── */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 20px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--r-md);
+  color: var(--text-1);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+  font-family: inherit;
+  line-height: 1;
+}
+.btn-google:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+.btn-google:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-google .spinner { width: 16px; height: 16px; border-width: 2px; flex-shrink: 0; }
+
+/* ── Auth divider ("or") ────────────────────────────────────── */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--text-3);
+  font-size: 0.82rem;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+/* ── Google username picker modal ───────────────────────────── */
+.google-username-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999; padding: 20px;
+  backdrop-filter: blur(4px);
+}

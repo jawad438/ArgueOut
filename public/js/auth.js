@@ -74,6 +74,131 @@ function compressAvatar(dataUrl) {
   });
 }
 
+// ── Google Sign-In ────────────────────────────────────────────
+
+async function handleGoogleSignIn(btnId) {
+  const btn = btnId ? document.getElementById(btnId) : null;
+  if (btn) setLoading(btn, true, 'Connecting...');
+
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const result   = await auth.signInWithPopup(provider);
+    const user     = result.user;
+
+    const doc = await firestoreDb.collection('users').doc(user.uid).get();
+
+    if (doc.exists) {
+      const profile = doc.data();
+      localStorage.setItem('username', profile.username);
+      localStorage.setItem('userId',   user.uid);
+      if (profile.avatarUrl) localStorage.setItem('avatarDataUrl', profile.avatarUrl);
+      showToast('Welcome back!', 'success');
+      setTimeout(() => {
+        const next = new URLSearchParams(location.search).get('next');
+        window.location.href = next || (profile.compassSet ? '/lobby' : '/compass');
+      }, 600);
+    } else {
+      if (btn) setLoading(btn, false);
+      showGoogleUsernameModal(user);
+    }
+  } catch (err) {
+    if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+      showToast(friendlyError(err.code) || 'Google sign-in failed. Try again.', 'error');
+    }
+    if (btn) setLoading(btn, false);
+  }
+}
+
+function showGoogleUsernameModal(user) {
+  const modal = document.createElement('div');
+  modal.className = 'google-username-modal';
+  modal.id = 'googleUsernameModal';
+  modal.innerHTML = `
+    <div class="auth-card" style="max-width:400px;width:100%;position:relative">
+      <div style="text-align:center;margin-bottom:20px">
+        ${user.photoURL ? `<img src="${user.photoURL}" style="width:64px;height:64px;border-radius:50%;margin-bottom:10px;border:2px solid var(--border)" alt="">` : ''}
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:4px">Almost there!</div>
+        <div style="color:var(--text-2);font-size:0.88rem">Hi ${escapeModalText(user.displayName || 'there')} — pick a username for ArgueOut.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="googleUsernameInput" type="text" placeholder="your_username" autocapitalize="none" autocomplete="off" maxlength="20" />
+        <span class="form-helper">3–20 chars, letters / numbers / underscore</span>
+      </div>
+      <div id="googleUsernameError" class="form-error" style="display:none">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="googleUsernameErrorText"></span>
+      </div>
+      <button id="googleUsernameBtn" class="btn btn-primary btn-full" style="margin-top:14px">Finish Setup</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const input = document.getElementById('googleUsernameInput');
+  const btn   = document.getElementById('googleUsernameBtn');
+  const errEl = document.getElementById('googleUsernameError');
+  const errTx = document.getElementById('googleUsernameErrorText');
+
+  const showErr = msg => { errTx.textContent = msg; errEl.style.display = 'flex'; };
+  const hideErr = ()  => { errEl.style.display = 'none'; };
+
+  input?.focus();
+
+  input?.addEventListener('keydown', e => { if (e.key === 'Enter') btn?.click(); });
+
+  btn?.addEventListener('click', async () => {
+    const username = input?.value.trim() || '';
+    hideErr();
+
+    if (!username) { showErr('Please enter a username.'); return; }
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      showErr('3–20 chars, letters/numbers/underscore only.');
+      return;
+    }
+
+    setLoading(btn, true, 'Setting up...');
+    try {
+      const taken = await firestoreDb.collection('usernames').doc(username).get();
+      if (taken.exists) { showErr('Username taken — try another.'); return; }
+
+      const batch = firestoreDb.batch();
+      batch.set(firestoreDb.collection('users').doc(user.uid), {
+        username,
+        name:       user.displayName || username,
+        gender:     'prefer_not_to_say',
+        religion:   'prefer_not_to_say',
+        age:        18,
+        bio:        '',
+        politicalX: 0,
+        politicalY: 0,
+        compassSet: false,
+        avatarUrl:  user.photoURL || null,
+        createdAt:  firebase.firestore.FieldValue.serverTimestamp()
+      });
+      batch.set(firestoreDb.collection('usernames').doc(username), { uid: user.uid });
+      await batch.commit();
+
+      localStorage.setItem('username', username);
+      localStorage.setItem('userId',   user.uid);
+      if (user.photoURL) localStorage.setItem('avatarDataUrl', user.photoURL);
+
+      showToast('Account created! Set your political position.', 'success');
+      setTimeout(() => {
+        const next = new URLSearchParams(location.search).get('next');
+        window.location.href = next ? `/compass?next=${encodeURIComponent(next)}` : '/compass';
+      }, 700);
+    } catch {
+      showErr('Something went wrong. Try again.');
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+}
+
+function escapeModalText(str) {
+  return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // ── Avatar preview (register page) ───────────────────────────
 
 const avatarInput = document.getElementById('avatarInput');
