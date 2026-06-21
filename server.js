@@ -74,6 +74,10 @@ app.get('/favicon.ico', (_, res) => {
   res.sendFile(path.join(__dirname, 'public', 'favicon.png'));
 });
 
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+});
+
 // ── In-memory state ───────────────────────────────────────────
 
 // socketId → { userId, username, politicalX, politicalY }

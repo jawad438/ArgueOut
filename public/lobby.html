@@ -179,7 +179,7 @@
       <span class="match-icon">⚔️</span>
       <div class="match-title">Ready to Debate?</div>
       <p class="match-desc">
-        We'll find someone whose political views are as far from yours as possible. Expect a real clash of ideas — live, on video.
+        We'll find someone whose political views are as far from yours as possible. Expect a real clash of ideas, live on video.
       </p>
       <button class="btn btn-debate btn-lg" id="findBtn">
         Find Debate Partner
@@ -223,19 +223,9 @@
     <!-- Tips card -->
     <div class="how-card" style="border-color:rgba(139,92,246,0.15)">
       <div class="how-title" style="color:var(--purple)">Debate tips</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:0.85rem;color:var(--text-2);display:flex;gap:10px;align-items:flex-start">
-          <span style="color:var(--purple);flex-shrink:0">→</span>
-          Steel-man your opponent's position before attacking it.
-        </div>
-        <div style="font-size:0.85rem;color:var(--text-2);display:flex;gap:10px;align-items:flex-start">
-          <span style="color:var(--purple);flex-shrink:0">→</span>
-          Cite evidence, not anecdotes. Use the chat to share links.
-        </div>
-        <div style="font-size:0.85rem;color:var(--text-2);display:flex;gap:10px;align-items:flex-start">
-          <span style="color:var(--purple);flex-shrink:0">→</span>
-          Changing your mind is not weakness — it's the point.
-        </div>
+      <div style="font-size:0.85rem;color:var(--text-2);display:flex;gap:10px;align-items:flex-start;min-height:2.8em">
+        <span style="color:var(--purple);flex-shrink:0">→</span>
+        <span id="debateTipText"></span><span id="debateTipCursor" style="display:inline-block;width:2px;height:1em;background:var(--purple);margin-left:1px;vertical-align:middle;animation:tipBlink 0.7s step-end infinite"></span>
       </div>
     </div>
 
@@ -355,6 +345,34 @@
 <script src="/js/theme.js"></script>
 <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 <script src="/js/lobby.js"></script>
+<script>
+(function(){
+  var tips=[
+    'Steel-man your opponent\'s position before attacking it.',
+    'Cite evidence, not anecdotes. Use the chat to share links.',
+    'Changing your mind is not weakness. It is the point.'
+  ];
+  var el=document.getElementById('debateTipText');
+  if(!el)return;
+  var idx=0,pos=0,deleting=false,pauseTimer=null;
+  function tick(){
+    var tip=tips[idx];
+    if(!deleting){
+      el.textContent=tip.slice(0,pos+1);
+      pos++;
+      if(pos>=tip.length){deleting=false;pauseTimer=setTimeout(startDelete,5000);return;}
+      setTimeout(tick,38);
+    } else {
+      el.textContent=tip.slice(0,pos-1);
+      pos--;
+      if(pos<=0){deleting=false;idx=(idx+1)%tips.length;pos=0;setTimeout(tick,400);return;}
+      setTimeout(tick,18);
+    }
+  }
+  function startDelete(){deleting=true;setTimeout(tick,18);}
+  tick();
+}());
+</script>
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>
