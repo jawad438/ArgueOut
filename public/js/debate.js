@@ -114,8 +114,9 @@ let noiseEnabled     = true;
 const RNNOISE_FRAME = 480;
 
 async function applyRNNoise(rawStream) {
-  const { default: createRNNWasmModule } = await import('/js/rnnoise.js');
-  rnnoiseModule = await createRNNWasmModule({ locateFile: f => '/js/' + f });
+  const factory = window.createRNNWasmModule;
+  if (typeof factory !== 'function') throw new Error('RNNoise not loaded');
+  rnnoiseModule = await factory({ locateFile: f => '/js/' + f });
 
   rnnoiseState  = rnnoiseModule._rnnoise_create(0);
   rnnoiseInPtr  = rnnoiseModule._malloc(RNNOISE_FRAME * 4);
