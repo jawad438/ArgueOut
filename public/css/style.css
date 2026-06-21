@@ -1586,3 +1586,190 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   z-index: 999; padding: 20px;
   backdrop-filter: blur(4px);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE UX IMPROVEMENTS
+   Skill: ceorkm/mobile-app-ui-design
+   Principles: thumb-zone · 8-point grid · 44/48px touch targets ·
+               emotional design (peak-end rule) · iOS safe-area insets
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Debate header brand/timer: remove hardcoded min-width ────── */
+.debate-header-brand {
+  display: flex; align-items: center; gap: 12px; min-width: 180px;
+}
+.debate-header-timer {
+  display: flex; align-items: center; gap: 16px;
+  min-width: 180px; justify-content: flex-end;
+}
+@media (max-width: 640px) {
+  .debate-header-brand,
+  .debate-header-timer { min-width: 0; flex: 0 0 auto; }
+  #debateBadge         { display: none; }
+  .debate-header       { padding: 10px 14px; }
+  .debate-topic        { font-size: 0.8rem; padding: 0 8px; }
+  .debate-timer        { font-size: 1rem; }
+}
+
+/* ── 1. LOBBY: Match panel FIRST on mobile (thumb-zone rule) ──── */
+@media (max-width: 1024px) {
+  .lobby-layout  { display: flex; flex-direction: column; }
+  .match-panel   { order: -1; }
+  .profile-panel { order:  1; }
+}
+@media (max-width: 768px) {
+  .lobby-layout { gap: 24px; padding: 80px 16px 40px; }
+  .match-card   { padding: 32px 24px; }
+  .match-icon   { font-size: 2.8rem; margin-bottom: 16px; }
+  .match-title  { font-size: 1.35rem; margin-bottom: 8px; }
+  .match-desc   { font-size: 0.88rem; margin-bottom: 24px; }
+  .btn-debate   { width: 100%; padding: 16px 32px; }
+}
+
+/* ── 2. SEARCHING ANIMATION: pulsing rings (emotional design) ──── */
+.searching-ring {
+  position: relative;
+  box-shadow: 0 0 0 0 rgba(139,92,246,0);
+}
+.searching-ring::before,
+.searching-ring::after {
+  content: '';
+  position: absolute; border-radius: 50%;
+  border: 1.5px solid rgba(139,92,246,0.18);
+  animation: searchRingPulse 2.2s ease-out infinite;
+  pointer-events: none;
+}
+.searching-ring::before { inset: -16px; animation-delay: 0s; }
+.searching-ring::after  { inset: -32px; animation-delay: 0.7s; }
+@keyframes searchRingPulse {
+  0%   { opacity: 0; transform: scale(0.75); }
+  35%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+/* ── 3. MATCH-FOUND FLASH: peak-moment animation ──────────────── */
+@keyframes matchFlash {
+  0%   { transform: scale(1);     box-shadow: var(--shadow-glass); }
+  35%  { transform: scale(1.025); box-shadow: 0 0 64px rgba(139,92,246,0.45), var(--shadow-glass); border-color: rgba(139,92,246,0.6); }
+  100% { transform: scale(1);     box-shadow: var(--shadow-glass); }
+}
+.match-card.match-found-flash {
+  animation: matchFlash 550ms var(--ease-out) forwards;
+}
+
+/* ── 4. TOUCH FEEDBACK: scale on press (pointer: coarse = touch) ─ */
+@media (hover: none) and (pointer: coarse) {
+  .btn-icon:active:not(:disabled)      { transform: scale(0.88); transition: transform 80ms; }
+  .btn:active:not(:disabled)           { transform: scale(0.97); transition: transform 80ms; }
+  .directory-user-row:active           { background: rgba(255,255,255,0.07); }
+  .btn-google:active:not(:disabled)    { transform: scale(0.98); transition: transform 80ms; }
+}
+
+/* Touch-action: removes 300 ms tap delay on all interactive elements */
+.btn, .btn-icon, .btn-google, .directory-user-row,
+[onclick], [role="button"] { touch-action: manipulation; }
+
+/* ── 5. TOUCH TARGETS: 48px min height (Apple HIG / Material) ─── */
+@media (max-width: 768px) {
+  .directory-user-row {
+    min-height: 56px;
+    padding: 12px;
+    border-radius: var(--r-lg);
+  }
+  /* Expand pencil-edit button tap areas in profile card */
+  #nameDisplayRow button,
+  #usernameDisplayRow button {
+    padding: 8px !important;
+    margin: -6px;
+    border-radius: var(--r-sm);
+  }
+  .modal-close { padding: 10px; }
+}
+
+/* ── 6. FORM INPUTS: 48px min + 16px font → prevents iOS auto-zoom */
+@media (max-width: 768px) {
+  .form-input,
+  .form-select {
+    min-height: 48px;
+    font-size: 16px; /* iOS zooms in on inputs < 16px — this prevents it */
+  }
+  #nameInput,
+  #usernameInput { font-size: 16px !important; }
+  .btn-sm { min-height: 40px; }
+}
+
+/* ── 7. DEBATE CONTROLS: 8pt grid + safe-area bottom (iOS notch) ─ */
+@media (max-width: 1024px) {
+  .debate-controls {
+    gap: 16px;
+    padding: 16px 20px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (max-width: 640px) {
+  .debate-controls {
+    gap: 8px;
+    padding: 12px 8px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    justify-content: space-around;
+  }
+  .control-wrap  { min-width: 52px; flex-shrink: 0; }
+  .control-label { font-size: 0.58rem; }
+}
+
+/* ── 8. VIDEO LAYOUT: opponent first on mobile (more intuitive) ── */
+@media (max-width: 640px) {
+  .video-area    { padding: 10px; gap: 8px; }
+  .video-grid    { gap: 8px; }
+  .opponent-panel { order: -1; }
+  .self-panel     { order:  1; }
+}
+
+/* ── 9. CHAT SIDEBAR: safe area on iPhone (home-bar overlap) ───── */
+@media (max-width: 1024px) {
+  .chat-input-area {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ── 10. CHALLENGE / INVITE NOTIFS: safe area + scroll clearance ─ */
+@media (max-width: 1024px) {
+  .challenge-notif {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ── 11. NOTIFICATION DROPDOWN: responsive width on small phones ─ */
+@media (max-width: 400px) {
+  .notif-dropdown { width: calc(100vw - 24px); right: -4px; }
+}
+
+/* ── 12. MODAL: bottom-sheet feel on small phones ───────────────── */
+@media (max-width: 480px) {
+  .modal-card { padding: 24px 20px; border-radius: var(--r-lg); max-height: 88dvh; }
+}
+
+/* ── 13. DEBATE ENDED OVERLAY: better mobile end-state ──────────── */
+@media (max-width: 640px) {
+  .debate-ended-overlay {
+    padding: 40px 24px;
+    padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+    gap: 16px;
+    align-items: stretch;
+  }
+  .debate-ended-overlay h2       { font-size: 1.65rem; }
+  .debate-ended-overlay .btn-lg  { padding: 16px 24px; font-size: 1rem; }
+}
+
+/* ── 14. PROFILE CARD: tighter on mobile, bigger name/username ─── */
+@media (max-width: 640px) {
+  .profile-card  { padding: 20px 16px; }
+  .profile-name  { font-size: 1.25rem; }
+}
+
+/* ── 15. HOW / TIPS CARDS: tighten on mobile ───────────────────── */
+@media (max-width: 640px) {
+  .how-card  { padding: 18px 16px; border-radius: var(--r-lg); }
+  .how-title { font-size: 0.76rem; margin-bottom: 14px; }
+  .how-text  { font-size: 0.82rem; }
+}

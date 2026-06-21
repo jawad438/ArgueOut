@@ -27,7 +27,7 @@
 
   <!-- Header bar -->
   <header class="debate-header">
-    <div style="display:flex;align-items:center;gap:12px;min-width:180px">
+    <div class="debate-header-brand">
       <a href="/lobby" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
       <div class="badge badge-purple" id="debateBadge" style="font-size:0.65rem">LIVE</div>
     </div>
@@ -36,7 +36,7 @@
       <span id="opponentInfo" style="color:var(--text-2)">Connecting...</span>
     </div>
 
-    <div style="display:flex;align-items:center;gap:16px;min-width:180px;justify-content:flex-end">
+    <div class="debate-header-timer">
       <div style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:var(--text-3)">
         <svg class="icon icon-sm" viewBox="0 0 24 24" style="color:var(--green)"><circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.2"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
         <span id="timerDisplay" class="debate-timer">00:00</span>

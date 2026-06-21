@@ -201,6 +201,9 @@ socket.on('queue-size', ({ size }) => {
 
 socket.on('match-found', ({ roomId, opponent }) => {
   inQueue = false;
+  // Peak-moment flash — gives the user a satisfying visual before redirect
+  const searchCard = document.getElementById('searchCard');
+  if (searchCard) searchCard.classList.add('match-found-flash');
   showToast(`Matched with ${opponent.username}!`, 'success');
   localStorage.setItem('debateRoomId',  roomId);
   localStorage.setItem('debateOpponent', JSON.stringify(opponent));
