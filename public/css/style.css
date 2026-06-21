@@ -1524,3 +1524,11 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 .icon { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .icon-sm { width: 14px; height: 14px; }
 .icon-lg { width: 24px; height: 24px; }
+
+/* ── Disabled control button ───────────────────────────────── */
+.btn-icon:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+/* ── Desktop: never let chatBackdrop block the UI ──────────── */
+@media (min-width: 1025px) {
+  #chatBackdrop { display: none !important; pointer-events: none !important; }
+}

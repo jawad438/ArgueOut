@@ -99,13 +99,125 @@ const ICE_SERVERS = [
   { urls: 'stun:stun2.l.google.com:19302' },
 ];
 
-let peerConn = null, localStream = null;
+let peerConn = null, localStream = null, rawMicStream = null;
 let micEnabled = true, camEnabled = true;
+
+// ── RNNoise noise suppression ─────────────────────────────────
+let rnnoiseModule    = null;
+let rnnoiseState     = null;
+let rnnoiseInPtr     = 0;
+let rnnoiseOutPtr    = 0;
+let rnnoiseAudioCtx  = null;
+let rnnoiseProcessor = null;
+let noiseEnabled     = true;
+
+const RNNOISE_FRAME = 480;
+
+async function applyRNNoise(rawStream) {
+  const { default: createRNNWasmModule } = await import('/js/rnnoise.js');
+  rnnoiseModule = await createRNNWasmModule({ locateFile: f => '/js/' + f });
+
+  rnnoiseState  = rnnoiseModule._rnnoise_create(0);
+  rnnoiseInPtr  = rnnoiseModule._malloc(RNNOISE_FRAME * 4);
+  rnnoiseOutPtr = rnnoiseModule._malloc(RNNOISE_FRAME * 4);
+
+  rnnoiseAudioCtx = new AudioContext({ sampleRate: 48000 });
+  const src  = rnnoiseAudioCtx.createMediaStreamSource(rawStream);
+  const dest = rnnoiseAudioCtx.createMediaStreamDestination();
+
+  // Typed-array ring buffers — no GC pressure during audio callbacks
+  const IN_CAP  = RNNOISE_FRAME * 20;
+  const OUT_CAP = RNNOISE_FRAME * 20;
+  const inBuf   = new Float32Array(IN_CAP);
+  const outBuf  = new Float32Array(OUT_CAP);
+  let inFill = 0, outFill = 0, outRead = 0;
+
+  rnnoiseProcessor = rnnoiseAudioCtx.createScriptProcessor(4096, 1, 1);
+  rnnoiseProcessor.onaudioprocess = (e) => {
+    const input  = e.inputBuffer.getChannelData(0);
+    const output = e.outputBuffer.getChannelData(0);
+
+    if (!noiseEnabled) {
+      output.set(input);
+      inFill = outFill = outRead = 0;
+      return;
+    }
+
+    // Accumulate input
+    const take = Math.min(input.length, IN_CAP - inFill);
+    inBuf.set(input.subarray(0, take), inFill);
+    inFill += take;
+
+    // Process full RNNoise frames
+    const h   = rnnoiseModule.HEAPF32;
+    const io  = rnnoiseInPtr  >> 2;
+    const oo  = rnnoiseOutPtr >> 2;
+    let start = 0;
+    while (start + RNNOISE_FRAME <= inFill) {
+      for (let i = 0; i < RNNOISE_FRAME; i++) h[io + i] = inBuf[start + i] * 32768;
+      rnnoiseModule._rnnoise_process_frame(rnnoiseState, rnnoiseOutPtr, rnnoiseInPtr);
+      const space = OUT_CAP - outFill;
+      const copy  = Math.min(RNNOISE_FRAME, space);
+      for (let i = 0; i < copy; i++) outBuf[outFill + i] = h[oo + i] / 32768;
+      outFill += copy;
+      start   += RNNOISE_FRAME;
+    }
+    // Compact input buffer
+    if (start > 0) { inBuf.copyWithin(0, start, inFill); inFill -= start; }
+
+    // Drain output buffer into Web Audio output
+    for (let i = 0; i < output.length; i++) {
+      output[i] = outRead < outFill ? outBuf[outRead++] : 0;
+    }
+    // Compact output buffer periodically to avoid index drift
+    if (outRead >= RNNOISE_FRAME) {
+      outBuf.copyWithin(0, outRead, outFill);
+      outFill -= outRead;
+      outRead  = 0;
+    }
+  };
+
+  src.connect(rnnoiseProcessor);
+  rnnoiseProcessor.connect(dest);
+
+  return new MediaStream([
+    ...rawStream.getVideoTracks(),
+    ...dest.stream.getAudioTracks()
+  ]);
+}
+
+function updateNSBtn() {
+  const btn = document.getElementById('nsBtn');
+  const lbl = document.getElementById('nsLabel');
+  if (!btn) return;
+  const available = !!rnnoiseModule;
+  btn.disabled = !available;
+  // .active (purple) = NS is currently OFF
+  btn.classList.toggle('active', available && !noiseEnabled);
+  btn.title = !available
+    ? 'Noise suppression unavailable'
+    : noiseEnabled ? 'Noise suppression: ON — click to disable' : 'Noise suppression: OFF — click to enable';
+  if (lbl) lbl.textContent = !available ? 'NS' : noiseEnabled ? 'NS: ON' : 'NS: OFF';
+}
 
 async function getLocalMedia() {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    rawMicStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: { echoCancellation: true, autoGainControl: true, noiseSuppression: false, sampleRate: 48000 }
+    });
     const selfVideo = document.getElementById('selfVideo');
+
+    try {
+      localStream = await applyRNNoise(rawMicStream);
+      updateNSBtn();
+    } catch (err) {
+      console.warn('RNNoise unavailable:', err);
+      localStream = rawMicStream;
+      noiseEnabled = false;
+      updateNSBtn();
+    }
+
     if (selfVideo) selfVideo.srcObject = localStream;
     document.getElementById('selfNoCam')?.classList.remove('active');
     return localStream;
@@ -298,6 +410,9 @@ socket.on('debate-ended', ({ reason }) => {
   clearInterval(timerInterval);
   if (peerConn) peerConn.close();
   if (localStream) localStream.getTracks().forEach(t => t.stop());
+  if (rawMicStream && rawMicStream !== localStream) rawMicStream.getTracks().forEach(t => t.stop());
+  if (rnnoiseState && rnnoiseModule) { rnnoiseModule._rnnoise_destroy(rnnoiseState); rnnoiseState = null; }
+  if (rnnoiseAudioCtx) { rnnoiseAudioCtx.close().catch(() => {}); rnnoiseAudioCtx = null; }
 
   markAllImagesExpired();
 
@@ -318,12 +433,27 @@ const endBtn  = document.getElementById('endBtn');
 
 if (muteBtn) {
   muteBtn.addEventListener('click', () => {
-    if (!localStream) return;
+    if (!rawMicStream && !localStream) return;
     micEnabled = !micEnabled;
-    localStream.getAudioTracks().forEach(t => { t.enabled = micEnabled; });
+    // Mute the raw mic (stops audio entering the noise suppressor)
+    if (rawMicStream) rawMicStream.getAudioTracks().forEach(t => { t.enabled = micEnabled; });
+    // Also mute the processed output track if it differs
+    if (localStream && localStream !== rawMicStream) {
+      localStream.getAudioTracks().forEach(t => { t.enabled = micEnabled; });
+    }
     muteBtn.classList.toggle('active', !micEnabled);
     muteBtn.title = micEnabled ? 'Mute microphone' : 'Unmute microphone';
     showToast(micEnabled ? 'Microphone on' : 'Microphone muted', 'info');
+  });
+}
+
+const nsBtn = document.getElementById('nsBtn');
+if (nsBtn) {
+  nsBtn.addEventListener('click', () => {
+    if (!rnnoiseModule) return;
+    noiseEnabled = !noiseEnabled;
+    updateNSBtn();
+    showToast(noiseEnabled ? 'Noise suppression enabled' : 'Noise suppression disabled', 'info');
   });
 }
 
@@ -366,7 +496,7 @@ function openChat() {
   if (!chatSide) return;
   if (isMobile()) {
     chatSide.classList.add('mobile-visible');
-    if (chatBackdrop) chatBackdrop.style.display = 'block';
+    if (chatBackdrop) { chatBackdrop.style.display = 'block'; chatBackdrop.style.pointerEvents = 'auto'; }
   } else {
     chatSide.style.display = 'flex';
   }
@@ -381,7 +511,7 @@ function closeChat_() {
   } else {
     chatSide.style.display = 'none';
   }
-  if (chatBackdrop) chatBackdrop.style.display = 'none';
+  if (chatBackdrop) { chatBackdrop.style.display = 'none'; chatBackdrop.style.pointerEvents = 'none'; }
   if (chatToggle) chatToggle.classList.remove('active');
 }
 

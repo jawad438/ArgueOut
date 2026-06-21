@@ -104,6 +104,12 @@
       </button>
       <div class="control-label">Chat</div>
     </div>
+    <div class="control-wrap">
+      <button class="btn-icon" id="nsBtn" title="Noise suppression: ON" aria-label="Toggle noise suppression">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+      </button>
+      <div class="control-label" id="nsLabel">NS</div>
+    </div>
     <div class="control-wrap" style="margin-left:20px">
       <button class="btn-icon danger" id="endBtn" title="End debate" aria-label="End debate">
         <svg class="icon" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07C9.44 17.29 7.76 15.19 6.7 12.77a19.79 19.79 0 0 1-3-8.59 2 2 0 0 1 1.99-2.18H8.5a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L9.5 9.9"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
@@ -112,8 +118,8 @@
     </div>
   </div>
 
-  <!-- Mobile chat backdrop -->
-  <div id="chatBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:149" onclick="closeChat_()"></div>
+  <!-- Mobile chat backdrop (pointer-events:none keeps it safe on desktop) -->
+  <div id="chatBackdrop" style="display:none;pointer-events:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:149" onclick="closeChat_()"></div>
 
   <!-- Chat sidebar -->
   <aside class="chat-sidebar" id="chatSidebar">
