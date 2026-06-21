@@ -98,8 +98,14 @@ async function handleGoogleSignIn(btnId) {
         window.location.href = next || (profile.compassSet ? '/lobby' : '/compass');
       }, 600);
     } else {
+      // New Google user — send them through the full register form
+      sessionStorage.setItem('googleAuthPending', JSON.stringify({
+        uid:         user.uid,
+        displayName: user.displayName || '',
+        photoURL:    user.photoURL    || ''
+      }));
       if (btn) setLoading(btn, false);
-      showGoogleUsernameModal(user);
+      window.location.href = '/register?mode=google';
     }
   } catch (err) {
     if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
@@ -107,96 +113,6 @@ async function handleGoogleSignIn(btnId) {
     }
     if (btn) setLoading(btn, false);
   }
-}
-
-function showGoogleUsernameModal(user) {
-  const modal = document.createElement('div');
-  modal.className = 'google-username-modal';
-  modal.id = 'googleUsernameModal';
-  modal.innerHTML = `
-    <div class="auth-card" style="max-width:400px;width:100%;position:relative">
-      <div style="text-align:center;margin-bottom:20px">
-        ${user.photoURL ? `<img src="${user.photoURL}" style="width:64px;height:64px;border-radius:50%;margin-bottom:10px;border:2px solid var(--border)" alt="">` : ''}
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:4px">Almost there!</div>
-        <div style="color:var(--text-2);font-size:0.88rem">Hi ${escapeModalText(user.displayName || 'there')} — pick a username for ArgueOut.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Username</label>
-        <input class="form-input" id="googleUsernameInput" type="text" placeholder="your_username" autocapitalize="none" autocomplete="off" maxlength="20" />
-        <span class="form-helper">3–20 chars, letters / numbers / underscore</span>
-      </div>
-      <div id="googleUsernameError" class="form-error" style="display:none">
-        <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span id="googleUsernameErrorText"></span>
-      </div>
-      <button id="googleUsernameBtn" class="btn btn-primary btn-full" style="margin-top:14px">Finish Setup</button>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  const input = document.getElementById('googleUsernameInput');
-  const btn   = document.getElementById('googleUsernameBtn');
-  const errEl = document.getElementById('googleUsernameError');
-  const errTx = document.getElementById('googleUsernameErrorText');
-
-  const showErr = msg => { errTx.textContent = msg; errEl.style.display = 'flex'; };
-  const hideErr = ()  => { errEl.style.display = 'none'; };
-
-  input?.focus();
-
-  input?.addEventListener('keydown', e => { if (e.key === 'Enter') btn?.click(); });
-
-  btn?.addEventListener('click', async () => {
-    const username = input?.value.trim() || '';
-    hideErr();
-
-    if (!username) { showErr('Please enter a username.'); return; }
-    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      showErr('3–20 chars, letters/numbers/underscore only.');
-      return;
-    }
-
-    setLoading(btn, true, 'Setting up...');
-    try {
-      const taken = await firestoreDb.collection('usernames').doc(username).get();
-      if (taken.exists) { showErr('Username taken — try another.'); return; }
-
-      const batch = firestoreDb.batch();
-      batch.set(firestoreDb.collection('users').doc(user.uid), {
-        username,
-        name:       user.displayName || username,
-        gender:     'prefer_not_to_say',
-        religion:   'prefer_not_to_say',
-        age:        18,
-        bio:        '',
-        politicalX: 0,
-        politicalY: 0,
-        compassSet: false,
-        avatarUrl:  user.photoURL || null,
-        createdAt:  firebase.firestore.FieldValue.serverTimestamp()
-      });
-      batch.set(firestoreDb.collection('usernames').doc(username), { uid: user.uid });
-      await batch.commit();
-
-      localStorage.setItem('username', username);
-      localStorage.setItem('userId',   user.uid);
-      if (user.photoURL) localStorage.setItem('avatarDataUrl', user.photoURL);
-
-      showToast('Account created! Set your political position.', 'success');
-      setTimeout(() => {
-        const next = new URLSearchParams(location.search).get('next');
-        window.location.href = next ? `/compass?next=${encodeURIComponent(next)}` : '/compass';
-      }, 700);
-    } catch {
-      showErr('Something went wrong. Try again.');
-    } finally {
-      setLoading(btn, false);
-    }
-  });
-}
-
-function escapeModalText(str) {
-  return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ── Avatar preview (register page) ───────────────────────────
@@ -316,8 +232,9 @@ if (step1Form) {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
     const confirm  = document.getElementById('confirm').value;
+    const isGoogle = !!window._googlePending;
 
-    if (!name || !username || !password) {
+    if (!name || !username || (!isGoogle && !password)) {
       showError('step1Error', 'step1ErrorText', 'Please fill in all required fields.');
       return;
     }
@@ -325,13 +242,15 @@ if (step1Form) {
       showError('step1Error', 'step1ErrorText', 'Username: 3–20 chars, letters/numbers/underscore only.');
       return;
     }
-    if (password.length < 6) {
-      showError('step1Error', 'step1ErrorText', 'Password must be at least 6 characters.');
-      return;
-    }
-    if (password !== confirm) {
-      showError('step1Error', 'step1ErrorText', 'Passwords do not match.');
-      return;
+    if (!isGoogle) {
+      if (password.length < 6) {
+        showError('step1Error', 'step1ErrorText', 'Password must be at least 6 characters.');
+        return;
+      }
+      if (password !== confirm) {
+        showError('step1Error', 'step1ErrorText', 'Passwords do not match.');
+        return;
+      }
     }
 
     const btn = step1Form.querySelector('button[type="submit"]');
@@ -342,7 +261,7 @@ if (step1Form) {
         showError('step1Error', 'step1ErrorText', 'Username already taken. Try another.');
         return;
       }
-      regData = { name, username, password };
+      regData = isGoogle ? { name, username } : { name, username, password };
       goToStep(2);
     } catch {
       showError('step1Error', 'step1ErrorText', 'Network error. Check your connection.');
@@ -380,27 +299,38 @@ if (step2Form) {
 
     const btn = document.getElementById('registerBtn');
     setLoading(btn, true, 'Creating account...');
+    const isGoogle = !!window._googlePending;
 
     try {
-      // 1. Create Firebase Auth user
-      const userCred = await auth.createUserWithEmailAndPassword(
-        fakeEmail(regData.username), regData.password
-      );
-      const uid = userCred.user.uid;
+      let uid;
 
-      // 2. Compress avatar and store in Firestore (no Storage needed)
+      if (isGoogle) {
+        // Google user already authenticated — just use their existing UID
+        uid = window._googlePending.uid;
+      } else {
+        // Normal sign-up: create Firebase Auth user with fake-email pattern
+        const userCred = await auth.createUserWithEmailAndPassword(
+          fakeEmail(regData.username), regData.password
+        );
+        uid = userCred.user.uid;
+      }
+
+      // Avatar: Google photo URL or compressed upload
       let avatarUrl = null;
-      const avatarDataUrl = localStorage.getItem('avatarDataUrl');
-      if (avatarDataUrl && avatarDataUrl.startsWith('data:')) {
-        try {
-          avatarUrl = await compressAvatar(avatarDataUrl);
-          localStorage.setItem('avatarDataUrl', avatarUrl);
-        } catch {
-          // avatar compression failure is non-fatal
+      if (isGoogle && window._googlePending.photoURL) {
+        avatarUrl = window._googlePending.photoURL;
+        localStorage.setItem('avatarDataUrl', avatarUrl);
+      } else {
+        const avatarDataUrl = localStorage.getItem('avatarDataUrl');
+        if (avatarDataUrl && avatarDataUrl.startsWith('data:')) {
+          try {
+            avatarUrl = await compressAvatar(avatarDataUrl);
+            localStorage.setItem('avatarDataUrl', avatarUrl);
+          } catch {}
         }
       }
 
-      // 3. Write user profile + username index atomically
+      // Write user profile + username index atomically
       const batch = firestoreDb.batch();
       batch.set(firestoreDb.collection('users').doc(uid), {
         username:   regData.username,
@@ -420,6 +350,10 @@ if (step2Form) {
 
       localStorage.setItem('username', regData.username);
       localStorage.setItem('userId',   uid);
+      if (isGoogle) {
+        sessionStorage.removeItem('googleAuthPending');
+        window._googlePending = null;
+      }
 
       showToast('Account created! Now set your political position.', 'success');
       setTimeout(() => {
@@ -453,3 +387,47 @@ function goToStep(n) {
     if (line1) line1.classList.remove('done');
   }
 }
+
+// ── Google registration mode ──────────────────────────────────
+// Runs when user arrives at /register?mode=google after Google OAuth
+(function initGoogleMode() {
+  if (!step1Form) return; // only active on register page
+  if (new URLSearchParams(location.search).get('mode') !== 'google') return;
+
+  const pendingStr = sessionStorage.getItem('googleAuthPending');
+  if (!pendingStr) { history.replaceState({}, '', '/register'); return; }
+
+  let gd;
+  try { gd = JSON.parse(pendingStr); } catch { return; }
+  if (!gd?.uid) { history.replaceState({}, '', '/register'); return; }
+
+  window._googlePending = gd;
+
+  // Pre-fill name from Google account (user can edit it)
+  const nameEl = document.getElementById('name');
+  if (nameEl && gd.displayName) {
+    nameEl.value = gd.displayName;
+    nameEl.dispatchEvent(new Event('input')); // update avatar initials
+  }
+
+  // Hide password fields — not needed when signed in via Google
+  ['password', 'confirm'].forEach(id => {
+    const group = document.getElementById(id)?.closest('.form-group');
+    if (group) group.style.display = 'none';
+  });
+  const toggler = document.getElementById('togglePw1');
+  if (toggler) toggler.style.display = 'none';
+
+  // Pre-fill avatar with Google profile photo
+  if (gd.photoURL) {
+    localStorage.setItem('avatarDataUrl', gd.photoURL);
+    const preview  = document.getElementById('avatarPreview');
+    const initials = document.getElementById('avatarInitials');
+    if (preview)  { preview.src = gd.photoURL; preview.style.display = 'block'; }
+    if (initials) initials.style.display = 'none';
+  }
+
+  // Update subtitle to reflect Google context
+  const sub = document.querySelector('#step1 .auth-sub');
+  if (sub) sub.innerHTML = 'Step 1 of 2 &mdash; <span style="color:var(--green)">&#10003; Signed in with Google.</span> Choose your username.';
+})();
