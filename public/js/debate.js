@@ -288,8 +288,8 @@ socket.on('auth-error', ({ error }) => {
 });
 
 socket.on('room-not-found', () => {
-  showToast('Room not found — returning to lobby.', 'error');
-  setTimeout(() => { window.location.href = '/lobby'; }, 2000);
+  const overlay = document.getElementById('roomNotFoundOverlay');
+  if (overlay) overlay.classList.add('active');
 });
 
 socket.on('waiting-for-opponent', () => {

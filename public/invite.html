@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Debate Invite — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <meta name="theme-color" content="#8b5cf6" />
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+</nav>
+
+<div class="page-center">
+
+  <!-- Loading -->
+  <div id="loadingState" class="auth-card" style="text-align:center;padding:48px 32px">
+    <div class="spinner spinner-lg" style="margin:0 auto 20px"></div>
+    <div style="color:var(--text-2)">Checking invite...</div>
+  </div>
+
+  <!-- Invalid / expired -->
+  <div id="invalidState" class="auth-card" style="display:none;text-align:center;padding:48px 32px">
+    <div style="font-size:3rem;margin-bottom:12px">🔗</div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:10px">Link Expired</h1>
+    <p style="color:var(--text-2);line-height:1.7;margin-bottom:28px" id="invalidMsg">This invite link has expired or doesn't exist.</p>
+    <a href="/" class="btn btn-primary">Go to ArgueOut</a>
+  </div>
+
+  <!-- Valid invite — not logged in -->
+  <div id="loginPromptState" class="auth-card" style="display:none;text-align:center;padding:40px 32px">
+    <div style="font-size:3rem;margin-bottom:12px">⚔️</div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:800;margin-bottom:8px">You've Been Challenged</h1>
+    <p style="color:var(--text-2);margin-bottom:6px"><strong id="loginHostName" style="color:var(--text-1)"></strong> has invited you to a live political debate.</p>
+    <p style="color:var(--text-3);font-size:0.85rem;margin-bottom:28px" id="loginExpireText"></p>
+    <a id="loginToAcceptBtn" href="#" class="btn btn-primary btn-lg btn-full" style="margin-bottom:12px">Sign In to Accept</a>
+    <a id="registerToAcceptBtn" href="#" class="btn btn-ghost btn-full">Create Account</a>
+  </div>
+
+  <!-- Valid invite — logged in, ready to join -->
+  <div id="inviteState" class="auth-card" style="display:none;text-align:center;padding:40px 32px">
+    <div style="font-size:3rem;margin-bottom:12px">⚔️</div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:800;margin-bottom:8px">You've Been Challenged</h1>
+    <p style="color:var(--text-2);margin-bottom:6px"><strong id="inviteHostName" style="color:var(--text-1)"></strong> has invited you to a live political debate.</p>
+    <p style="color:var(--text-3);font-size:0.85rem;margin-bottom:28px" id="inviteExpireText"></p>
+    <button class="btn btn-debate btn-lg btn-full" id="acceptBtn" style="margin-bottom:12px">
+      Accept & Join Debate
+    </button>
+    <a href="/lobby" class="btn btn-ghost btn-full">Decline — Go to Lobby</a>
+    <div id="inviteError" style="display:none;margin-top:16px;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:var(--r-md);color:var(--red);font-size:0.85rem"></div>
+  </div>
+
+  <!-- Joining in progress -->
+  <div id="joiningState" class="auth-card" style="display:none;text-align:center;padding:48px 32px">
+    <div class="spinner spinner-lg" style="margin:0 auto 20px"></div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:1.2rem;font-weight:700;margin-bottom:8px">Starting Debate...</div>
+    <div style="color:var(--text-2);font-size:0.9rem">Setting up your room</div>
+  </div>
+
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/bg.js"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="/js/invite.js"></script>
+</body>
+</html>

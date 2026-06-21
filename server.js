@@ -51,6 +51,12 @@ app.use((req, res, next) => {
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
+app.get('/api/invite/:token', (req, res) => {
+  const data = inviteTokens.get(req.params.token);
+  if (!data || data.expiresAt < Date.now()) return res.json({ valid: false });
+  res.json({ valid: true, hostUsername: data.hostUsername, expiresAt: data.expiresAt });
+});
+
 app.get('/favicon.ico', (_, res) => {
   res.setHeader('Content-Type', 'image/png');
   res.sendFile(path.join(__dirname, 'public', 'favicon.png'));
@@ -69,6 +75,13 @@ const socketUsers = new Map();
 
 // socketId → full profile (for online directory & challenges)
 const onlineUsers = new Map();
+
+// invite token → { hostUserId, hostUsername, expiresAt }
+const inviteTokens = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [t, d] of inviteTokens) if (d.expiresAt < now) inviteTokens.delete(t);
+}, 60000);
 
 function broadcastOnlineUsers() {
   // Deduplicate by userId — keep the most recent entry (last socketId wins)
@@ -287,6 +300,54 @@ io.on('connection', socket => {
 
     s1.emit('challenge-accepted', { roomId, opponent: { username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY         } });
     s2.emit('challenge-accepted', { roomId, opponent: { username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY } });
+  });
+
+  // ── Invite links ─────────────────────────────────────────────
+
+  socket.on('generate-invite', ({ expiryMs }) => {
+    const me = onlineUsers.get(socket.id);
+    if (!me) return;
+    const VALID = [60000, 300000, 600000, 1200000, 1800000, 3600000];
+    const ms    = VALID.includes(Number(expiryMs)) ? Number(expiryMs) : 300000;
+    const token = uuidv4();
+    const expiresAt = Date.now() + ms;
+    inviteTokens.set(token, { hostUserId: me.userId, hostUsername: me.username, expiresAt });
+    socket.emit('invite-generated', { token, url: `/invite?token=${token}`, expiresAt });
+  });
+
+  socket.on('accept-invite', ({ token }) => {
+    const me   = onlineUsers.get(socket.id);
+    const data = inviteTokens.get(token);
+    if (!me) return;
+    if (!data || data.expiresAt < Date.now()) {
+      socket.emit('invite-error', { error: 'This invite link has expired or is no longer valid.' });
+      return;
+    }
+    if (data.hostUserId === me.userId) {
+      socket.emit('invite-error', { error: 'You cannot join your own invite link.' });
+      return;
+    }
+    const hostEntry = [...onlineUsers.entries()].find(([, u]) => u.userId === data.hostUserId);
+    if (!hostEntry) {
+      socket.emit('invite-error', { error: `${data.hostUsername} is no longer online.` });
+      return;
+    }
+    const [hostSocketId, hostUser] = hostEntry;
+    if (hostUser.inDebate) {
+      socket.emit('invite-error', { error: `${data.hostUsername} is currently in another debate.` });
+      return;
+    }
+    inviteTokens.delete(token);
+    const roomId = uuidv4();
+    rooms.set(roomId, {
+      users: [
+        { userId: hostUser.userId, username: hostUser.username, politicalX: hostUser.politicalX, politicalY: hostUser.politicalY, socketId: null },
+        { userId: me.userId,       username: me.username,       politicalX: me.politicalX,       politicalY: me.politicalY,       socketId: null }
+      ]
+    });
+    const hostSock = io.sockets.sockets.get(hostSocketId);
+    if (hostSock) hostSock.emit('invite-accepted', { roomId, opponent: { username: me.username, politicalX: me.politicalX, politicalY: me.politicalY } });
+    socket.emit('invite-joined', { roomId, opponent: { username: hostUser.username, politicalX: hostUser.politicalX, politicalY: hostUser.politicalY } });
   });
 
   socket.on('reject-challenge', ({ challengerSocketId }) => {

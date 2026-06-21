@@ -104,6 +104,34 @@
       <div style="font-size:0.78rem;color:var(--text-3);margin-bottom:4px">Users in queue</div>
       <div style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;" class="gradient-text" id="queueSizeDisplay">—</div>
     </div>
+
+    <!-- Invite link generator -->
+    <div class="profile-card" style="padding:18px 20px">
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.08em;font-family:'Space Grotesk',sans-serif;margin-bottom:12px">Invite to Debate</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <select id="inviteExpiry" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 10px;color:var(--text-1);font-size:0.82rem;outline:none;cursor:pointer">
+          <option value="60000">1 minute</option>
+          <option value="300000" selected>5 minutes</option>
+          <option value="600000">10 minutes</option>
+          <option value="1200000">20 minutes</option>
+          <option value="1800000">30 minutes</option>
+          <option value="3600000">1 hour</option>
+        </select>
+        <button class="btn btn-primary btn-sm" id="generateInviteBtn" style="flex-shrink:0;white-space:nowrap">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          Generate
+        </button>
+      </div>
+      <div id="inviteLinkBox" style="display:none">
+        <div style="display:flex;align-items:center;gap:6px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:var(--r-sm);padding:8px 10px;margin-bottom:6px">
+          <span id="inviteLinkText" style="flex:1;font-size:0.75rem;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace"></span>
+          <button id="copyInviteBtn" onclick="copyInviteLink()" style="background:none;border:none;cursor:pointer;color:var(--purple);padding:2px;flex-shrink:0;display:flex;align-items:center" title="Copy link">
+            <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+        <div id="inviteExpireText" style="font-size:0.72rem;color:var(--text-3);text-align:center"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Right panel: matchmaking -->

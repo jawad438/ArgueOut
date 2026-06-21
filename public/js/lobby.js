@@ -340,6 +340,60 @@ socket.on('challenge-accepted', ({ roomId, opponent }) => {
   setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
 });
 
+// ── Invite link events ────────────────────────────────────────
+let currentInviteUrl = '';
+
+socket.on('invite-generated', ({ url, expiresAt }) => {
+  const fullUrl = window.location.origin + url;
+  currentInviteUrl = fullUrl;
+  const box      = document.getElementById('inviteLinkBox');
+  const linkText = document.getElementById('inviteLinkText');
+  const expText  = document.getElementById('inviteExpireText');
+  if (box)      box.style.display      = 'block';
+  if (linkText) linkText.textContent   = fullUrl;
+  const mins = Math.round((expiresAt - Date.now()) / 60000);
+  if (expText)  expText.textContent    = `Expires in ${mins} minute${mins !== 1 ? 's' : ''}`;
+  showToast('Invite link generated! Copy and share it.', 'success');
+});
+
+socket.on('invite-accepted', ({ roomId, opponent }) => {
+  addToNotifHistory({ icon: '🔗', text: `${opponent.username} accepted your invite!` });
+  showToast(`${opponent.username} accepted your invite! Starting debate...`, 'success');
+  localStorage.setItem('debateRoomId', roomId);
+  localStorage.setItem('debateOpponent', JSON.stringify(opponent));
+  setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 800);
+});
+
+function copyInviteLink() {
+  if (!currentInviteUrl) return;
+  navigator.clipboard.writeText(currentInviteUrl).then(() => {
+    showToast('Link copied to clipboard!', 'success');
+    const btn = document.getElementById('copyInviteBtn');
+    if (btn) {
+      btn.innerHTML = '<svg style="width:14px;height:14px;fill:none;stroke:var(--green);stroke-width:2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+      setTimeout(() => {
+        btn.innerHTML = '<svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+      }, 2000);
+    }
+  }).catch(() => {
+    const tmp = document.createElement('textarea');
+    tmp.value = currentInviteUrl;
+    document.body.appendChild(tmp);
+    tmp.select();
+    document.execCommand('copy');
+    tmp.remove();
+    showToast('Link copied!', 'success');
+  });
+}
+
+const generateInviteBtn = document.getElementById('generateInviteBtn');
+if (generateInviteBtn) {
+  generateInviteBtn.addEventListener('click', () => {
+    const expiry = parseInt(document.getElementById('inviteExpiry')?.value || '300000');
+    socket.emit('generate-invite', { expiryMs: expiry });
+  });
+}
+
 socket.on('challenge-rejected', ({ byUsername }) => {
   addToNotifHistory({ icon: '❌', text: `${byUsername} declined your challenge.` });
   showToast(`${byUsername} declined your challenge.`, 'info');
