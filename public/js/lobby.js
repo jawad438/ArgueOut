@@ -311,10 +311,12 @@ socket.on('challenge-error', ({ error }) => {
 socket.on('challenge-received', ({ from }) => {
   pendingChallengeFrom = from;
 
+  addToNotifHistory({ icon: '⚔️', text: `${from.username} challenged you to a debate!` });
+
   if (Notification.permission === 'granted') {
     new Notification('⚔️ ArgueOut Challenge', {
       body: `${from.username} is challenging you to a debate!`,
-      icon: '/icon-192.png'
+      icon: '/icon.svg'
     });
   }
 
@@ -324,7 +326,6 @@ socket.on('challenge-received', ({ from }) => {
   const panel = document.getElementById('challengeNotifPanel');
   if (panel) panel.classList.add('active');
 
-  // Auto-dismiss after 30s
   setTimeout(() => {
     if (panel) panel.classList.remove('active');
     pendingChallengeFrom = null;
@@ -332,6 +333,7 @@ socket.on('challenge-received', ({ from }) => {
 });
 
 socket.on('challenge-accepted', ({ roomId, opponent }) => {
+  addToNotifHistory({ icon: '✅', text: `${opponent.username} accepted your challenge!` });
   showToast(`Challenge accepted! Starting debate...`, 'success');
   localStorage.setItem('debateRoomId', roomId);
   localStorage.setItem('debateOpponent', JSON.stringify(opponent));
@@ -339,6 +341,7 @@ socket.on('challenge-accepted', ({ roomId, opponent }) => {
 });
 
 socket.on('challenge-rejected', ({ byUsername }) => {
+  addToNotifHistory({ icon: '❌', text: `${byUsername} declined your challenge.` });
   showToast(`${byUsername} declined your challenge.`, 'info');
   closeProfileModal();
 });
@@ -431,21 +434,89 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-// ── Notification bell click ───────────────────────────────────
+// ── Notification history & dropdown ──────────────────────────
+let notifHistory = [];
+let notifDropdownOpen = false;
+
+function addToNotifHistory(notif) {
+  notifHistory.unshift({ ...notif, time: new Date().toISOString(), read: false });
+  if (notifHistory.length > 50) notifHistory.pop();
+  refreshNotifBadge();
+  if (notifDropdownOpen) renderNotifList();
+}
+
+function refreshNotifBadge() {
+  const badge = document.getElementById('notifBadge');
+  const unread = notifHistory.filter(n => !n.read).length;
+  if (badge) {
+    badge.textContent = unread > 9 ? '9+' : String(unread);
+    badge.style.display = unread > 0 ? 'flex' : 'none';
+  }
+}
+
+function renderNotifList() {
+  const list = document.getElementById('notifList');
+  if (!list) return;
+  if (notifHistory.length === 0) {
+    list.innerHTML = '<div class="notif-empty">No notifications yet</div>';
+    return;
+  }
+  list.innerHTML = notifHistory.map(n => {
+    const timeStr = new Date(n.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `<div class="notif-item${n.read ? '' : ' unread'}">
+      <span class="notif-item-icon">${n.icon || '🔔'}</span>
+      <div class="notif-item-body">
+        <div class="notif-item-text">${escapeHtml(n.text)}</div>
+        <div class="notif-item-time">${timeStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openNotifDropdown() {
+  const dropdown = document.getElementById('notifDropdown');
+  if (!dropdown) return;
+  notifDropdownOpen = true;
+  notifHistory.forEach(n => { n.read = true; });
+  refreshNotifBadge();
+  renderNotifList();
+  dropdown.style.display = 'flex';
+}
+
+function closeNotifDropdown() {
+  const dropdown = document.getElementById('notifDropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  notifDropdownOpen = false;
+}
+
+function clearNotifications() {
+  notifHistory = [];
+  refreshNotifBadge();
+  renderNotifList();
+}
+
 const notifBtn = document.getElementById('notifBtn');
 if (notifBtn) {
-  notifBtn.addEventListener('click', () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(p => {
-        if (p === 'granted') showToast('Notifications enabled! You\'ll be notified of challenges.', 'success');
-      });
-    } else if (Notification.permission === 'granted') {
-      showToast('Notifications are enabled. You\'ll be notified of debate challenges.', 'info');
+  notifBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (notifDropdownOpen) {
+      closeNotifDropdown();
     } else {
-      showToast('Notifications are blocked. Enable them in your browser settings.', 'error');
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+      openNotifDropdown();
     }
   });
 }
+
+document.addEventListener('click', e => {
+  if (!notifDropdownOpen) return;
+  const dropdown = document.getElementById('notifDropdown');
+  if (dropdown && !dropdown.contains(e.target) && !notifBtn?.contains(e.target)) {
+    closeNotifDropdown();
+  }
+});
 
 // ── Bio edit ──────────────────────────────────────────────────
 function startBioEdit() {

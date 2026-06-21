@@ -378,10 +378,10 @@ function closeChat_() {
   if (!chatSide) return;
   if (isMobile()) {
     chatSide.classList.remove('mobile-visible');
-    if (chatBackdrop) chatBackdrop.style.display = 'none';
   } else {
     chatSide.style.display = 'none';
   }
+  if (chatBackdrop) chatBackdrop.style.display = 'none';
   if (chatToggle) chatToggle.classList.remove('active');
 }
 

@@ -1,12 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#05050f"/>
-  <rect width="512" height="512" rx="96" fill="url(#g)"/>
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#8b5cf6"/>
+    <linearGradient id="lBub" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
       <stop offset="100%" stop-color="#3b82f6"/>
     </linearGradient>
+    <linearGradient id="rBub" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7f1d1d"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
   </defs>
-  <text x="256" y="370" font-family="Georgia,serif" font-size="320" font-weight="900"
-        fill="#ffffff" text-anchor="middle" opacity="0.95">A</text>
+
+  <!-- Dark background -->
+  <rect width="512" height="512" rx="96" fill="#07070e"/>
+
+  <!-- Soft glow orbs -->
+  <ellipse cx="148" cy="215" rx="135" ry="115" fill="#2563eb" opacity="0.18"/>
+  <ellipse cx="364" cy="215" rx="135" ry="115" fill="#dc2626" opacity="0.18"/>
+
+  <!-- Left speech bubble (blue) — tail at bottom-center -->
+  <path d="M 70 52 L 222 52 Q 258 52 258 88 L 258 300 Q 258 336 222 336 L 168 336 L 148 392 L 128 336 L 70 336 Q 34 336 34 300 L 34 88 Q 34 52 70 52 Z" fill="url(#lBub)"/>
+
+  <!-- Right speech bubble (red) — tail at bottom-center -->
+  <path d="M 254 88 Q 254 52 290 52 L 442 52 Q 478 52 478 88 L 478 300 Q 478 336 442 336 L 384 336 L 364 392 L 344 336 L 290 336 Q 254 336 254 300 Z" fill="url(#rBub)"/>
+
+  <!-- Left microphone (white, centered x≈146 y≈190) -->
+  <rect x="120" y="95" width="52" height="108" rx="26" fill="rgba(255,255,255,0.9)"/>
+  <path d="M 104,197 Q 104,248 146,248 Q 188,248 188,197" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="13" stroke-linecap="round"/>
+  <line x1="146" y1="248" x2="146" y2="280" stroke="rgba(255,255,255,0.9)" stroke-width="13" stroke-linecap="round"/>
+  <line x1="117" y1="280" x2="175" y2="280" stroke="rgba(255,255,255,0.9)" stroke-width="13" stroke-linecap="round"/>
+
+  <!-- Right microphone (white, centered x≈366 y≈190) -->
+  <rect x="340" y="95" width="52" height="108" rx="26" fill="rgba(255,255,255,0.9)"/>
+  <path d="M 324,197 Q 324,248 366,248 Q 408,248 408,197" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="13" stroke-linecap="round"/>
+  <line x1="366" y1="248" x2="366" y2="280" stroke="rgba(255,255,255,0.9)" stroke-width="13" stroke-linecap="round"/>
+  <line x1="337" y1="280" x2="395" y2="280" stroke="rgba(255,255,255,0.9)" stroke-width="13" stroke-linecap="round"/>
+
+  <!-- Lightning bolt (centered between bubbles, drawn on top) -->
+  <path d="M 274 58 L 236 228 L 262 228 L 240 392 L 282 210 L 256 210 Z" fill="#fcd34d" stroke="#f59e0b" stroke-width="3" stroke-linejoin="round"/>
 </svg>

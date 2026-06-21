@@ -26,10 +26,21 @@
       <div class="nav-avatar" id="navAvatar">?</div>
       <span id="navUsername" style="color:var(--text-2)">Loading...</span>
     </div>
-    <button class="notif-btn" id="notifBtn" title="Notifications" aria-label="Notifications">
-      <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span class="notif-badge" id="notifBadge" style="display:none">0</span>
-    </button>
+    <div style="position:relative">
+      <button class="notif-btn" id="notifBtn" title="Notifications" aria-label="Notifications">
+        <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+      </button>
+      <div id="notifDropdown" class="notif-dropdown" style="display:none">
+        <div class="notif-dropdown-header">
+          <span>Notifications</span>
+          <button onclick="clearNotifications()" class="notif-clear-btn" aria-label="Clear all">Clear all</button>
+        </div>
+        <div id="notifList" class="notif-list">
+          <div class="notif-empty">No notifications yet</div>
+        </div>
+      </div>
+    </div>
     <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign Out</button>
   </div>
 </nav>
