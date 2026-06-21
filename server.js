@@ -52,8 +52,8 @@ app.use((req, res, next) => {
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
 app.get('/favicon.ico', (_, res) => {
-  res.setHeader('Content-Type', 'image/svg+xml');
-  res.sendFile(path.join(__dirname, 'public', 'icon.svg'));
+  res.setHeader('Content-Type', 'image/png');
+  res.sendFile(path.join(__dirname, 'public', 'favicon.png'));
 });
 
 // ── In-memory state ───────────────────────────────────────────

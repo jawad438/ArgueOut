@@ -353,6 +353,9 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   font-size: 1.5rem;
   font-weight: 800;
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  line-height: 0;
   background: var(--grad-debate);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -639,8 +642,10 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   padding: 44px 40px;
   box-shadow: var(--shadow-glass);
 }
+.nav-logo-img { height: 38px; width: auto; display: block; }
+.nav-logo-lg  { height: 60px; }
 .auth-logo { margin-bottom: 32px; }
-.auth-logo .nav-logo { font-size: 2rem; }
+.auth-logo .nav-logo { justify-content: center; }
 .auth-title { font-size: 1.7rem; font-weight: 700; margin-bottom: 6px; }
 .auth-sub   { color: var(--text-2); font-size: 0.92rem; margin-bottom: 32px; }
 
