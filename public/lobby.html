@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lobby — ArgueOut</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+  <meta name="theme-color" content="#8b5cf6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ArgueOut" />
 </head>
 <body>
 <div class="bg-orbs" aria-hidden="true">
@@ -19,6 +26,10 @@
       <div class="nav-avatar" id="navAvatar">?</div>
       <span id="navUsername" style="color:var(--text-2)">Loading...</span>
     </div>
+    <button class="notif-btn" id="notifBtn" title="Notifications" aria-label="Notifications">
+      <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+    </button>
     <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign Out</button>
   </div>
 </nav>
@@ -59,7 +70,7 @@
         </div>
       </div>
 
-      <a href="/compass.html" class="btn btn-ghost btn-sm btn-full">
+      <a href="/compass" class="btn btn-ghost btn-sm btn-full">
         <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></svg>
         Update Position
       </a>
@@ -151,6 +162,48 @@
       </div>
     </div>
 
+    <!-- Online users directory -->
+    <div class="how-card" id="directoryCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div class="how-title" style="margin-bottom:0">Online Now</div>
+        <span id="onlineCount" style="font-size:0.8rem;color:var(--text-3)">—</span>
+      </div>
+      <div id="directoryList" style="display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto">
+        <div style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:20px 0">No other users online</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Challenge notification (bottom-right) -->
+<div class="challenge-notif" id="challengeNotifPanel">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="font-size:1.5rem;flex-shrink:0">⚔️</div>
+    <div style="flex:1">
+      <div id="challengeNotifText" style="font-size:0.9rem;font-weight:600;margin-bottom:10px">Someone challenged you!</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" id="acceptChallengeBtn">Accept</button>
+        <button class="btn btn-ghost btn-sm" id="rejectChallengeBtn">Decline</button>
+      </div>
+    </div>
+    <button id="dismissChallengeBtn" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- User profile modal -->
+<div class="modal-overlay" id="userProfileModal" style="display:none" onclick="if(event.target===this)closeProfileModal()">
+  <div class="modal-card">
+    <button class="modal-close" id="closeProfileModal" onclick="closeProfileModal()" aria-label="Close">
+      <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div id="modalContent"></div>
+    <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary btn-full" id="challengeBtn" style="display:none">⚔️ Challenge to Debate</button>
+      <div id="challengePendingMsg" style="display:none;text-align:center;font-size:0.85rem;color:var(--text-3)">Challenge sent — waiting for response...</div>
+    </div>
   </div>
 </div>
 
@@ -162,5 +215,6 @@
 <script src="/js/bg.js"></script>
 <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 <script src="/js/lobby.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

@@ -155,7 +155,7 @@ if (loginForm) {
 
       showToast('Welcome back!', 'success');
       setTimeout(() => {
-        window.location.href = profile.compassSet ? '/lobby.html' : '/compass.html';
+        window.location.href = profile.compassSet ? '/lobby' : '/compass';
       }, 600);
     } catch (err) {
       showError('loginError', 'loginErrorText', friendlyError(err.code || err.message));
@@ -296,7 +296,7 @@ if (step2Form) {
       localStorage.setItem('userId',   uid);
 
       showToast('Account created! Now set your political position.', 'success');
-      setTimeout(() => { window.location.href = '/compass.html'; }, 700);
+      setTimeout(() => { window.location.href = '/compass'; }, 700);
     } catch (err) {
       showError('step2Error', 'step2ErrorText', friendlyError(err.code || err.message));
     } finally {

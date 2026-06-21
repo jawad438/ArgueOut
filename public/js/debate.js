@@ -3,7 +3,7 @@
 // ── Room context ──────────────────────────────────────────────
 const params = new URLSearchParams(location.search);
 const roomId = params.get('room') || localStorage.getItem('debateRoomId');
-if (!roomId) { window.location.href = '/lobby.html'; }
+if (!roomId) { window.location.href = '/lobby'; }
 
 let opponent = null;
 try { opponent = JSON.parse(localStorage.getItem('debateOpponent')); } catch {}
@@ -24,15 +24,6 @@ function showToast(msg, type = 'info') {
   setTimeout(() => t.remove(), 4500);
 }
 
-function addSystemMsg(text) {
-  const msgs = document.getElementById('chatMessages');
-  if (!msgs) return;
-  const div = document.createElement('div');
-  div.className = 'chat-system-msg';
-  div.textContent = text;
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-}
 
 function getPositionTag(px, py) {
   if (px === undefined || py === undefined) return '';
@@ -120,7 +111,6 @@ async function getLocalMedia() {
     return localStream;
   } catch {
     showToast('Could not access camera/mic. Continuing with chat only.', 'info');
-    addSystemMsg('Camera/mic not available — text chat still works.');
     return null;
   }
 }
@@ -141,13 +131,12 @@ function createPeerConnection() {
       if (noCam)   noCam.style.display   = 'none';
       if (connTxt) connTxt.style.display = 'none';
       startTimer();
-      addSystemMsg('Video connected — debate started!');
     }
   };
 
   pc.oniceconnectionstatechange = () => {
-    if (pc.iceConnectionState === 'failed')       addSystemMsg('Connection failed. Try refreshing.');
-    if (pc.iceConnectionState === 'disconnected') addSystemMsg('Opponent connection lost.');
+    if (pc.iceConnectionState === 'failed')       showToast('Connection failed. Try refreshing.', 'error');
+    if (pc.iceConnectionState === 'disconnected') showToast('Opponent connection lost.', 'info');
   };
 
   if (localStream) localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
@@ -159,7 +148,6 @@ async function startAsInitiator() {
   const offer = await peerConn.createOffer();
   await peerConn.setLocalDescription(offer);
   socket.emit('webrtc-offer', { roomId, offer });
-  addSystemMsg('Offer sent — waiting for opponent...');
 }
 
 async function handleOffer(offer) {
@@ -168,7 +156,6 @@ async function handleOffer(offer) {
   const answer = await peerConn.createAnswer();
   await peerConn.setLocalDescription(answer);
   socket.emit('webrtc-answer', { roomId, answer });
-  addSystemMsg('Answer sent — establishing connection...');
 }
 
 // ── Socket (delayed until Firebase Auth ready) ────────────────
@@ -184,23 +171,22 @@ socket.on('authenticated', () => {
 
 socket.on('auth-error', ({ error }) => {
   showToast(error, 'error');
-  setTimeout(() => { window.location.href = '/login.html'; }, 1500);
+  setTimeout(() => { window.location.href = '/login'; }, 1500);
 });
 
 socket.on('room-not-found', () => {
   showToast('Room not found — returning to lobby.', 'error');
-  setTimeout(() => { window.location.href = '/lobby.html'; }, 2000);
+  setTimeout(() => { window.location.href = '/lobby'; }, 2000);
 });
 
 socket.on('waiting-for-opponent', () => {
-  addSystemMsg('Waiting for opponent to connect...');
+  // opponent not yet connected — video placeholder visible
 });
 
 socket.on('start-webrtc', async ({ isInitiator, opponent: opp }) => {
   if (opp && !opponent) { opponent = opp; populateOpponentUI(); }
   const connTxt = document.getElementById('connectingText');
   if (connTxt) connTxt.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Establishing video...';
-  addSystemMsg('Both connected — starting video handshake...');
 
   await getLocalMedia();
   if (isInitiator) await startAsInitiator();
@@ -242,14 +228,13 @@ socket.on('chat-message', ({ from, username: fromUser, message, timestamp, image
   const isMine = (fromUser === currentUsername);
 
   if (imageData) {
-    addChatImage(fromUser, imageData, imageName || 'image', timestamp, isMine, imageId);
+    addChatImage(fromUser, imageData, imageName || 'image', timestamp, isMine, imageId, message || '');
   } else {
     addChatMessage(fromUser, message, timestamp, isMine);
   }
 
-  const sidebar = document.getElementById('chatSidebar');
-  const badge   = document.getElementById('chatBadge');
-  if (sidebar && sidebar.style.display === 'none' && badge) badge.style.display = 'block';
+  const badge = document.getElementById('chatBadge');
+  if (!isChatVisible() && badge) badge.style.display = 'block';
 });
 
 function addChatMessage(fromUser, message, timestamp, isMine) {
@@ -269,12 +254,11 @@ function addChatMessage(fromUser, message, timestamp, isMine) {
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-function addChatImage(fromUser, imageData, imageName, timestamp, isMine, imageId) {
+function addChatImage(fromUser, imageData, imageName, timestamp, isMine, imageId, message) {
   const msgs = document.getElementById('chatMessages');
   if (!msgs) return;
   const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Convert base64 to ObjectURL (in-memory, revoked on debate end)
   let objUrl = imageData;
   try {
     const byteStr = atob(imageData.split(',')[1] || imageData);
@@ -296,9 +280,7 @@ function addChatImage(fromUser, imageData, imageName, timestamp, isMine, imageId
     <div class="chat-msg-bubble" style="padding:6px">
       <img src="${objUrl}" alt="${escapeHtml(imageName)}" class="chat-img-msg"
            onclick="window.open(this.src,'_blank')" title="Click to open full size" />
-      <div style="font-size:0.7rem;color:var(--text-3);margin-top:4px;padding:0 4px">
-        ⏳ Expires when debate ends
-      </div>
+      ${message ? `<div style="padding:6px 4px 2px;font-size:0.88rem;line-height:1.55">${escapeHtml(message)}</div>` : ''}
     </div>
   `;
   msgs.appendChild(div);
@@ -369,23 +351,66 @@ const chatSide   = document.getElementById('chatSidebar');
 const closeChat  = document.getElementById('closeChatBtn');
 const chatBadge  = document.getElementById('chatBadge');
 
-if (chatToggle) {
-  chatToggle.addEventListener('click', () => {
-    if (!chatSide) return;
-    const isHidden = chatSide.style.display === 'none';
-    chatSide.style.display = isHidden ? 'flex' : 'none';
-    if (isHidden && chatBadge) chatBadge.style.display = 'none';
-    chatToggle.classList.toggle('active', isHidden);
-  });
-}
-if (closeChat) {
-  closeChat.addEventListener('click', () => {
-    if (chatSide) chatSide.style.display = 'none';
-    if (chatToggle) chatToggle.classList.remove('active');
-  });
+const isMobile = () => window.innerWidth <= 1024;
+
+function isChatVisible() {
+  if (!chatSide) return false;
+  return isMobile()
+    ? chatSide.classList.contains('mobile-visible')
+    : chatSide.style.display !== 'none';
 }
 
-// ── Chat image upload (base64 via socket) ────────────────────
+const chatBackdrop = document.getElementById('chatBackdrop');
+
+function openChat() {
+  if (!chatSide) return;
+  if (isMobile()) {
+    chatSide.classList.add('mobile-visible');
+    if (chatBackdrop) chatBackdrop.style.display = 'block';
+  } else {
+    chatSide.style.display = 'flex';
+  }
+  if (chatBadge) chatBadge.style.display = 'none';
+  if (chatToggle) chatToggle.classList.add('active');
+}
+
+function closeChat_() {
+  if (!chatSide) return;
+  if (isMobile()) {
+    chatSide.classList.remove('mobile-visible');
+    if (chatBackdrop) chatBackdrop.style.display = 'none';
+  } else {
+    chatSide.style.display = 'none';
+  }
+  if (chatToggle) chatToggle.classList.remove('active');
+}
+
+if (chatToggle) chatToggle.addEventListener('click', () => isChatVisible() ? closeChat_() : openChat());
+if (closeChat)  closeChat.addEventListener('click',  closeChat_);
+
+// ── Chat image attachment (staged before send) ───────────────
+let pendingAttachment = null;
+
+function showAttachmentPreview(imageData, imageName, imageId) {
+  pendingAttachment = { imageData, imageName, imageId };
+  const preview = document.getElementById('attachmentPreview');
+  if (!preview) return;
+  preview.innerHTML = `
+    <img src="${imageData}" alt="attachment" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0">
+    <span class="attachment-preview-name">${escapeHtml(imageName)}</span>
+    <button onclick="clearAttachment()" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0" aria-label="Remove attachment">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  `;
+  preview.style.display = 'flex';
+}
+
+function clearAttachment() {
+  pendingAttachment = null;
+  const preview = document.getElementById('attachmentPreview');
+  if (preview) { preview.innerHTML = ''; preview.style.display = 'none'; }
+}
+
 const chatImgBtn   = document.getElementById('chatImgBtn');
 const chatImgInput = document.getElementById('chatImgInput');
 
@@ -396,17 +421,10 @@ if (chatImgInput) {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 8 * 1024 * 1024) { showToast('Image must be under 8 MB.', 'error'); return; }
-
     const reader = new FileReader();
     reader.onload = ev => {
-      const imageData = ev.target.result;
-      const imageId   = generateImageId();
-
-      // Render own image immediately (before socket round-trip)
-      addChatImage(currentUsername, imageData, file.name, new Date().toISOString(), true, imageId);
-
-      // Relay base64 to opponent via server
-      socket.emit('chat-message', { roomId, imageData, imageId, imageName: file.name, message: '' });
+      showAttachmentPreview(ev.target.result, file.name, generateImageId());
+      chatInput?.focus();
     };
     reader.readAsDataURL(file);
     chatImgInput.value = '';
@@ -418,11 +436,19 @@ const chatInput = document.getElementById('chatInput');
 const sendBtn   = document.getElementById('sendBtn');
 
 function sendMessage() {
-  const msg = chatInput?.value.trim();
-  if (!msg) return;
-  socket.emit('chat-message', { roomId, message: msg });
-  chatInput.value = '';
-  chatInput.style.height = 'auto';
+  const msg = chatInput?.value.trim() || '';
+  if (!msg && !pendingAttachment) return;
+
+  if (pendingAttachment) {
+    const { imageData, imageId, imageName } = pendingAttachment;
+    addChatImage(currentUsername, imageData, imageName, new Date().toISOString(), true, imageId, msg);
+    socket.emit('chat-message', { roomId, imageData, imageId, imageName, message: msg });
+    clearAttachment();
+  } else {
+    socket.emit('chat-message', { roomId, message: msg });
+  }
+
+  if (chatInput) { chatInput.value = ''; chatInput.style.height = 'auto'; }
 }
 
 if (sendBtn)   sendBtn.addEventListener('click', sendMessage);
@@ -440,7 +466,7 @@ if (chatInput) {
 populateOpponentUI();
 
 auth.onAuthStateChanged(async (user) => {
-  if (!user) { window.location.href = '/login.html'; return; }
+  if (!user) { window.location.href = '/login'; return; }
 
   currentUsername = localStorage.getItem('username') || user.displayName || 'You';
 

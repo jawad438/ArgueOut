@@ -5,9 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Debate — ArgueOut</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+  <meta name="theme-color" content="#8b5cf6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ArgueOut" />
   <style>
     body { overflow: hidden; }
     .debate-layout { height: 100dvh; }
+    @media (max-width: 1024px) {
+      body { overflow-y: auto; }
+      .debate-layout { height: auto; }
+    }
   </style>
 </head>
 <body>
@@ -17,7 +28,7 @@
   <!-- Header bar -->
   <header class="debate-header">
     <div style="display:flex;align-items:center;gap:12px;min-width:180px">
-      <a href="/lobby.html" class="nav-logo" style="font-size:1.1rem">ArgueOut</a>
+      <a href="/lobby" class="nav-logo" style="font-size:1.1rem">ArgueOut</a>
       <div class="badge badge-purple" id="debateBadge" style="font-size:0.65rem">LIVE</div>
     </div>
 
@@ -101,6 +112,9 @@
     </div>
   </div>
 
+  <!-- Mobile chat backdrop -->
+  <div id="chatBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:149" onclick="closeChat_()"></div>
+
   <!-- Chat sidebar -->
   <aside class="chat-sidebar" id="chatSidebar">
     <div class="chat-header">
@@ -110,18 +124,19 @@
         <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="chat-messages" id="chatMessages">
-      <div class="chat-system-msg">Chat connected. Be respectful.</div>
-    </div>
+    <div class="chat-messages" id="chatMessages"></div>
     <div class="chat-input-area">
-      <input type="file" id="chatImgInput" accept="image/*" style="display:none" />
-      <button class="chat-img-upload-btn" id="chatImgBtn" title="Share an image (expires when debate ends)" aria-label="Upload image to chat">
-        <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      </button>
-      <textarea class="chat-input" id="chatInput" placeholder="Type a message... (Enter to send)" rows="1" aria-label="Chat message"></textarea>
-      <button class="btn btn-primary btn-sm" id="sendBtn" aria-label="Send message" style="flex-shrink:0;padding:10px 14px;border-radius:var(--r-sm)">
-        <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
+      <div id="attachmentPreview" class="attachment-preview" style="display:none"></div>
+      <div class="chat-input-row">
+        <input type="file" id="chatImgInput" accept="image/*" style="display:none" />
+        <button class="chat-img-upload-btn" id="chatImgBtn" title="Attach an image" aria-label="Attach image">
+          <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </button>
+        <textarea class="chat-input" id="chatInput" placeholder="Type a message... (Enter to send)" rows="1" aria-label="Chat message"></textarea>
+        <button class="btn btn-primary btn-sm" id="sendBtn" aria-label="Send message" style="flex-shrink:0;padding:10px 14px;border-radius:var(--r-sm)">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -133,8 +148,8 @@
   <h2 style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;margin-bottom:8px">Debate Ended</h2>
   <p style="color:var(--text-2);font-size:1rem;margin-bottom:32px;max-width:360px;line-height:1.7" id="endedReason">The debate has concluded.</p>
   <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
-    <a href="/lobby.html" class="btn btn-primary btn-lg">Find Another Debate</a>
-    <a href="/lobby.html" class="btn btn-ghost">Back to Lobby</a>
+    <a href="/lobby" class="btn btn-primary btn-lg">Find Another Debate</a>
+    <a href="/lobby" class="btn btn-ghost">Back to Lobby</a>
   </div>
 </div>
 
@@ -146,5 +161,6 @@
 <script src="/js/bg.js"></script>
 <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 <script src="/js/debate.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

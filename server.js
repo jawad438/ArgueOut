@@ -3,6 +3,7 @@ const http     = require('http');
 const { Server } = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 const path     = require('path');
+const fs       = require('fs');
 const admin    = require('firebase-admin');
 
 // ── Firebase Admin ────────────────────────────────────────────
@@ -27,7 +28,26 @@ const server = http.createServer(app);
 const io     = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
 app.use(express.json());
+
+// Redirect /path.html → /path (clean URLs)
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html')) {
+    const clean = req.path.slice(0, -5) || '/';
+    const qs    = req.url.slice(req.path.length);
+    return res.redirect(301, clean + qs);
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve /path as /path.html for extensionless clean URLs
+app.use((req, res, next) => {
+  if (path.extname(req.path) || req.path === '/') return next();
+  const htmlFile = path.join(__dirname, 'public', req.path + '.html');
+  if (fs.existsSync(htmlFile)) return res.sendFile(htmlFile);
+  next();
+});
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
@@ -39,8 +59,35 @@ const queue = new Map();
 // roomId → { users: [ { userId, username, politicalX, politicalY, socketId } ] }
 const rooms = new Map();
 
-// socketId → user info
+// socketId → user info (minimal, for matchmaking/chat)
 const socketUsers = new Map();
+
+// socketId → full profile (for online directory & challenges)
+const onlineUsers = new Map();
+
+function broadcastOnlineUsers() {
+  // Deduplicate by userId — keep the most recent entry (last socketId wins)
+  const seen = new Map();
+  for (const u of onlineUsers.values()) {
+    const existing = seen.get(u.userId);
+    // prefer inDebate=true entries so status is accurate
+    if (!existing || u.inDebate) seen.set(u.userId, u);
+  }
+  const list = [...seen.values()].map(u => ({
+    userId:     u.userId,
+    username:   u.username,
+    name:       u.name || u.username,
+    avatarUrl:  u.avatarUrl || null,
+    politicalX: u.politicalX || 0,
+    politicalY: u.politicalY || 0,
+    age:        u.age,
+    gender:     u.gender,
+    religion:   u.religion,
+    bio:        u.bio || '',
+    inDebate:   u.inDebate || false
+  }));
+  io.emit('online-users', list);
+}
 
 // ── Socket.io ─────────────────────────────────────────────────
 
@@ -66,6 +113,21 @@ io.on('connection', socket => {
       politicalX: userData.politicalX || 0,
       politicalY: userData.politicalY || 0
     });
+
+    onlineUsers.set(socket.id, {
+      userId:     decoded.uid,
+      username:   userData.username,
+      name:       userData.name || userData.username,
+      avatarUrl:  userData.avatarUrl || null,
+      politicalX: userData.politicalX || 0,
+      politicalY: userData.politicalY || 0,
+      age:        userData.age,
+      gender:     userData.gender,
+      religion:   userData.religion,
+      bio:        userData.bio || '',
+      inDebate:   false
+    });
+    broadcastOnlineUsers();
 
     socket.emit('authenticated', { userId: decoded.uid, username: userData.username });
   });
@@ -108,6 +170,9 @@ io.on('connection', socket => {
       politicalY: slot.politicalY
     });
     socket.join(roomId);
+
+    const entry = onlineUsers.get(socket.id);
+    if (entry) { entry.inDebate = true; broadcastOnlineUsers(); }
 
     const connected = room.users.filter(u => u.socketId !== null);
     if (connected.length === 2) {
@@ -182,6 +247,49 @@ io.on('connection', socket => {
 
   socket.on('end-debate', ({ roomId }) => closeRoom(roomId, socket.id, 'ended'));
 
+  // ── Challenge system ─────────────────────────────────────────
+
+  socket.on('send-challenge', ({ targetUserId }) => {
+    const me = onlineUsers.get(socket.id);
+    if (!me) return;
+    // Find target — prefer lobby (not-inDebate) socket
+    const entries = [...onlineUsers.entries()].filter(([, u]) => u.userId === targetUserId);
+    if (!entries.length) { socket.emit('challenge-error', { error: 'User is no longer online.' }); return; }
+    const lobbyEntry = entries.find(([, u]) => !u.inDebate) || entries[0];
+    const [targetSocketId, targetUser] = lobbyEntry;
+    if (targetUser.inDebate) { socket.emit('challenge-error', { error: 'That user is currently in a debate.' }); return; }
+    io.to(targetSocketId).emit('challenge-received', {
+      from: { socketId: socket.id, userId: me.userId, username: me.username }
+    });
+  });
+
+  socket.on('accept-challenge', ({ challengerSocketId }) => {
+    const me         = onlineUsers.get(socket.id);
+    const challenger = onlineUsers.get(challengerSocketId);
+    if (!me || !challenger) { socket.emit('challenge-error', { error: 'Challenger is no longer online.' }); return; }
+
+    const s1 = io.sockets.sockets.get(challengerSocketId);
+    const s2 = socket;
+    if (!s1 || !s2) return;
+
+    const roomId = uuidv4();
+    rooms.set(roomId, {
+      users: [
+        { userId: challenger.userId, username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY, socketId: null },
+        { userId: me.userId,         username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY,         socketId: null }
+      ]
+    });
+
+    s1.emit('challenge-accepted', { roomId, opponent: { username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY         } });
+    s2.emit('challenge-accepted', { roomId, opponent: { username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY } });
+  });
+
+  socket.on('reject-challenge', ({ challengerSocketId }) => {
+    const me             = onlineUsers.get(socket.id);
+    const challengerSock = io.sockets.sockets.get(challengerSocketId);
+    if (challengerSock && me) challengerSock.emit('challenge-rejected', { byUsername: me.username });
+  });
+
   socket.on('disconnect', () => {
     queue.delete(socket.id);
     io.emit('queue-size', { size: queue.size });
@@ -192,7 +300,9 @@ io.on('connection', socket => {
         break;
       }
     }
+    onlineUsers.delete(socket.id);
     socketUsers.delete(socket.id);
+    broadcastOnlineUsers();
   });
 });
 
@@ -253,9 +363,17 @@ function closeRoom(roomId, bySocketId, reason) {
   const room = rooms.get(roomId);
   if (!room) return;
 
+  room.users.forEach(u => {
+    if (u.socketId) {
+      const entry = onlineUsers.get(u.socketId);
+      if (entry) entry.inDebate = false;
+    }
+  });
+
   io.to(roomId).emit('debate-ended', { reason, by: bySocketId });
   io.in(roomId).socketsLeave(roomId);
   rooms.delete(roomId);
+  broadcastOnlineUsers();
 }
 
 // ── Start ─────────────────────────────────────────────────────

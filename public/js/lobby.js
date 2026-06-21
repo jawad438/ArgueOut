@@ -145,10 +145,22 @@ function updateProfileUI(profile) {
   if (miniCanvas) drawMiniCompass(miniCanvas, profile.politicalX || 0, profile.politicalY || 0);
 }
 
+// ── Helpers ───────────────────────────────────────────────────
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // ── Socket.io (delayed connect until Firebase Auth ready) ─────
 const socket = io({ autoConnect: false });
-let inQueue  = false;
+let inQueue       = false;
 let currentIdToken = null;
+let currentUserId  = null;
+
+// ── Online directory / challenge state ────────────────────────
+let onlineUsersCache   = [];
+let pendingChallengeFrom = null; // { socketId, userId, username }
 
 socket.on('connect', () => {
   if (currentIdToken) socket.emit('authenticate', { idToken: currentIdToken });
@@ -162,7 +174,7 @@ socket.on('auth-error', ({ error }) => {
   showToast(error, 'error');
   auth.signOut();
   localStorage.clear();
-  setTimeout(() => { window.location.href = '/login.html'; }, 1500);
+  setTimeout(() => { window.location.href = '/login'; }, 1500);
 });
 
 socket.on('queue-joined', () => {
@@ -183,8 +195,179 @@ socket.on('match-found', ({ roomId, opponent }) => {
   showToast(`Matched with ${opponent.username}!`, 'success');
   localStorage.setItem('debateRoomId',  roomId);
   localStorage.setItem('debateOpponent', JSON.stringify(opponent));
-  setTimeout(() => { window.location.href = `/debate.html?room=${encodeURIComponent(roomId)}`; }, 600);
+  setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
 });
+
+// ── Online users directory ────────────────────────────────────
+socket.on('online-users', (users) => {
+  onlineUsersCache = users;
+  renderDirectory(users);
+});
+
+function renderDirectory(users) {
+  const list  = document.getElementById('directoryList');
+  const count = document.getElementById('onlineCount');
+  if (!list) return;
+
+  const uid    = currentUserId || localStorage.getItem('userId');
+  const others = users.filter(u => u.userId !== uid);
+
+  if (count) count.textContent = `${others.length} user${others.length !== 1 ? 's' : ''}`;
+
+  if (others.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:20px 0">No other users online</div>';
+    return;
+  }
+
+  list.innerHTML = others.map(u => {
+    const avatarHtml = u.avatarUrl
+      ? `<img src="${escapeHtml(u.avatarUrl)}" alt="${escapeHtml(u.username)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
+      : escapeHtml((u.username || 'U')[0].toUpperCase());
+    const info = getQuadrantInfo(u.politicalX || 0, u.politicalY || 0);
+    return `
+      <div class="directory-user-row" onclick="openUserProfile('${escapeHtml(u.userId)}')">
+        <div class="directory-avatar">${avatarHtml}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:0.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.name || u.username)}</div>
+          <div style="font-size:0.75rem;color:var(--text-3)">@${escapeHtml(u.username)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+          <span class="badge ${info.badge}" style="font-size:0.6rem;padding:2px 6px">${info.label}</span>
+          ${u.inDebate ? '<span style="font-size:0.7rem;color:var(--text-3)">In debate</span>' : '<span style="font-size:0.7rem;color:var(--green)">● Online</span>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openUserProfile(userId) {
+  const user = onlineUsersCache.find(u => u.userId === userId);
+  if (!user) return;
+
+  const content = document.getElementById('modalContent');
+  if (!content) return;
+
+  const avatarHtml = user.avatarUrl
+    ? `<img src="${escapeHtml(user.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">`
+    : escapeHtml((user.username || 'U')[0].toUpperCase());
+
+  const info = getQuadrantInfo(user.politicalX || 0, user.politicalY || 0);
+  const capitalize = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+  const tags = [];
+  if (user.age) tags.push(`${user.age} yrs`);
+  if (user.gender   && user.gender   !== 'prefer_not_to_say') tags.push(capitalize(user.gender.replace('_', ' ')));
+  if (user.religion && user.religion !== 'prefer_not_to_say') tags.push(capitalize(user.religion));
+  const tagsHtml = tags.map(t => `<span class="profile-tag">${escapeHtml(t)}</span>`).join('');
+
+  content.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:80px;height:80px;border-radius:50%;background:var(--grad-brand);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;color:#fff;overflow:hidden;box-shadow:0 0 24px rgba(139,92,246,0.3)">
+        ${avatarHtml}
+      </div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:1.25rem;font-weight:700">${escapeHtml(user.name || user.username)}</div>
+      <div style="color:var(--text-3);font-size:0.85rem;margin-bottom:12px">@${escapeHtml(user.username)}</div>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-bottom:10px">
+        <span class="badge ${info.badge}">${info.label}</span>
+        ${tagsHtml}
+      </div>
+      ${user.inDebate ? '<div style="font-size:0.8rem;color:var(--text-3);margin-top:4px">Currently in a debate</div>' : ''}
+    </div>
+    ${user.bio ? `<div style="font-size:0.88rem;color:var(--text-2);line-height:1.65;padding:12px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:var(--r-md)">${escapeHtml(user.bio)}</div>` : ''}
+  `;
+
+  const challengeBtn = document.getElementById('challengeBtn');
+  const pendingMsg   = document.getElementById('challengePendingMsg');
+  if (challengeBtn) {
+    challengeBtn.style.display = user.inDebate ? 'none' : 'block';
+    challengeBtn.onclick = () => sendChallenge(user.userId, user.username);
+  }
+  if (pendingMsg) pendingMsg.style.display = 'none';
+
+  const modal = document.getElementById('userProfileModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeProfileModal() {
+  const modal = document.getElementById('userProfileModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// ── Challenge system ──────────────────────────────────────────
+function sendChallenge(targetUserId, targetUsername) {
+  socket.emit('send-challenge', { targetUserId });
+  showToast(`Challenge sent to ${targetUsername}!`, 'info');
+  const challengeBtn = document.getElementById('challengeBtn');
+  const pendingMsg   = document.getElementById('challengePendingMsg');
+  if (challengeBtn) challengeBtn.style.display = 'none';
+  if (pendingMsg)   pendingMsg.style.display   = 'block';
+}
+
+socket.on('challenge-error', ({ error }) => {
+  showToast(error, 'error');
+  closeProfileModal();
+});
+
+socket.on('challenge-received', ({ from }) => {
+  pendingChallengeFrom = from;
+
+  if (Notification.permission === 'granted') {
+    new Notification('⚔️ ArgueOut Challenge', {
+      body: `${from.username} is challenging you to a debate!`,
+      icon: '/icon-192.png'
+    });
+  }
+
+  const notifText = document.getElementById('challengeNotifText');
+  if (notifText) notifText.textContent = `⚔️ ${from.username} challenged you to a debate!`;
+
+  const panel = document.getElementById('challengeNotifPanel');
+  if (panel) panel.classList.add('active');
+
+  // Auto-dismiss after 30s
+  setTimeout(() => {
+    if (panel) panel.classList.remove('active');
+    pendingChallengeFrom = null;
+  }, 30000);
+});
+
+socket.on('challenge-accepted', ({ roomId, opponent }) => {
+  showToast(`Challenge accepted! Starting debate...`, 'success');
+  localStorage.setItem('debateRoomId', roomId);
+  localStorage.setItem('debateOpponent', JSON.stringify(opponent));
+  setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
+});
+
+socket.on('challenge-rejected', ({ byUsername }) => {
+  showToast(`${byUsername} declined your challenge.`, 'info');
+  closeProfileModal();
+});
+
+// Challenge notification buttons
+const acceptChallengeBtn  = document.getElementById('acceptChallengeBtn');
+const rejectChallengeBtn  = document.getElementById('rejectChallengeBtn');
+const dismissChallengeBtn = document.getElementById('dismissChallengeBtn');
+
+function dismissChallengeNotif() {
+  const panel = document.getElementById('challengeNotifPanel');
+  if (panel) panel.classList.remove('active');
+  pendingChallengeFrom = null;
+}
+
+if (acceptChallengeBtn) {
+  acceptChallengeBtn.addEventListener('click', () => {
+    if (!pendingChallengeFrom) return;
+    socket.emit('accept-challenge', { challengerSocketId: pendingChallengeFrom.socketId });
+    dismissChallengeNotif();
+  });
+}
+if (rejectChallengeBtn) {
+  rejectChallengeBtn.addEventListener('click', () => {
+    if (pendingChallengeFrom) socket.emit('reject-challenge', { challengerSocketId: pendingChallengeFrom.socketId });
+    dismissChallengeNotif();
+  });
+}
+if (dismissChallengeBtn) dismissChallengeBtn.addEventListener('click', dismissChallengeNotif);
 
 // ── UI state ──────────────────────────────────────────────────
 function showSearching() {
@@ -220,27 +403,49 @@ if (logoutBtn) {
 
 // ── Firebase Auth → load profile → connect socket ─────────────
 auth.onAuthStateChanged(async (user) => {
-  if (!user) { window.location.href = '/login.html'; return; }
+  if (!user) { window.location.href = '/login'; return; }
 
   try {
     const doc = await firestoreDb.collection('users').doc(user.uid).get();
-    if (!doc.exists) { window.location.href = '/login.html'; return; }
+    if (!doc.exists) { window.location.href = '/login'; return; }
 
     const profile = doc.data();
     if (!profile.compassSet) {
       showToast('Please set your political position first.', 'info');
-      setTimeout(() => { window.location.href = '/compass.html'; }, 1500);
+      setTimeout(() => { window.location.href = '/compass'; }, 1500);
       return;
     }
 
+    currentUserId = user.uid;
     updateProfileUI(profile);
 
     currentIdToken = await user.getIdToken();
     if (!socket.connected) socket.connect();
+
+    // Request browser notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   } catch {
     showToast('Could not load profile. Check your connection.', 'error');
   }
 });
+
+// ── Notification bell click ───────────────────────────────────
+const notifBtn = document.getElementById('notifBtn');
+if (notifBtn) {
+  notifBtn.addEventListener('click', () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') showToast('Notifications enabled! You\'ll be notified of challenges.', 'success');
+      });
+    } else if (Notification.permission === 'granted') {
+      showToast('Notifications are enabled. You\'ll be notified of debate challenges.', 'info');
+    } else {
+      showToast('Notifications are blocked. Enable them in your browser settings.', 'error');
+    }
+  });
+}
 
 // ── Bio edit ──────────────────────────────────────────────────
 function startBioEdit() {

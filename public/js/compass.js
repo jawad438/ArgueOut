@@ -160,7 +160,7 @@ canvas.addEventListener('click',      handleInteraction);
 draw();
 
 auth.onAuthStateChanged(async (user) => {
-  if (!user) { window.location.href = '/login.html'; return; }
+  if (!user) { window.location.href = '/login'; return; }
 
   try {
     const doc = await firestoreDb.collection('users').doc(user.uid).get();
@@ -197,7 +197,7 @@ if (saveBtn) {
       });
 
       showToast('Political position saved!', 'success');
-      setTimeout(() => { window.location.href = '/lobby.html'; }, 700);
+      setTimeout(() => { window.location.href = '/lobby'; }, 700);
     } catch (err) {
       if (errDiv && errText) { errText.textContent = err.message; errDiv.style.display = 'flex'; }
       saveBtn.disabled = false;

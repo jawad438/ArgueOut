@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ArgueOut — Debate with Conviction</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+  <meta name="theme-color" content="#8b5cf6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ArgueOut" />
 </head>
 <body>
 <div class="bg-orbs" aria-hidden="true">
@@ -19,8 +26,8 @@
 <nav class="navbar">
   <a href="/" class="nav-logo">ArgueOut</a>
   <div class="nav-actions">
-    <a href="/login.html" class="btn btn-ghost btn-sm">Sign In</a>
-    <a href="/register.html" class="btn btn-primary btn-sm">Get Started</a>
+    <a href="/login" class="btn btn-ghost btn-sm">Sign In</a>
+    <a href="/register" class="btn btn-primary btn-sm">Get Started</a>
   </div>
 </nav>
 
@@ -38,8 +45,8 @@
           ArgueOut pairs you with someone who sees the world differently. Set your political compass, get matched with an opponent, and debate live — face to face, idea against idea.
         </p>
         <div class="hero-ctas">
-          <a href="/register.html" class="btn btn-debate btn-lg">Start Debating</a>
-          <a href="/login.html" class="btn btn-ghost">Already have an account?</a>
+          <a href="/register" class="btn btn-debate btn-lg">Start Debating</a>
+          <a href="/login" class="btn btn-ghost">Already have an account?</a>
         </div>
         <div class="hero-stats">
           <div>
@@ -191,7 +198,7 @@
       <p style="color:var(--text-2); font-size:1.05rem; margin-bottom:36px; max-width:440px; margin-left:auto; margin-right:auto; line-height:1.7">
         The best way to stress-test your beliefs is to defend them — live, on video, against someone who disagrees with everything you stand for.
       </p>
-      <a href="/register.html" class="btn btn-debate btn-lg">Create Your Account</a>
+      <a href="/register" class="btn btn-debate btn-lg">Create Your Account</a>
     </div>
   </div>
 </section>
@@ -311,5 +318,6 @@
 })();
 </script>
 <script src="/js/bg.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>
