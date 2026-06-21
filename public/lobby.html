@@ -21,27 +21,25 @@
 </div>
 <nav class="navbar">
   <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
-  <div class="nav-actions">
+  <div class="nav-actions" style="position:relative">
     <div class="nav-user">
       <div class="nav-avatar" id="navAvatar">?</div>
       <span id="navUsername" style="color:var(--text-2)">Loading...</span>
     </div>
-    <div style="position:relative">
-      <button class="notif-btn" id="notifBtn" title="Notifications" aria-label="Notifications">
-        <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span class="notif-badge" id="notifBadge" style="display:none">0</span>
-      </button>
-      <div id="notifDropdown" class="notif-dropdown" style="display:none">
-        <div class="notif-dropdown-header">
-          <span>Notifications</span>
-          <button onclick="clearNotifications()" class="notif-clear-btn" aria-label="Clear all">Clear all</button>
-        </div>
-        <div id="notifList" class="notif-list">
-          <div class="notif-empty">No notifications yet</div>
-        </div>
+    <button class="notif-btn" id="notifBtn" title="Notifications" aria-label="Notifications">
+      <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+    </button>
+    <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign Out</button>
+    <div id="notifDropdown" class="notif-dropdown" style="display:none">
+      <div class="notif-dropdown-header">
+        <span>Notifications</span>
+        <button onclick="clearNotifications()" class="notif-clear-btn" aria-label="Clear all">Clear all</button>
+      </div>
+      <div id="notifList" class="notif-list">
+        <div class="notif-empty">No notifications yet</div>
       </div>
     </div>
-    <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign Out</button>
   </div>
 </nav>
 
@@ -280,15 +278,60 @@
 
 <!-- User profile modal -->
 <div class="modal-overlay" id="userProfileModal" style="display:none" onclick="if(event.target===this)closeProfileModal()">
-  <div class="modal-card">
-    <button class="modal-close" id="closeProfileModal" onclick="closeProfileModal()" aria-label="Close">
-      <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <div id="modalContent"></div>
-    <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px">
-      <button class="btn btn-primary btn-full" id="challengeBtn" style="display:none">⚔️ Challenge to Debate</button>
-      <div id="challengePendingMsg" style="display:none;text-align:center;font-size:0.85rem;color:var(--text-3)">Challenge sent — waiting for response...</div>
+  <div class="up-card" id="upCard">
+
+    <!-- Hero banner: avatar blurred as background -->
+    <div class="up-hero">
+      <div class="up-hero-bg" id="upHeroBg"></div>
+      <div class="up-hero-fade"></div>
+      <button class="up-close-btn" onclick="closeProfileModal()" aria-label="Close">
+        <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="up-avatar-wrap">
+        <div class="up-avatar" id="upAvatar">?</div>
+      </div>
     </div>
+
+    <!-- Body -->
+    <div class="up-body">
+      <div class="up-name" id="upName">—</div>
+      <div class="up-username" id="upUsername">@—</div>
+      <div class="up-badges" id="upBadges"></div>
+
+      <!-- Political position compass -->
+      <div class="up-section">
+        <div class="up-section-label">Political Position</div>
+        <div class="up-compass-wrap">
+          <canvas id="upCompass" width="240" height="240"></canvas>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <span style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;color:rgba(239,68,68,0.65)">◄ LEFT</span>
+          <span style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;color:rgba(59,130,246,0.65)">RIGHT ►</span>
+        </div>
+      </div>
+
+      <!-- Bio (hidden when empty) -->
+      <div class="up-bio" id="upBio" style="display:none"></div>
+
+      <!-- Age / gender / religion tags -->
+      <div class="up-tags" id="upTags"></div>
+
+      <!-- Actions -->
+      <div class="up-actions">
+        <button class="btn btn-primary btn-full up-challenge-btn" id="challengeBtn" style="display:none">
+          <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/></svg>
+          Challenge to Debate
+        </button>
+        <div id="challengePendingMsg" style="display:none;text-align:center;padding:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r-md)">
+          <div style="font-size:0.88rem;color:var(--text-2);margin-bottom:2px">Challenge sent</div>
+          <div style="font-size:0.75rem;color:var(--text-3)">Waiting for their response...</div>
+        </div>
+        <div id="upInDebateMsg" style="display:none;text-align:center;padding:14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.22);border-radius:var(--r-md)">
+          <div style="font-size:0.85rem;color:var(--amber)">Currently in a debate</div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 

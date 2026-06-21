@@ -231,13 +231,16 @@ function renderDirectory(users) {
     return;
   }
 
-  list.innerHTML = others.map(u => {
+  list.innerHTML = others.map((u, i) => {
     const avatarHtml = u.avatarUrl
       ? `<img src="${escapeHtml(u.avatarUrl)}" alt="${escapeHtml(u.username)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
       : escapeHtml((u.username || 'U')[0].toUpperCase());
     const info = getQuadrantInfo(u.politicalX || 0, u.politicalY || 0);
+    const statusHtml = u.inDebate
+      ? '<span style="font-size:0.7rem;color:var(--amber)">In debate</span>'
+      : '<span style="font-size:0.7rem;color:var(--green)">● Online</span>';
     return `
-      <div class="directory-user-row" onclick="openUserProfile('${escapeHtml(u.userId)}')">
+      <div class="directory-user-row" style="animation:dirRowEnter 280ms var(--ease-out) ${i * 45}ms both" onclick="openUserProfile('${escapeHtml(u.userId)}')">
         <div class="directory-avatar">${avatarHtml}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:0.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.name || u.username)}</div>
@@ -245,7 +248,7 @@ function renderDirectory(users) {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
           <span class="badge ${info.badge}" style="font-size:0.6rem;padding:2px 6px">${info.label}</span>
-          ${u.inDebate ? '<span style="font-size:0.7rem;color:var(--text-3)">In debate</span>' : '<span style="font-size:0.7rem;color:var(--green)">● Online</span>'}
+          ${statusHtml}
         </div>
       </div>
     `;
@@ -256,53 +259,105 @@ function openUserProfile(userId) {
   const user = onlineUsersCache.find(u => u.userId === userId);
   if (!user) return;
 
-  const content = document.getElementById('modalContent');
-  if (!content) return;
+  // Re-trigger entrance animation cleanly
+  const upCard = document.getElementById('upCard');
+  if (upCard) {
+    upCard.classList.remove('entering', 'closing');
+    void upCard.offsetWidth; // flush pending styles to restart animation
+    upCard.classList.add('entering');
+  }
 
-  const avatarHtml = user.avatarUrl
-    ? `<img src="${escapeHtml(user.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">`
-    : escapeHtml((user.username || 'U')[0].toUpperCase());
+  // Hero blurred background
+  const upHeroBg = document.getElementById('upHeroBg');
+  if (upHeroBg) {
+    upHeroBg.style.backgroundImage = user.avatarUrl
+      ? `url(${JSON.stringify(user.avatarUrl)})`
+      : '';
+  }
 
-  const info = getQuadrantInfo(user.politicalX || 0, user.politicalY || 0);
-  const capitalize = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  // Avatar
+  const upAvatar = document.getElementById('upAvatar');
+  if (upAvatar) {
+    upAvatar.innerHTML = user.avatarUrl
+      ? `<img src="${escapeHtml(user.avatarUrl)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
+      : escapeHtml((user.username || 'U')[0].toUpperCase());
+  }
 
+  // Name / username
+  const upName     = document.getElementById('upName');
+  const upUsername = document.getElementById('upUsername');
+  if (upName)     upName.textContent     = user.name || user.username;
+  if (upUsername) upUsername.textContent = `@${user.username}`;
+
+  // Political badge + online status chip
+  const info     = getQuadrantInfo(user.politicalX || 0, user.politicalY || 0);
+  const upBadges = document.getElementById('upBadges');
+  if (upBadges) {
+    const statusChip = user.inDebate
+      ? `<span class="up-status-chip in-debate">In debate</span>`
+      : `<span class="up-status-chip online">● Online</span>`;
+    upBadges.innerHTML = `<span class="badge ${info.badge}">${escapeHtml(info.label)}</span>${statusChip}`;
+  }
+
+  // Mini compass (draw after modal is painted)
+  const upCompass = document.getElementById('upCompass');
+  if (upCompass) {
+    setTimeout(() => drawMiniCompass(upCompass, user.politicalX || 0, user.politicalY || 0), 60);
+  }
+
+  // Bio
+  const upBio = document.getElementById('upBio');
+  if (upBio) {
+    if (user.bio) {
+      upBio.textContent   = user.bio;
+      upBio.style.display = 'block';
+    } else {
+      upBio.style.display = 'none';
+    }
+  }
+
+  // Tags (age, gender, religion)
+  const _cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   const tags = [];
-  if (user.age) tags.push(`${user.age} yrs`);
-  if (user.gender   && user.gender   !== 'prefer_not_to_say') tags.push(capitalize(user.gender.replace('_', ' ')));
-  if (user.religion && user.religion !== 'prefer_not_to_say') tags.push(capitalize(user.religion));
-  const tagsHtml = tags.map(t => `<span class="profile-tag">${escapeHtml(t)}</span>`).join('');
+  if (user.age)                                              tags.push(`${user.age} yrs`);
+  if (user.gender   && user.gender   !== 'prefer_not_to_say') tags.push(_cap(user.gender.replace('_', ' ')));
+  if (user.religion && user.religion !== 'prefer_not_to_say') tags.push(_cap(user.religion));
+  const upTags = document.getElementById('upTags');
+  if (upTags) upTags.innerHTML = tags.map(t => `<span class="profile-tag">${escapeHtml(t)}</span>`).join('');
 
-  content.innerHTML = `
-    <div style="text-align:center;margin-bottom:20px">
-      <div style="width:80px;height:80px;border-radius:50%;background:var(--grad-brand);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;color:#fff;overflow:hidden;box-shadow:0 0 24px rgba(139,92,246,0.3)">
-        ${avatarHtml}
-      </div>
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:1.25rem;font-weight:700">${escapeHtml(user.name || user.username)}</div>
-      <div style="color:var(--text-3);font-size:0.85rem;margin-bottom:12px">@${escapeHtml(user.username)}</div>
-      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-bottom:10px">
-        <span class="badge ${info.badge}">${info.label}</span>
-        ${tagsHtml}
-      </div>
-      ${user.inDebate ? '<div style="font-size:0.8rem;color:var(--text-3);margin-top:4px">Currently in a debate</div>' : ''}
-    </div>
-    ${user.bio ? `<div style="font-size:0.88rem;color:var(--text-2);line-height:1.65;padding:12px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:var(--r-md)">${escapeHtml(user.bio)}</div>` : ''}
-  `;
-
+  // Actions
   const challengeBtn = document.getElementById('challengeBtn');
   const pendingMsg   = document.getElementById('challengePendingMsg');
+  const inDebateMsg  = document.getElementById('upInDebateMsg');
+  if (pendingMsg)  pendingMsg.style.display  = 'none';
+  if (inDebateMsg) inDebateMsg.style.display = 'none';
   if (challengeBtn) {
-    challengeBtn.style.display = user.inDebate ? 'none' : 'block';
-    challengeBtn.onclick = () => sendChallenge(user.userId, user.username);
+    if (user.inDebate) {
+      challengeBtn.style.display = 'none';
+      if (inDebateMsg) inDebateMsg.style.display = 'block';
+    } else {
+      challengeBtn.style.display = 'flex';
+      challengeBtn.onclick = () => sendChallenge(user.userId, user.username);
+    }
   }
-  if (pendingMsg) pendingMsg.style.display = 'none';
 
   const modal = document.getElementById('userProfileModal');
   if (modal) modal.style.display = 'flex';
 }
 
 function closeProfileModal() {
-  const modal = document.getElementById('userProfileModal');
-  if (modal) modal.style.display = 'none';
+  const upCard = document.getElementById('upCard');
+  const modal  = document.getElementById('userProfileModal');
+  if (upCard && modal) {
+    upCard.classList.remove('entering');
+    upCard.classList.add('closing');
+    setTimeout(() => {
+      modal.style.display = 'none';
+      upCard.classList.remove('closing');
+    }, 210);
+  } else if (modal) {
+    modal.style.display = 'none';
+  }
 }
 
 // ── Challenge system ──────────────────────────────────────────
