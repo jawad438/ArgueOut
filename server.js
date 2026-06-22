@@ -302,6 +302,8 @@ const pendingQuestions = new Map();
 const roomDeclines = new Map();
 // roomId → { fromSocketId, fromUsername, suggestion }
 const roomPendingSuggestion = new Map();
+// roomId → Set<userId>  — who has requested a new question (both must agree)
+const roomQuestionRequests = new Map();
 
 function addSuggested(userId, targetUserId) {
   if (!suggestedMap.has(userId)) suggestedMap.set(userId, new Set());
@@ -615,6 +617,26 @@ io.on('connection', socket => {
 
   // ── In-debate question controls ──────────────────────────────
 
+  socket.on('request-question', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const me = socketUsers.get(socket.id);
+    if (!me) return;
+    if (!roomQuestionRequests.has(roomId)) roomQuestionRequests.set(roomId, new Set());
+    const reqs = roomQuestionRequests.get(roomId);
+    reqs.add(me.userId);
+    // Tell the other person their opponent wants a topic
+    const other = room.users.find(u => u.socketId && u.socketId !== socket.id);
+    if (other) io.to(other.socketId).emit('question-requested', { fromUsername: me.username });
+    if (reqs.size >= 2) {
+      roomQuestionRequests.delete(roomId);
+      io.to(roomId).emit('question-generating');
+      generateDebateQuestion(null).then(question => {
+        if (question) io.to(roomId).emit('question-updated', { question });
+      });
+    }
+  });
+
   socket.on('decline-question', ({ roomId }) => {
     const room = rooms.get(roomId);
     if (!room) return;
@@ -747,6 +769,7 @@ function closeRoom(roomId, bySocketId, reason) {
   rooms.delete(roomId);
   roomDeclines.delete(roomId);
   roomPendingSuggestion.delete(roomId);
+  roomQuestionRequests.delete(roomId);
   broadcastOnlineUsers();
 }
 

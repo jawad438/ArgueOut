@@ -57,7 +57,16 @@
 
   <!-- Spark question banner -->
   <div id="sparkBanner" class="spark-banner" style="display:none">
-    <div class="spark-main">
+    <!-- Request topic view: shown when both are connected but no topic yet -->
+    <div id="requestTopicView" class="spark-main" style="display:none">
+      <span class="spark-label">Topic</span>
+      <span id="requestTopicStatus" class="spark-question-text" style="font-style:italic;color:var(--text-3)">No topic yet — request one to get started</span>
+      <div class="spark-actions">
+        <button id="requestTopicBtn" class="spark-btn spark-suggest-btn" onclick="requestQuestion()">Request a topic</button>
+      </div>
+    </div>
+    <!-- Active question view -->
+    <div id="questionView" class="spark-main" style="display:none">
       <span class="spark-label">Topic:</span>
       <span id="sparkQuestion" class="spark-question-text"></span>
       <div class="spark-actions">
@@ -189,7 +198,7 @@
         <button class="chat-img-upload-btn" id="chatImgBtn" title="Attach an image" aria-label="Attach image">
           <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </button>
-        <textarea class="chat-input" id="chatInput" placeholder="Type a message... (Enter to send)" rows="1" aria-label="Chat message"></textarea>
+        <textarea class="chat-input" id="chatInput" placeholder="Type a message" rows="1" aria-label="Chat message"></textarea>
         <button class="btn btn-primary btn-sm" id="sendBtn" aria-label="Send message" style="flex-shrink:0;padding:10px 14px;border-radius:var(--r-sm)">
           <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>

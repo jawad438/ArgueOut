@@ -69,11 +69,16 @@ function populateOpponentUI() {
     `;
   }
 
-  // Show debate spark question if this debate came from a suggestion
+  // Show debate spark question if this debate came from a challenge with a question
   if (debateQuestion) {
     const banner = document.getElementById('sparkBanner');
     const qEl    = document.getElementById('sparkQuestion');
-    if (banner && qEl) { qEl.textContent = debateQuestion; banner.style.display = 'flex'; }
+    const qv     = document.getElementById('questionView');
+    if (banner && qEl) {
+      qEl.textContent = debateQuestion;
+      if (qv) qv.style.display = 'flex';
+      banner.style.display = 'flex';
+    }
   }
 }
 
@@ -367,6 +372,13 @@ socket.on('start-webrtc', async ({ isInitiator, opponent: opp }) => {
 
   await ensureLocalMedia();
   if (isInitiator) await startAsInitiator();
+
+  // If no question yet, show request-a-topic bar now that both are connected
+  if (!debateQuestion) {
+    const banner = document.getElementById('sparkBanner');
+    const rtv    = document.getElementById('requestTopicView');
+    if (banner && rtv) { rtv.style.display = 'flex'; banner.style.display = 'flex'; }
+  }
 });
 
 socket.on('webrtc-offer',  async ({ offer })    => { if (!peerConn) await ensureLocalMedia(); await handleOffer(offer); });
@@ -499,8 +511,19 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Question controls ─────────────────────────────────────────
-let mySkipped  = false;
-let suggestSent = false;
+let mySkipped           = false;
+let suggestSent         = false;
+let questionRequestSent = false;
+
+function requestQuestion() {
+  if (questionRequestSent) return;
+  questionRequestSent = true;
+  const btn    = document.getElementById('requestTopicBtn');
+  const status = document.getElementById('requestTopicStatus');
+  if (btn)    { btn.textContent = 'Requested!'; btn.disabled = true; }
+  if (status) status.textContent = 'Waiting for your opponent to also request...';
+  socket.emit('request-question', { roomId });
+}
 
 function declineQuestion() {
   if (mySkipped) return;
@@ -547,23 +570,36 @@ document.getElementById('sparkSuggestInput')?.addEventListener('keydown', e => {
 });
 
 socket.on('question-generating', () => {
-  const qEl   = document.getElementById('sparkQuestion');
-  const skip  = document.getElementById('sparkSkipBtn');
-  if (qEl)  qEl.textContent = 'Finding a new topic...';
-  if (skip) { skip.textContent = '...'; skip.disabled = true; }
+  const rtv    = document.getElementById('requestTopicView');
+  const status = document.getElementById('requestTopicStatus');
+  const reqBtn = document.getElementById('requestTopicBtn');
+  const qEl    = document.getElementById('sparkQuestion');
+  const skip   = document.getElementById('sparkSkipBtn');
+  if (rtv && rtv.style.display !== 'none') {
+    if (status) status.textContent = 'Finding a topic...';
+    if (reqBtn) reqBtn.style.display = 'none';
+  } else {
+    if (qEl)  qEl.textContent = 'Finding a new topic...';
+    if (skip) { skip.textContent = '...'; skip.disabled = true; }
+  }
 });
 
 socket.on('question-updated', ({ question }) => {
   const banner = document.getElementById('sparkBanner');
+  const rtv    = document.getElementById('requestTopicView');
+  const qv     = document.getElementById('questionView');
   const qEl    = document.getElementById('sparkQuestion');
   const skip   = document.getElementById('sparkSkipBtn');
   const sug    = document.getElementById('sparkSuggestBtn');
+  if (rtv) rtv.style.display = 'none';
+  if (qv)  qv.style.display = 'flex';
   if (banner) banner.style.display = 'flex';
   if (qEl)   qEl.textContent = question;
   if (skip)  { skip.textContent = 'Skip'; skip.disabled = false; }
   if (sug)   { sug.textContent = 'Suggest'; sug.disabled = false; }
-  mySkipped  = false;
-  suggestSent = false;
+  mySkipped           = false;
+  suggestSent         = false;
+  questionRequestSent = false;
   localStorage.setItem('debateQuestion', question);
   closeSuggestInput();
 });
@@ -584,6 +620,13 @@ socket.on('suggestion-rejected', () => {
   const btn = document.getElementById('sparkSuggestBtn');
   if (btn) { btn.textContent = 'Suggest'; btn.disabled = false; }
   showToast('Your topic suggestion was passed on.', 'info');
+});
+
+socket.on('question-requested', ({ fromUsername }) => {
+  const status = document.getElementById('requestTopicStatus');
+  const btn    = document.getElementById('requestTopicBtn');
+  if (status) status.textContent = `${fromUsername} wants a topic — request one too!`;
+  if (btn && !questionRequestSent) btn.classList.add('pulse-anim');
 });
 
 // ── Debate ended ──────────────────────────────────────────────

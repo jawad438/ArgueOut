@@ -979,6 +979,8 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   to   { opacity: 1; transform: translateY(0); }
 }
 html[data-theme="light"] .spark-banner { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.18); }
+@keyframes pulseBtn { 0%,100% { transform:scale(1); box-shadow:none; } 50% { transform:scale(1.07); box-shadow:0 0 0 3px rgba(139,92,246,0.35); } }
+.pulse-anim { animation: pulseBtn 0.7s ease 3; }
 html[data-theme="light"] .spark-suggest-bar { border-top-color: rgba(139,92,246,0.1); }
 html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7); }
 
