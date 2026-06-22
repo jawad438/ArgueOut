@@ -996,6 +996,7 @@ async function saveCountry() {
   btn.textContent = 'Saving...';
   try {
     await firestoreDb.collection('users').doc(user.uid).update({ country: val });
+    if (socket) socket.emit('update-country', { country: val });
 
     const profileCountry = document.getElementById('profileCountry');
     if (profileCountry) {

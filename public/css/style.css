@@ -1900,9 +1900,8 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 
 /* ── Avatar ──────────────────────────────────────────────────── */
 .up-avatar-wrap {
-  position: absolute;
-  bottom: -44px; left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  margin: -44px auto 0;
   z-index: 5;
   width: 88px; height: 88px;
 }
@@ -1938,7 +1937,7 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 
 /* ── Body ────────────────────────────────────────────────────── */
 .up-body {
-  padding: 56px 24px 24px;
+  padding: 16px 24px 24px;
   display: flex; flex-direction: column; align-items: center;
   text-align: center;
 }
@@ -2040,7 +2039,7 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 @media (max-width: 480px) {
   .up-card { border-radius: var(--r-lg); max-height: 94dvh; }
   .up-hero  { height: 110px; }
-  .up-body  { padding: 50px 18px 20px; }
+  .up-body  { padding: 12px 18px 20px; }
   .up-name  { font-size: 1.25rem; }
 }
 

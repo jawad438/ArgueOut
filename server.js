@@ -157,12 +157,30 @@ app.post('/api/suggest-opponent', async (req, res) => {
       })
     });
 
+    if (!orRes.ok) {
+      const errBody = await orRes.text();
+      console.error('OpenRouter HTTP error:', orRes.status, errBody);
+      return res.status(500).json({ error: 'Suggestion failed' });
+    }
+
     const data = await orRes.json();
+    console.log('OpenRouter response:', JSON.stringify(data).slice(0, 400));
     const raw  = (data.choices?.[0]?.message?.content || '').trim();
+
+    if (!raw) {
+      console.error('OpenRouter returned empty content. Full response:', JSON.stringify(data));
+      return res.status(500).json({ error: 'No suggestion returned' });
+    }
 
     // Strip potential markdown fences
     const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-    const parsed  = JSON.parse(jsonStr);
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      console.error('OpenRouter JSON parse failed. Raw content:', raw);
+      return res.status(500).json({ error: 'Suggestion parse failed' });
+    }
 
     // Enrich with userId + avatar for frontend
     const match = sample.find(c => c.username === parsed.username) || sample[0];
@@ -486,6 +504,11 @@ io.on('connection', socket => {
     const me             = onlineUsers.get(socket.id);
     const challengerSock = io.sockets.sockets.get(challengerSocketId);
     if (challengerSock && me) challengerSock.emit('challenge-rejected', { byUsername: me.username });
+  });
+
+  socket.on('update-country', ({ country }) => {
+    const entry = onlineUsers.get(socket.id);
+    if (entry) { entry.country = country || ''; broadcastOnlineUsers(); }
   });
 
   socket.on('disconnect', () => {
