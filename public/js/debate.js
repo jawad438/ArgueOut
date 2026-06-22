@@ -8,6 +8,9 @@ if (!roomId) { window.location.href = '/lobby'; }
 let opponent = null;
 try { opponent = JSON.parse(localStorage.getItem('debateOpponent')); } catch {}
 
+const debateQuestion = localStorage.getItem('debateQuestion') || null;
+localStorage.removeItem('debateQuestion');
+
 let currentUsername  = localStorage.getItem('username') || 'You';
 let currentIdToken   = null;
 
@@ -65,6 +68,13 @@ function populateOpponentUI() {
       <span style="margin:0 12px;color:var(--text-3)">vs</span>
       <span style="font-weight:600;color:#60a5fa">${escapeHtml(opponent.username)}</span>
     `;
+  }
+
+  // Show debate spark question if this debate came from a suggestion
+  if (debateQuestion) {
+    const banner = document.getElementById('sparkBanner');
+    const qEl    = document.getElementById('sparkQuestion');
+    if (banner && qEl) { qEl.textContent = debateQuestion; banner.style.display = 'flex'; }
   }
 }
 

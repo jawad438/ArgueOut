@@ -229,6 +229,7 @@ socket.on('match-found', ({ roomId, opponent }) => {
   showToast(`Matched with ${opponent.username}!`, 'success');
   localStorage.setItem('debateRoomId',  roomId);
   localStorage.setItem('debateOpponent', JSON.stringify(opponent));
+  localStorage.removeItem('debateQuestion');
   setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
 });
 
@@ -396,8 +397,8 @@ function closeProfileModal() {
 }
 
 // ── Challenge system ──────────────────────────────────────────
-function sendChallenge(targetUserId, targetUsername) {
-  socket.emit('send-challenge', { targetUserId });
+function sendChallenge(targetUserId, targetUsername, question) {
+  socket.emit('send-challenge', { targetUserId, question: question || null });
   showToast(`Challenge sent to ${targetUsername}!`, 'info');
   const challengeBtn = document.getElementById('challengeBtn');
   const pendingMsg   = document.getElementById('challengePendingMsg');
@@ -410,14 +411,20 @@ socket.on('challenge-error', ({ error }) => {
   closeProfileModal();
 });
 
-socket.on('challenge-received', ({ from }) => {
-  pendingChallengeFrom = from;
+let pendingChallengeQuestion = null;
 
-  addToNotifHistory({ icon: '⚔️', text: `${from.username} challenged you to a debate!` });
+socket.on('challenge-received', ({ from, question }) => {
+  pendingChallengeFrom     = from;
+  pendingChallengeQuestion = question || null;
+
+  const notifBody = question
+    ? `${from.username} challenged you! "${question}"`
+    : `${from.username} challenged you to a debate!`;
+  addToNotifHistory({ icon: '⚔️', text: notifBody });
 
   if (Notification.permission === 'granted') {
     new Notification('⚔️ ArgueOut Challenge', {
-      body: `${from.username} is challenging you to a debate!`,
+      body: question ? `${from.username}: "${question}"` : `${from.username} is challenging you to a debate!`,
       icon: '/logo.png'
     });
   }
@@ -430,15 +437,18 @@ socket.on('challenge-received', ({ from }) => {
 
   setTimeout(() => {
     if (panel) panel.classList.remove('active');
-    pendingChallengeFrom = null;
+    pendingChallengeFrom     = null;
+    pendingChallengeQuestion = null;
   }, 30000);
 });
 
-socket.on('challenge-accepted', ({ roomId, opponent }) => {
+socket.on('challenge-accepted', ({ roomId, opponent, question }) => {
   addToNotifHistory({ icon: '✅', text: `${opponent.username} accepted your challenge!` });
   showToast(`Challenge accepted! Starting debate...`, 'success');
   localStorage.setItem('debateRoomId', roomId);
   localStorage.setItem('debateOpponent', JSON.stringify(opponent));
+  if (question) localStorage.setItem('debateQuestion', question);
+  else          localStorage.removeItem('debateQuestion');
   setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
 });
 
@@ -537,7 +547,8 @@ const dismissChallengeBtn = document.getElementById('dismissChallengeBtn');
 function dismissChallengeNotif() {
   const panel = document.getElementById('challengeNotifPanel');
   if (panel) panel.classList.remove('active');
-  pendingChallengeFrom = null;
+  pendingChallengeFrom     = null;
+  pendingChallengeQuestion = null;
 }
 
 if (acceptChallengeBtn) {
@@ -622,6 +633,7 @@ auth.onAuthStateChanged(async (user) => {
 // ── Smart opponent suggestion ─────────────────────────────────
 let suggestUserId   = null;
 let suggestUsername = null;
+let suggestQuestion = null;
 
 async function fetchSuggestedOpponent(token) {
   if (inQueue) return;
@@ -648,6 +660,9 @@ function showSuggestCard(data) {
 
   suggestUserId   = data.userId;
   suggestUsername = data.username;
+  suggestQuestion = data.question || null;
+
+  addToNotifHistory({ icon: '💡', text: `Recommended: ${data.name || data.username} — "${data.reason || 'Good match'}"` });
 
   // Avatar
   const av = document.getElementById('suggestAvatar');
@@ -691,6 +706,7 @@ function hideSuggestCard() {
   setTimeout(() => { card.style.display = 'none'; }, 300);
   suggestUserId   = null;
   suggestUsername = null;
+  suggestQuestion = null;
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -702,8 +718,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (dismissBtn)   dismissBtn.addEventListener('click', hideSuggestCard);
   if (challengeBtn) challengeBtn.addEventListener('click', function () {
     if (suggestUserId) {
-      const target = onlineUsersCache.find(u => u.userId === suggestUserId);
-      sendChallenge(suggestUserId, suggestUsername || '');
+      sendChallenge(suggestUserId, suggestUsername || '', suggestQuestion);
     }
     hideSuggestCard();
   });

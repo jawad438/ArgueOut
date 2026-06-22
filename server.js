@@ -112,16 +112,21 @@ app.post('/api/suggest-opponent', async (req, res) => {
     return res.status(404).json({ error: 'Not online' });
   }
 
-  // Gather candidates: other online users, not in debate, deduped
+  // Gather candidates: other online users, not in debate, not already suggested or debated
+  const excluded = new Set([
+    decoded.uid,
+    ...(suggestedMap.get(decoded.uid) || []),
+    ...(debatedMap.get(decoded.uid)   || [])
+  ]);
   const seen = new Set([decoded.uid]);
   const candidates = [];
   for (const u of onlineUsers.values()) {
-    if (seen.has(u.userId) || u.inDebate) continue;
+    if (seen.has(u.userId) || u.inDebate || excluded.has(u.userId)) continue;
     seen.add(u.userId);
     candidates.push(u);
   }
   if (!candidates.length) {
-    console.log(`suggest-opponent: no candidates for ${decoded.uid} (${onlineUsers.size} total online)`);
+    console.log(`suggest-opponent: no candidates for ${decoded.uid} (${onlineUsers.size} total online, ${excluded.size - 1} excluded)`);
     return res.status(404).json({ error: 'No candidates' });
   }
 
@@ -198,6 +203,7 @@ app.post('/api/suggest-opponent', async (req, res) => {
 
     // Enrich with userId + avatar for frontend
     const match = sample.find(c => c.username === parsed.username) || sample[0];
+    addSuggested(decoded.uid, match.userId); // exclude from future suggestions
     res.json({
       username:  match.username,
       userId:    match.userId,
@@ -233,6 +239,25 @@ const onlineUsers = new Map();
 
 // invite token → { hostUserId, hostUsername, expiresAt }
 const inviteTokens = new Map();
+
+// userId → Set<targetUserId>  — who was suggested to whom (excluded from future suggestions)
+const suggestedMap = new Map();
+// userId → Set<targetUserId>  — who debated whom (also excluded)
+const debatedMap   = new Map();
+// challengerSocketId → question string  — question attached to pending challenge
+const pendingQuestions = new Map();
+
+function addSuggested(userId, targetUserId) {
+  if (!suggestedMap.has(userId)) suggestedMap.set(userId, new Set());
+  suggestedMap.get(userId).add(targetUserId);
+}
+
+function addDebated(userId1, userId2) {
+  if (!debatedMap.has(userId1)) debatedMap.set(userId1, new Set());
+  debatedMap.get(userId1).add(userId2);
+  if (!debatedMap.has(userId2)) debatedMap.set(userId2, new Set());
+  debatedMap.get(userId2).add(userId1);
+}
 setInterval(() => {
   const now = Date.now();
   for (const [t, d] of inviteTokens) if (d.expiresAt < now) inviteTokens.delete(t);
@@ -429,7 +454,7 @@ io.on('connection', socket => {
 
   // ── Challenge system ─────────────────────────────────────────
 
-  socket.on('send-challenge', ({ targetUserId }) => {
+  socket.on('send-challenge', ({ targetUserId, question }) => {
     const me = onlineUsers.get(socket.id);
     if (!me) return;
     // Find target — prefer lobby (not-inDebate) socket
@@ -438,8 +463,10 @@ io.on('connection', socket => {
     const lobbyEntry = entries.find(([, u]) => !u.inDebate) || entries[0];
     const [targetSocketId, targetUser] = lobbyEntry;
     if (targetUser.inDebate) { socket.emit('challenge-error', { error: 'That user is currently in a debate.' }); return; }
+    if (question) pendingQuestions.set(socket.id, String(question).slice(0, 300));
     io.to(targetSocketId).emit('challenge-received', {
-      from: { socketId: socket.id, userId: me.userId, username: me.username }
+      from:     { socketId: socket.id, userId: me.userId, username: me.username },
+      question: question || null
     });
   });
 
@@ -452,6 +479,9 @@ io.on('connection', socket => {
     const s2 = socket;
     if (!s1 || !s2) return;
 
+    const question = pendingQuestions.get(challengerSocketId) || null;
+    pendingQuestions.delete(challengerSocketId);
+
     const roomId = uuidv4();
     rooms.set(roomId, {
       users: [
@@ -460,8 +490,10 @@ io.on('connection', socket => {
       ]
     });
 
-    s1.emit('challenge-accepted', { roomId, opponent: { username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY         } });
-    s2.emit('challenge-accepted', { roomId, opponent: { username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY } });
+    addDebated(challenger.userId, me.userId);
+
+    s1.emit('challenge-accepted', { roomId, question, opponent: { username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY         } });
+    s2.emit('challenge-accepted', { roomId, question, opponent: { username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY } });
   });
 
   // ── Invite links ─────────────────────────────────────────────
@@ -583,6 +615,8 @@ function attemptMatch(newSocketId) {
       { ...matchUser, socketId: null }
     ]
   });
+
+  addDebated(newUser.userId, matchUser.userId);
 
   s1.emit('match-found', {
     roomId,

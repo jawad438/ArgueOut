@@ -902,6 +902,35 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   border-bottom: 1px solid var(--border);
   z-index: 10;
 }
+/* ── Spark question banner ───────────────────────────────────── */
+.spark-banner {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  background: rgba(139,92,246,0.1);
+  border-bottom: 1px solid rgba(139,92,246,0.22);
+  font-size: 0.88rem;
+  color: var(--text-1);
+  animation: sparkFadeIn 500ms var(--ease-out) both;
+}
+.spark-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--purple);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+@keyframes sparkFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+html[data-theme="light"] .spark-banner { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.18); }
+
 .debate-topic {
   flex: 1;
   text-align: center;
