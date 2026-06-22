@@ -286,6 +286,33 @@
   </div>
 </div>
 
+<!-- Suggested opponent card -->
+<div class="suggest-card" id="suggestCard" style="display:none">
+  <div class="suggest-header">
+    <span class="suggest-label">Recommended for you</span>
+    <button class="suggest-close" id="suggestClose" aria-label="Dismiss">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="suggest-opponent">
+    <div class="suggest-avatar" id="suggestAvatar"></div>
+    <div class="suggest-info">
+      <div class="suggest-name" id="suggestName"></div>
+      <div class="suggest-username" id="suggestUsername"></div>
+    </div>
+  </div>
+  <div class="suggest-tags" id="suggestTags"></div>
+  <div class="suggest-reason" id="suggestReason"></div>
+  <div class="suggest-question-wrap">
+    <div class="suggest-question-label">Debate this:</div>
+    <div class="suggest-question" id="suggestQuestion"></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:14px">
+    <button class="btn btn-debate btn-sm" id="suggestChallengeBtn" style="flex:1">Send Challenge</button>
+    <button class="btn btn-ghost btn-sm" id="suggestDismissBtn">Pass</button>
+  </div>
+</div>
+
 <!-- User profile modal -->
 <div class="modal-overlay" id="userProfileModal" style="display:none" onclick="if(event.target===this)closeProfileModal()">
   <div class="up-card" id="upCard">

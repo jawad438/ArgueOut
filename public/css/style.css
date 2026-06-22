@@ -2113,6 +2113,37 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   100% { background-color: #e7e5f2; }
 }
 
+/* ── Country picker ─────────────────────────────────────────── */
+.country-picker { position: relative; }
+.country-dropdown { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--notif-dd-bg); border: 1px solid var(--border-bright); border-radius: var(--r-md); max-height: 220px; overflow-y: auto; z-index: 300; box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+.country-dropdown.open { display: block; animation: fadeDropdown 120ms ease-out; }
+.country-opt { display: block; width: 100%; text-align: left; padding: 9px 14px; background: none; border: none; color: var(--text-1); font-size: 0.875rem; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: background 100ms; }
+.country-opt:hover { background: var(--bg-card-hover); }
+.country-opt-empty { color: var(--text-3); font-style: italic; cursor: default; }
+.country-opt-empty:hover { background: none; }
+
+/* ── Suggested opponent card ─────────────────────────────────── */
+.suggest-card { position: fixed; bottom: 24px; left: 24px; width: 320px; background: var(--bg-card); border: 1px solid var(--border-bright); border-radius: var(--r-lg); padding: 18px; box-shadow: 0 12px 40px rgba(0,0,0,0.5), var(--shadow-glass); backdrop-filter: var(--blur); z-index: 500; opacity: 0; transform: translateY(16px); transition: opacity 280ms ease, transform 280ms ease; }
+.suggest-card.suggest-visible { opacity: 1; transform: translateY(0); }
+.suggest-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.suggest-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--purple); font-family: 'Space Grotesk', sans-serif; }
+.suggest-close { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 4px; display: flex; align-items: center; border-radius: var(--r-sm); transition: color 120ms; }
+.suggest-close:hover { color: var(--text-1); }
+.suggest-opponent { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.suggest-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--grad-main); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.1rem; color: #fff; flex-shrink: 0; background-size: cover; background-position: center; }
+.suggest-info { min-width: 0; }
+.suggest-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggest-username { font-size: 0.8rem; color: var(--text-3); }
+.suggest-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.suggest-tag { font-size: 0.72rem; font-weight: 600; padding: 3px 9px; border-radius: var(--r-full); background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.25); color: var(--purple); font-family: 'Space Grotesk', sans-serif; }
+.suggest-reason { font-size: 0.84rem; color: var(--text-2); line-height: 1.5; margin-bottom: 12px; }
+.suggest-question-wrap { background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.18); border-radius: var(--r-md); padding: 10px 12px; }
+.suggest-question-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--purple); margin-bottom: 5px; font-family: 'Space Grotesk', sans-serif; }
+.suggest-question { font-size: 0.86rem; color: var(--text-1); line-height: 1.5; font-weight: 500; }
+@media (max-width: 480px) {
+  .suggest-card { left: 12px; right: 12px; width: auto; bottom: 16px; }
+}
+
 html[data-theme="light"] {
   --bg-0:           #e5e5f2;
   --bg-1:           #eaeaf5;
@@ -2152,6 +2183,9 @@ html[data-theme="light"] .match-card,
 html[data-theme="light"] .how-card,
 html[data-theme="light"] .feature-card,
 html[data-theme="light"] .compass-position-label { box-shadow: var(--shadow-glass); }
+html[data-theme="light"] .suggest-card { box-shadow: var(--shadow-glass); }
+html[data-theme="light"] .suggest-question-wrap { background: rgba(139,92,246,0.08); }
+html[data-theme="light"] .suggest-tag { background: rgba(139,92,246,0.10); }
 html[data-theme="light"] .feature-card:hover     { box-shadow: var(--shadow-glass), var(--shadow-glow); }
 
 html[data-theme="light"] .form-input,

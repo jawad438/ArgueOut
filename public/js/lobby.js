@@ -577,9 +577,99 @@ auth.onAuthStateChanged(async (user) => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
+
+    // Schedule smart opponent suggestion
+    const _suggToken = await user.getIdToken();
+    setTimeout(() => fetchSuggestedOpponent(_suggToken), 6000);
   } catch {
     showToast('Could not load profile. Check your connection.', 'error');
   }
+});
+
+// ── Smart opponent suggestion ─────────────────────────────────
+let suggestUserId   = null;
+let suggestUsername = null;
+
+async function fetchSuggestedOpponent(token) {
+  if (inQueue) return;
+  try {
+    const res  = await fetch('/api/suggest-opponent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: token })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.username) return;
+    showSuggestCard(data);
+  } catch { /* silently ignore */ }
+}
+
+function showSuggestCard(data) {
+  const card = document.getElementById('suggestCard');
+  if (!card) return;
+
+  suggestUserId   = data.userId;
+  suggestUsername = data.username;
+
+  // Avatar
+  const av = document.getElementById('suggestAvatar');
+  if (av) {
+    if (data.avatarUrl) {
+      av.style.backgroundImage = `url(${data.avatarUrl})`;
+      av.style.backgroundSize  = 'cover';
+      av.textContent = '';
+    } else {
+      av.style.backgroundImage = '';
+      av.textContent = (data.name || data.username || '?')[0].toUpperCase();
+    }
+  }
+
+  const nameEl = document.getElementById('suggestName');
+  const userEl = document.getElementById('suggestUsername');
+  const tagsEl = document.getElementById('suggestTags');
+  const rsn    = document.getElementById('suggestReason');
+  const qEl    = document.getElementById('suggestQuestion');
+
+  if (nameEl) nameEl.textContent = data.name || data.username;
+  if (userEl) userEl.textContent = '@' + data.username;
+
+  if (tagsEl) {
+    tagsEl.innerHTML = (data.tags || []).map(t =>
+      `<span class="suggest-tag">${escapeHtml(t)}</span>`
+    ).join('');
+  }
+
+  if (rsn)  rsn.textContent  = data.reason   || '';
+  if (qEl)  qEl.textContent  = data.question || '';
+
+  card.style.display = 'block';
+  requestAnimationFrame(() => card.classList.add('suggest-visible'));
+}
+
+function hideSuggestCard() {
+  const card = document.getElementById('suggestCard');
+  if (!card) return;
+  card.classList.remove('suggest-visible');
+  setTimeout(() => { card.style.display = 'none'; }, 300);
+  suggestUserId   = null;
+  suggestUsername = null;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  const closeBtn     = document.getElementById('suggestClose');
+  const dismissBtn   = document.getElementById('suggestDismissBtn');
+  const challengeBtn = document.getElementById('suggestChallengeBtn');
+
+  if (closeBtn)     closeBtn.addEventListener('click', hideSuggestCard);
+  if (dismissBtn)   dismissBtn.addEventListener('click', hideSuggestCard);
+  if (challengeBtn) challengeBtn.addEventListener('click', function () {
+    if (suggestUserId) {
+      const target = onlineUsersCache.find(u => u.userId === suggestUserId);
+      sendChallenge(suggestUserId, suggestUsername || '');
+    }
+    hideSuggestCard();
+  });
 });
 
 // ── Notification history & dropdown ──────────────────────────

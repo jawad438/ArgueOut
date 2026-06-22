@@ -338,6 +338,7 @@ if (step2Form) {
 
       // Write user profile + username index atomically
       const batch = firestoreDb.batch();
+      const countryEl = document.getElementById('country');
       batch.set(firestoreDb.collection('users').doc(uid), {
         username:   regData.username,
         name:       regData.name,
@@ -346,6 +347,7 @@ if (step2Form) {
         religion:   religion || 'prefer_not_to_say',
         age:        ageNum || 18,
         bio:        bio || '',
+        country:    (countryEl && countryEl.value) || '',
         politicalX: 0,
         politicalY: 0,
         compassSet: false,

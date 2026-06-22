@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express  = require('express');
 const http     = require('http');
 const { Server } = require('socket.io');
@@ -72,6 +73,112 @@ app.get('/api/invite/:token', (req, res) => {
 app.get('/favicon.ico', (_, res) => {
   res.setHeader('Content-Type', 'image/png');
   res.sendFile(path.join(__dirname, 'public', 'favicon.png'));
+});
+
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
+const SUGGEST_MODEL  = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+
+const SUGGEST_SYSTEM = `You are the matchmaking engine for ArgueOut, a live political debate platform. Your job is to pick the single most compelling debate opponent for a user from a list of online candidates.
+
+Evaluate each candidate on:
+- Political compass distance (X = economic axis: -1 far-left to +1 far-right; Y = social axis: -1 libertarian to +1 authoritarian). Maximise ideological distance.
+- Demographic contrast: age gap, different religion, different country of origin.
+- Overall richness of potential disagreement across all dimensions.
+
+Respond ONLY with valid JSON — no markdown, no extra text:
+{
+  "username": "<selected candidate username>",
+  "tags": ["<tag1>", "<tag2>", "<tag3>"],
+  "reason": "<one punchy sentence, max 12 words, why this debate would be electric>",
+  "question": "<one sharp, specific, controversial debate question, max 22 words, tailored to their exact differences>"
+}
+
+Tag rules: 2-3 words each, describe the specific clash. Examples: "Opposite compass", "Faith divide", "Age gap", "Across borders", "Economic clash", "Polar views". The debate question must feel personally crafted for their ideological and demographic gap — never generic. It should ignite real, substantive disagreement.`;
+
+app.post('/api/suggest-opponent', async (req, res) => {
+  const { idToken } = req.body || {};
+  if (!idToken) return res.status(401).json({ error: 'No token' });
+
+  const decoded = await verifyFirebaseToken(idToken);
+  if (!decoded) return res.status(401).json({ error: 'Invalid token' });
+
+  // Find current user in online map (dedup by userId)
+  let currentUser = null;
+  for (const u of onlineUsers.values()) {
+    if (u.userId === decoded.uid) { currentUser = u; break; }
+  }
+  if (!currentUser) return res.status(404).json({ error: 'Not online' });
+
+  // Gather candidates: other online users, not in debate, deduped
+  const seen = new Set([decoded.uid]);
+  const candidates = [];
+  for (const u of onlineUsers.values()) {
+    if (seen.has(u.userId) || u.inDebate) continue;
+    seen.add(u.userId);
+    candidates.push(u);
+  }
+  if (!candidates.length) return res.status(404).json({ error: 'No candidates' });
+
+  // Take up to 8 for the API call
+  const sample = candidates.slice(0, 8);
+
+  function fmt(u) {
+    const econ   = u.politicalX >= 0 ? 'Economic Right' : 'Economic Left';
+    const social = u.politicalY >= 0 ? 'Authoritarian' : 'Libertarian';
+    return [
+      `Username: ${u.username}`,
+      `Political compass: X=${u.politicalX.toFixed(2)} (${econ}), Y=${u.politicalY.toFixed(2)} (${social})`,
+      u.age      ? `Age: ${u.age}` : null,
+      u.gender   ? `Gender: ${u.gender}` : null,
+      u.religion ? `Religion: ${u.religion}` : null,
+      u.country  ? `Country: ${u.country}` : null,
+    ].filter(Boolean).join(', ');
+  }
+
+  const userMsg = `Viewer: ${fmt(currentUser)}\n\nCandidates:\n${sample.map((c, i) => `${i + 1}. ${fmt(c)}`).join('\n')}`;
+
+  try {
+    const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://argueout.app',
+        'X-Title': 'ArgueOut'
+      },
+      body: JSON.stringify({
+        model: SUGGEST_MODEL,
+        messages: [
+          { role: 'system', content: SUGGEST_SYSTEM },
+          { role: 'user',   content: userMsg }
+        ],
+        temperature: 0.75,
+        max_tokens: 320
+      })
+    });
+
+    const data = await orRes.json();
+    const raw  = (data.choices?.[0]?.message?.content || '').trim();
+
+    // Strip potential markdown fences
+    const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    const parsed  = JSON.parse(jsonStr);
+
+    // Enrich with userId + avatar for frontend
+    const match = sample.find(c => c.username === parsed.username) || sample[0];
+    res.json({
+      username:  match.username,
+      userId:    match.userId,
+      name:      match.name || match.username,
+      avatarUrl: match.avatarUrl || null,
+      tags:      parsed.tags  || [],
+      reason:    parsed.reason || '',
+      question:  parsed.question || ''
+    });
+  } catch (err) {
+    console.error('suggest-opponent error:', err);
+    res.status(500).json({ error: 'Suggestion failed' });
+  }
 });
 
 app.use((req, res) => {
@@ -158,6 +265,7 @@ io.on('connection', socket => {
       age:        userData.age,
       gender:     userData.gender,
       religion:   userData.religion,
+      country:    userData.country || '',
       bio:        userData.bio || '',
       inDebate:   false
     });
