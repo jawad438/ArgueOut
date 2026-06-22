@@ -195,6 +195,10 @@ socket.on('authenticated', () => {
     history.replaceState({}, '', '/lobby');
     setTimeout(() => socket.emit('join-queue'), 300);
   }
+  // Trigger suggestion after socket is confirmed — guarantees user is in onlineUsers
+  if (currentIdToken) {
+    setTimeout(() => fetchSuggestedOpponent(currentIdToken), 3000);
+  }
 });
 
 socket.on('auth-error', ({ error }) => {
@@ -609,9 +613,7 @@ auth.onAuthStateChanged(async (user) => {
       Notification.requestPermission();
     }
 
-    // Schedule smart opponent suggestion
-    const _suggToken = await user.getIdToken();
-    setTimeout(() => fetchSuggestedOpponent(_suggToken), 6000);
+    // Suggestion is triggered in socket.on('authenticated') once the socket is confirmed
   } catch {
     showToast('Could not load profile. Check your connection.', 'error');
   }
@@ -629,11 +631,15 @@ async function fetchSuggestedOpponent(token) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken: token })
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.warn('[ArgueOut] suggest-opponent failed:', res.status, body.error || '');
+      return;
+    }
     const data = await res.json();
-    if (!data.username) return;
+    if (!data.username) { console.warn('[ArgueOut] suggest-opponent: no username in response', data); return; }
     showSuggestCard(data);
-  } catch { /* silently ignore */ }
+  } catch (e) { console.warn('[ArgueOut] suggest-opponent error:', e); }
 }
 
 function showSuggestCard(data) {

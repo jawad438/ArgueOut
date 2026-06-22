@@ -107,7 +107,10 @@ app.post('/api/suggest-opponent', async (req, res) => {
   for (const u of onlineUsers.values()) {
     if (u.userId === decoded.uid) { currentUser = u; break; }
   }
-  if (!currentUser) return res.status(404).json({ error: 'Not online' });
+  if (!currentUser) {
+    console.log(`suggest-opponent: user ${decoded.uid} not in onlineUsers (${onlineUsers.size} entries)`);
+    return res.status(404).json({ error: 'Not online' });
+  }
 
   // Gather candidates: other online users, not in debate, deduped
   const seen = new Set([decoded.uid]);
@@ -117,7 +120,10 @@ app.post('/api/suggest-opponent', async (req, res) => {
     seen.add(u.userId);
     candidates.push(u);
   }
-  if (!candidates.length) return res.status(404).json({ error: 'No candidates' });
+  if (!candidates.length) {
+    console.log(`suggest-opponent: no candidates for ${decoded.uid} (${onlineUsers.size} total online)`);
+    return res.status(404).json({ error: 'No candidates' });
+  }
 
   // Take up to 8 for the API call
   const sample = candidates.slice(0, 8);
