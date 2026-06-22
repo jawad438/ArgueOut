@@ -105,12 +105,15 @@ Phrase as "Is X a Y?", "Should we Z?", "Was X Y?", "Does X actually Y?", "Is it 
 Examples: "Is food a right or a privilege?", "Should we risk the meat industry to save the environment?", "Is abortion healthcare?", "Was Jesus a good person?", "Does capitalism help or hurt the poor?", "Should drugs be legal?", "Is religion doing more harm than good?"
 One sentence, max 12 words. No hedging. No "what do you think." Respond ONLY with valid JSON: {"question": "<question here>"}`;
 
-async function generateDebateQuestion(hint) {
-  const userMsg = hint
-    ? `Generate a debate question about or related to this topic: "${hint}". Use the same format — direct, divisive, answerable from opposing sides.`
-    : 'Generate a debate question for two people with opposing political views.';
+// ── OpenRouter shared caller ──────────────────────────────────
+
+async function callOpenRouter(fnName, body) {
+  const t0   = Date.now();
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 30000);
   try {
-    const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    console.log(`[OR:${fnName}] → ${body.model}  max_tokens=${body.max_tokens}`);
+    const res  = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENROUTER_KEY}`,
@@ -118,33 +121,51 @@ async function generateDebateQuestion(hint) {
         'HTTP-Referer': 'https://argueout.app',
         'X-Title': 'ArgueOut'
       },
-      body: JSON.stringify({
-        model: SUGGEST_MODEL,
-        messages: [
-          { role: 'system', content: QUESTION_GEN_SYSTEM },
-          { role: 'user',   content: userMsg }
-        ],
-        temperature: 0.9,
-        max_tokens: 256
-      })
+      body: JSON.stringify(body),
+      signal: ctrl.signal
     });
-    if (!orRes.ok) return null;
-    const data = await orRes.json();
-    const raw  = (data.choices?.[0]?.message?.content || '').trim();
-    const stripped = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-    let parsed;
-    try { parsed = JSON.parse(stripped); } catch (_) {}
-    if (!parsed) {
-      const matches = [...stripped.matchAll(/\{[^{}]*"question"[^{}]*\}/gs)];
-      for (let i = matches.length - 1; i >= 0; i--) {
-        try { parsed = JSON.parse(matches[i][0]); break; } catch (_) {}
-      }
-    }
-    return parsed?.question || null;
+    const ms   = Date.now() - t0;
+    const text = await res.text();
+    console.log(`[OR:${fnName}] ← ${res.status} in ${ms}ms | ${text.slice(0, 600)}`);
+    if (!res.ok) return null;
+    try { return JSON.parse(text); } catch { return null; }
   } catch (err) {
-    console.error('generateDebateQuestion error:', err);
+    const ms = Date.now() - t0;
+    console.error(`[OR:${fnName}] ✗ ${ms}ms — ${err.name === 'AbortError' ? 'TIMEOUT (30s)' : err.message}`);
     return null;
+  } finally {
+    clearTimeout(tid);
   }
+}
+
+function extractQuestion(data) {
+  const raw      = (data?.choices?.[0]?.message?.content || '').trim();
+  const stripped = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  let parsed;
+  try { parsed = JSON.parse(stripped); } catch (_) {}
+  if (!parsed) {
+    const matches = [...stripped.matchAll(/\{[^{}]*"question"[^{}]*\}/gs)];
+    for (let i = matches.length - 1; i >= 0; i--) {
+      try { parsed = JSON.parse(matches[i][0]); break; } catch (_) {}
+    }
+  }
+  return parsed?.question || null;
+}
+
+async function generateDebateQuestion(hint) {
+  const userMsg = hint
+    ? `Generate a debate question about or related to this topic: "${hint}". Use the same format — direct, divisive, answerable from opposing sides.`
+    : 'Generate a debate question for two people with opposing political views.';
+  const data = await callOpenRouter('genQuestion', {
+    model: SUGGEST_MODEL,
+    messages: [
+      { role: 'system', content: QUESTION_GEN_SYSTEM },
+      { role: 'user',   content: userMsg }
+    ],
+    temperature: 0.9,
+    max_tokens: 256
+  });
+  return extractQuestion(data);
 }
 
 function fmtUser(u) {
@@ -162,42 +183,16 @@ function fmtUser(u) {
 
 async function generateDebateQuestionForPair(user1, user2) {
   const userMsg = `Debate pair — generate the most explosive question for these exact two opponents:\n1. ${fmtUser(user1)}\n2. ${fmtUser(user2)}\n\nFocus on maximising the clash between their profiles. Output the question field only — do not pick a username.`;
-  try {
-    const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://argueout.app',
-        'X-Title': 'ArgueOut'
-      },
-      body: JSON.stringify({
-        model: SUGGEST_MODEL,
-        messages: [
-          { role: 'system', content: SUGGEST_SYSTEM },
-          { role: 'user',   content: userMsg }
-        ],
-        temperature: 0.9,
-        max_tokens: 400
-      })
-    });
-    if (!orRes.ok) return null;
-    const data = await orRes.json();
-    const raw  = (data.choices?.[0]?.message?.content || '').trim();
-    const stripped = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-    let parsed;
-    try { parsed = JSON.parse(stripped); } catch (_) {}
-    if (!parsed) {
-      const matches = [...stripped.matchAll(/\{[^{}]*"question"[^{}]*\}/gs)];
-      for (let i = matches.length - 1; i >= 0; i--) {
-        try { parsed = JSON.parse(matches[i][0]); break; } catch (_) {}
-      }
-    }
-    return parsed?.question || null;
-  } catch (err) {
-    console.error('generateDebateQuestionForPair error:', err);
-    return null;
-  }
+  const data = await callOpenRouter('genPairQuestion', {
+    model: SUGGEST_MODEL,
+    messages: [
+      { role: 'system', content: SUGGEST_SYSTEM },
+      { role: 'user',   content: userMsg }
+    ],
+    temperature: 0.9,
+    max_tokens: 400
+  });
+  return extractQuestion(data);
 }
 
 app.post('/api/suggest-opponent', async (req, res) => {
@@ -240,75 +235,49 @@ app.post('/api/suggest-opponent', async (req, res) => {
 
   const userMsg = `Viewer: ${fmtUser(currentUser)}\n\nCandidates:\n${sample.map((c, i) => `${i + 1}. ${fmtUser(c)}`).join('\n')}`;
 
-  try {
-    const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://argueout.app',
-        'X-Title': 'ArgueOut'
-      },
-      body: JSON.stringify({
-        model: SUGGEST_MODEL,
-        messages: [
-          { role: 'system', content: SUGGEST_SYSTEM },
-          { role: 'user',   content: userMsg }
-        ],
-        temperature: 0.75,
-        max_tokens: 2048
-      })
-    });
+  const data = await callOpenRouter('suggestOpponent', {
+    model: SUGGEST_MODEL,
+    messages: [
+      { role: 'system', content: SUGGEST_SYSTEM },
+      { role: 'user',   content: userMsg }
+    ],
+    temperature: 0.75,
+    max_tokens: 400
+  });
 
-    if (!orRes.ok) {
-      const errBody = await orRes.text();
-      console.error('OpenRouter HTTP error:', orRes.status, errBody);
-      return res.status(500).json({ error: 'Suggestion failed' });
-    }
+  if (!data) return res.status(500).json({ error: 'Suggestion failed' });
 
-    const data = await orRes.json();
-    console.log('OpenRouter response:', JSON.stringify(data).slice(0, 400));
-    const raw  = (data.choices?.[0]?.message?.content || '').trim();
-
-    if (!raw) {
-      console.error('OpenRouter returned empty content. Full response:', JSON.stringify(data));
-      return res.status(500).json({ error: 'No suggestion returned' });
-    }
-
-    // Strip markdown fences, then try to extract JSON from anywhere in the response
-    // (reasoning models write chain-of-thought before outputting the JSON object)
-    const stripped = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-    let parsed;
-    // First try the whole response as JSON
-    try { parsed = JSON.parse(stripped); } catch (_) {}
-    // Then scan for the last {...} block that contains "username"
-    if (!parsed) {
-      const matches = [...stripped.matchAll(/\{[^{}]*"username"[^{}]*\}/gs)];
-      for (let i = matches.length - 1; i >= 0; i--) {
-        try { parsed = JSON.parse(matches[i][0]); break; } catch (_) {}
-      }
-    }
-    if (!parsed) {
-      console.error('OpenRouter JSON parse failed. Raw content:', raw);
-      return res.status(500).json({ error: 'Suggestion parse failed' });
-    }
-
-    // Enrich with userId + avatar for frontend
-    const match = sample.find(c => c.username === parsed.username) || sample[0];
-    addSuggested(decoded.uid, match.userId); // exclude from future suggestions
-    res.json({
-      username:  match.username,
-      userId:    match.userId,
-      name:      match.name || match.username,
-      avatarUrl: match.avatarUrl || null,
-      tags:      parsed.tags  || [],
-      reason:    parsed.reason || '',
-      question:  parsed.question || ''
-    });
-  } catch (err) {
-    console.error('suggest-opponent error:', err);
-    res.status(500).json({ error: 'Suggestion failed' });
+  const raw      = (data.choices?.[0]?.message?.content || '').trim();
+  if (!raw) {
+    console.error('[OR:suggestOpponent] empty content — full data:', JSON.stringify(data));
+    return res.status(500).json({ error: 'No suggestion returned' });
   }
+
+  const stripped = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  let parsed;
+  try { parsed = JSON.parse(stripped); } catch (_) {}
+  if (!parsed) {
+    const matches = [...stripped.matchAll(/\{[^{}]*"username"[^{}]*\}/gs)];
+    for (let i = matches.length - 1; i >= 0; i--) {
+      try { parsed = JSON.parse(matches[i][0]); break; } catch (_) {}
+    }
+  }
+  if (!parsed) {
+    console.error('[OR:suggestOpponent] JSON parse failed. Raw:', raw);
+    return res.status(500).json({ error: 'Suggestion parse failed' });
+  }
+
+  const match = sample.find(c => c.username === parsed.username) || sample[0];
+  addSuggested(decoded.uid, match.userId);
+  res.json({
+    username:  match.username,
+    userId:    match.userId,
+    name:      match.name || match.username,
+    avatarUrl: match.avatarUrl || null,
+    tags:      parsed.tags  || [],
+    reason:    parsed.reason || '',
+    question:  parsed.question || ''
+  });
 });
 
 app.use((req, res) => {
