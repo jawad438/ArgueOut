@@ -78,22 +78,27 @@ app.get('/favicon.ico', (_, res) => {
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const SUGGEST_MODEL  = 'openai/gpt-oss-20b:free';
 
-const SUGGEST_SYSTEM = `You are the matchmaking engine for ArgueOut, a live political debate platform. Your job is to pick the single most compelling debate opponent for a user from a list of online candidates.
+const SUGGEST_SYSTEM = `You are ArgueOut's debate igniter. Pick the most explosive opponent and write a question that will start a real fight.
 
-Evaluate each candidate on:
-- Political compass distance (X = economic axis: -1 far-left to +1 far-right; Y = social axis: -1 libertarian to +1 authoritarian). Maximise ideological distance.
-- Demographic contrast: age gap, different religion, different country of origin.
-- Overall richness of potential disagreement across all dimensions.
+Selection: maximise political compass distance, then demographic contrast (age, religion, country).
 
-Respond ONLY with valid JSON — no markdown, no extra text:
+Question rules — most important part:
+- Hard max 10 words. No exceptions.
+- No "do you think", no soft openers. Cut straight to the bone.
+- Make it feel like a provocation aimed at the exact gap between these two people.
+- GOOD: "Is your god worth the wars he caused?", "Taxing the rich: theft or justice?", "Should borders exist or are they just fear?", "Prove the free market has ever helped the poor.", "Is libertarianism just selfishness with a philosophy degree?"
+- BAD: "What are your thoughts on economic policy?", "Do you believe governments should intervene?"
+
+Reason: max 8 words, one punchy clause, no period.
+Tags: 2-3 words each, name the specific clash. Examples: "God vs State", "Polar compass", "Class war", "Faith clash", "Border wars".
+
+Respond ONLY with valid JSON, no markdown:
 {
   "username": "<selected candidate username>",
   "tags": ["<tag1>", "<tag2>", "<tag3>"],
-  "reason": "<one punchy sentence, max 12 words, why this debate would be electric>",
-  "question": "<one sharp, specific, controversial debate question, max 22 words, tailored to their exact differences>"
-}
-
-Tag rules: 2-3 words each, describe the specific clash. Examples: "Opposite compass", "Faith divide", "Age gap", "Across borders", "Economic clash", "Polar views". The debate question must feel personally crafted for their ideological and demographic gap — never generic. It should ignite real, substantive disagreement.`;
+  "reason": "<max 8 words>",
+  "question": "<max 10 words, no hedging>"
+}`;
 
 app.post('/api/suggest-opponent', async (req, res) => {
   const { idToken } = req.body || {};

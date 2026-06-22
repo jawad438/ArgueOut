@@ -695,15 +695,16 @@ function showSuggestCard(data) {
   if (rsn)  rsn.textContent  = data.reason   || '';
   if (qEl)  qEl.textContent  = data.question || '';
 
-  card.style.display = 'block';
-  requestAnimationFrame(() => card.classList.add('suggest-visible'));
+  card.classList.remove('suggest-hiding');
+  card.classList.add('suggest-visible');
 }
 
 function hideSuggestCard() {
   const card = document.getElementById('suggestCard');
   if (!card) return;
   card.classList.remove('suggest-visible');
-  setTimeout(() => { card.style.display = 'none'; }, 300);
+  card.classList.add('suggest-hiding');
+  setTimeout(() => { card.classList.remove('suggest-hiding'); }, 260);
   suggestUserId   = null;
   suggestUsername = null;
   suggestQuestion = null;

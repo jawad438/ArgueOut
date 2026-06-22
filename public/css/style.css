@@ -2150,8 +2150,19 @@ html[data-theme="light"] .spark-banner { background: rgba(139,92,246,0.08); bord
 .country-opt-empty:hover { background: none; }
 
 /* ── Suggested opponent card ─────────────────────────────────── */
-.suggest-card { position: fixed; bottom: 24px; left: 24px; width: 320px; background: var(--bg-card); border: 1px solid var(--border-bright); border-radius: var(--r-lg); padding: 18px; box-shadow: 0 12px 40px rgba(0,0,0,0.5), var(--shadow-glass); backdrop-filter: var(--blur); z-index: 500; opacity: 0; transform: translateY(16px); transition: opacity 280ms ease, transform 280ms ease; }
-.suggest-card.suggest-visible { opacity: 1; transform: translateY(0); }
+@keyframes suggestIn {
+  0%   { opacity: 0; transform: translateY(56px) scale(0.92); }
+  55%  { opacity: 1; transform: translateY(-10px) scale(1.03); }
+  75%  { transform: translateY(5px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes suggestOut {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(24px) scale(0.93); }
+}
+.suggest-card { position: fixed; bottom: 24px; left: 24px; width: 320px; background: var(--bg-card); border: 1px solid var(--border-bright); border-radius: var(--r-lg); padding: 18px; box-shadow: 0 12px 40px rgba(0,0,0,0.5), var(--shadow-glass); backdrop-filter: var(--blur); z-index: 500; display: none; }
+.suggest-card.suggest-visible  { display: block; animation: suggestIn  520ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.suggest-card.suggest-hiding   { animation: suggestOut 240ms ease-in both; }
 .suggest-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .suggest-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--purple); font-family: 'Space Grotesk', sans-serif; }
 .suggest-close { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 4px; display: flex; align-items: center; border-radius: var(--r-sm); transition: color 120ms; }
