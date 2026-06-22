@@ -906,30 +906,81 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 .spark-banner {
   grid-column: 1 / -1;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 24px;
+  flex-direction: column;
   background: rgba(139,92,246,0.1);
   border-bottom: 1px solid rgba(139,92,246,0.22);
   font-size: 0.88rem;
   color: var(--text-1);
   animation: sparkFadeIn 500ms var(--ease-out) both;
 }
+.spark-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+}
+.spark-question-text { flex: 1; line-height: 1.4; }
 .spark-label {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--purple);
   white-space: nowrap;
   flex-shrink: 0;
 }
+.spark-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.spark-btn {
+  padding: 4px 11px;
+  border-radius: var(--r-full);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'Space Grotesk', sans-serif;
+  cursor: pointer;
+  border: 1px solid;
+  transition: background 150ms;
+  line-height: 1.5;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+.spark-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+.spark-skip-btn    { background: rgba(239,68,68,0.08);   color: var(--red);    border-color: rgba(239,68,68,0.25); }
+.spark-skip-btn:hover:not(:disabled)    { background: rgba(239,68,68,0.18); }
+.spark-suggest-btn { background: rgba(139,92,246,0.1);  color: var(--purple); border-color: rgba(139,92,246,0.25); }
+.spark-suggest-btn:hover:not(:disabled) { background: rgba(139,92,246,0.2); }
+.spark-send-btn    { background: var(--purple);           color: #fff;          border-color: var(--purple); }
+.spark-send-btn:hover:not(:disabled)    { background: var(--purple-dim); }
+.spark-cancel-btn  { background: transparent;             color: var(--text-3); border-color: rgba(255,255,255,0.1); }
+.spark-cancel-btn:hover { color: var(--text-1); }
+.spark-suggest-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 20px 9px;
+  border-top: 1px solid rgba(139,92,246,0.12);
+}
+.spark-suggest-input {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(139,92,246,0.3);
+  border-radius: var(--r-sm);
+  padding: 6px 12px;
+  color: var(--text-1);
+  font-size: 0.85rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  min-height: 32px;
+}
+.spark-suggest-input:focus  { border-color: var(--purple); }
+.spark-suggest-input::placeholder { color: var(--text-3); }
 @keyframes sparkFadeIn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 html[data-theme="light"] .spark-banner { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.18); }
+html[data-theme="light"] .spark-suggest-bar { border-top-color: rgba(139,92,246,0.1); }
+html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7); }
 
 .debate-topic {
   flex: 1;

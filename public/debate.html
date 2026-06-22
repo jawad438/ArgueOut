@@ -55,10 +55,38 @@
     </div>
   </header>
 
-  <!-- Spark question banner (shown when debate came from a suggestion) -->
+  <!-- Spark question banner -->
   <div id="sparkBanner" class="spark-banner" style="display:none">
-    <span class="spark-label">Debate this:</span>
-    <span id="sparkQuestion"></span>
+    <div class="spark-main">
+      <span class="spark-label">Topic:</span>
+      <span id="sparkQuestion" class="spark-question-text"></span>
+      <div class="spark-actions">
+        <button id="sparkSuggestBtn" class="spark-btn spark-suggest-btn" onclick="toggleSuggestInput()">Suggest</button>
+        <button id="sparkSkipBtn" class="spark-btn spark-skip-btn" onclick="declineQuestion()">Skip</button>
+      </div>
+    </div>
+    <div id="sparkSuggestBar" class="spark-suggest-bar" style="display:none">
+      <input id="sparkSuggestInput" class="spark-suggest-input" type="text" maxlength="120" placeholder="What should the debate be about?">
+      <button class="spark-btn spark-send-btn" onclick="sendSuggestion()">Send</button>
+      <button class="spark-btn spark-cancel-btn" onclick="closeSuggestInput()">✕</button>
+    </div>
+  </div>
+
+  <!-- Suggestion received panel (fixed, bottom-left) -->
+  <div id="suggestionPanel" class="challenge-notif" style="display:none;left:24px;right:auto">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="font-size:1.5rem;flex-shrink:0">💬</div>
+      <div style="flex:1">
+        <div id="suggestionPanelText" style="font-size:0.88rem;font-weight:600;margin-bottom:10px;line-height:1.4"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="respondSuggestion(true)">Use this</button>
+          <button class="btn btn-ghost btn-sm" onclick="respondSuggestion(false)">Pass</button>
+        </div>
+      </div>
+      <button onclick="respondSuggestion(false)" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0">
+        <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
   </div>
 
   <!-- Video area -->

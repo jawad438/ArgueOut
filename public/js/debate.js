@@ -470,6 +470,94 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ── Question controls ─────────────────────────────────────────
+let mySkipped  = false;
+let suggestSent = false;
+
+function declineQuestion() {
+  if (mySkipped) return;
+  mySkipped = true;
+  const btn = document.getElementById('sparkSkipBtn');
+  if (btn) { btn.textContent = 'Skipped'; btn.disabled = true; }
+  socket.emit('decline-question', { roomId });
+}
+
+function toggleSuggestInput() {
+  const bar = document.getElementById('sparkSuggestBar');
+  if (!bar) return;
+  const opening = bar.style.display === 'none';
+  bar.style.display = opening ? 'flex' : 'none';
+  if (opening) document.getElementById('sparkSuggestInput')?.focus();
+}
+
+function closeSuggestInput() {
+  const bar = document.getElementById('sparkSuggestBar');
+  if (bar) bar.style.display = 'none';
+}
+
+function sendSuggestion() {
+  const input = document.getElementById('sparkSuggestInput');
+  const text  = (input?.value || '').trim();
+  if (!text) return;
+  socket.emit('suggest-question', { roomId, suggestion: text });
+  input.value = '';
+  closeSuggestInput();
+  suggestSent = true;
+  const btn = document.getElementById('sparkSuggestBtn');
+  if (btn) { btn.textContent = 'Sent'; btn.disabled = true; }
+  showToast('Suggestion sent to your opponent.', 'info');
+}
+
+function respondSuggestion(accepted) {
+  socket.emit('respond-suggestion', { roomId, accepted });
+  const panel = document.getElementById('suggestionPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+document.getElementById('sparkSuggestInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendSuggestion();
+});
+
+socket.on('question-generating', () => {
+  const qEl   = document.getElementById('sparkQuestion');
+  const skip  = document.getElementById('sparkSkipBtn');
+  if (qEl)  qEl.textContent = 'Finding a new topic...';
+  if (skip) { skip.textContent = '...'; skip.disabled = true; }
+});
+
+socket.on('question-updated', ({ question }) => {
+  const banner = document.getElementById('sparkBanner');
+  const qEl    = document.getElementById('sparkQuestion');
+  const skip   = document.getElementById('sparkSkipBtn');
+  const sug    = document.getElementById('sparkSuggestBtn');
+  if (banner) banner.style.display = 'flex';
+  if (qEl)   qEl.textContent = question;
+  if (skip)  { skip.textContent = 'Skip'; skip.disabled = false; }
+  if (sug)   { sug.textContent = 'Suggest'; sug.disabled = false; }
+  mySkipped  = false;
+  suggestSent = false;
+  localStorage.setItem('debateQuestion', question);
+  closeSuggestInput();
+});
+
+socket.on('suggestion-received', ({ suggestion, fromUsername }) => {
+  const panel = document.getElementById('suggestionPanel');
+  const text  = document.getElementById('suggestionPanelText');
+  if (text)  text.textContent = `${fromUsername} suggests: "${suggestion}"`;
+  if (panel) panel.style.display = 'block';
+  setTimeout(() => {
+    const p = document.getElementById('suggestionPanel');
+    if (p && p.style.display !== 'none') respondSuggestion(false);
+  }, 60000);
+});
+
+socket.on('suggestion-rejected', () => {
+  suggestSent = false;
+  const btn = document.getElementById('sparkSuggestBtn');
+  if (btn) { btn.textContent = 'Suggest'; btn.disabled = false; }
+  showToast('Your topic suggestion was passed on.', 'info');
+});
+
 // ── Debate ended ──────────────────────────────────────────────
 socket.on('debate-ended', ({ reason }) => {
   localStorage.removeItem('debateQuestion');

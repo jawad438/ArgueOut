@@ -78,17 +78,16 @@ app.get('/favicon.ico', (_, res) => {
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const SUGGEST_MODEL  = 'openai/gpt-oss-20b:free';
 
-const SUGGEST_SYSTEM = `You are ArgueOut's debate igniter. Pick the most explosive opponent pairing and write a wondering question they can both sit with.
+const SUGGEST_SYSTEM = `You are ArgueOut's debate igniter. Pick the most explosive opponent pairing and write a debate question.
 
 Selection: maximise political compass distance, then demographic contrast (age, religion, country).
 
 Question rules — most important part:
-- Max 12 words. A broad wondering thought, not a directed accusation.
-- It should feel like something hanging in the air that both people are already circling — not an interview question aimed at one of them.
-- Use "what if", "why do we", "does it matter that", "how did we end up", "at what point did" — that kind of opener.
-- It should make both people stop and think, not put one on the defensive.
-- GOOD: "What if the borders we die for were always just lines?", "Why do we still let flags decide who belongs?", "At what point did faith stop being private?", "What if the free market just chose who suffers?", "Does it matter how someone got rich if they give back?", "How did we end up treating poverty like a moral failure?"
-- BAD: "Is your god worth the wars he caused?", "Prove the free market works.", "Do you think taxation is theft?"
+- One direct yes/no or either/or debate question. Max 12 words.
+- The kind of question that immediately splits a room — everyone has an instinctive answer and no one agrees.
+- Phrase as "Is X a Y?", "Should we Z?", "Was X Y?", "Does X actually Y?", "Is X or X?"
+- GOOD: "Is food a right or a privilege?", "Should we risk the meat industry to save the environment?", "Is abortion healthcare?", "Was Jesus a good person?", "Does capitalism help or hurt the poor?", "Should drugs be legal?", "Is religion doing more harm than good?", "Should borders be open?"
+- BAD: "What if borders didn't exist?", "Why do we let flags define us?", "How did we end up here?" — too vague, no one can disagree cleanly
 
 Reason: max 8 words, one punchy clause describing the contrast, no period.
 Tags: 2-3 words each, name the specific clash. Examples: "God vs State", "Polar compass", "Class war", "Faith clash", "Border wars".
@@ -98,8 +97,55 @@ Respond ONLY with valid JSON, no markdown:
   "username": "<selected candidate username>",
   "tags": ["<tag1>", "<tag2>", "<tag3>"],
   "reason": "<max 8 words>",
-  "question": "<wondering question, max 12 words>"
+  "question": "<direct debate question, max 12 words>"
 }`;
+
+const QUESTION_GEN_SYSTEM = `Generate one debate question. It must be a direct question that immediately splits a room.
+Phrase as "Is X a Y?", "Should we Z?", "Was X Y?", "Does X actually Y?", "Is it X or X?"
+Examples: "Is food a right or a privilege?", "Should we risk the meat industry to save the environment?", "Is abortion healthcare?", "Was Jesus a good person?", "Does capitalism help or hurt the poor?", "Should drugs be legal?", "Is religion doing more harm than good?"
+One sentence, max 12 words. No hedging. No "what do you think." Respond ONLY with valid JSON: {"question": "<question here>"}`;
+
+async function generateDebateQuestion(hint) {
+  const userMsg = hint
+    ? `Generate a debate question about or related to this topic: "${hint}". Use the same format — direct, divisive, answerable from opposing sides.`
+    : 'Generate a debate question for two people with opposing political views.';
+  try {
+    const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://argueout.app',
+        'X-Title': 'ArgueOut'
+      },
+      body: JSON.stringify({
+        model: SUGGEST_MODEL,
+        messages: [
+          { role: 'system', content: QUESTION_GEN_SYSTEM },
+          { role: 'user',   content: userMsg }
+        ],
+        temperature: 0.9,
+        max_tokens: 256
+      })
+    });
+    if (!orRes.ok) return null;
+    const data = await orRes.json();
+    const raw  = (data.choices?.[0]?.message?.content || '').trim();
+    const stripped = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    let parsed;
+    try { parsed = JSON.parse(stripped); } catch (_) {}
+    if (!parsed) {
+      const matches = [...stripped.matchAll(/\{[^{}]*"question"[^{}]*\}/gs)];
+      for (let i = matches.length - 1; i >= 0; i--) {
+        try { parsed = JSON.parse(matches[i][0]); break; } catch (_) {}
+      }
+    }
+    return parsed?.question || null;
+  } catch (err) {
+    console.error('generateDebateQuestion error:', err);
+    return null;
+  }
+}
 
 app.post('/api/suggest-opponent', async (req, res) => {
   const { idToken } = req.body || {};
@@ -252,6 +298,10 @@ const suggestedMap = new Map();
 const debatedMap   = new Map();
 // challengerSocketId → question string  — question attached to pending challenge
 const pendingQuestions = new Map();
+// roomId → Set<userId>  — who has declined the current question
+const roomDeclines = new Map();
+// roomId → { fromSocketId, fromUsername, suggestion }
+const roomPendingSuggestion = new Map();
 
 function addSuggested(userId, targetUserId) {
   if (!suggestedMap.has(userId)) suggestedMap.set(userId, new Set());
@@ -563,6 +613,53 @@ io.on('connection', socket => {
     if (entry) { entry.country = country || ''; broadcastOnlineUsers(); }
   });
 
+  // ── In-debate question controls ──────────────────────────────
+
+  socket.on('decline-question', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const me = socketUsers.get(socket.id);
+    if (!me) return;
+    if (!roomDeclines.has(roomId)) roomDeclines.set(roomId, new Set());
+    roomDeclines.get(roomId).add(me.userId);
+    if (roomDeclines.get(roomId).size >= 2) {
+      roomDeclines.delete(roomId);
+      io.to(roomId).emit('question-generating');
+      generateDebateQuestion(null).then(question => {
+        if (question) io.to(roomId).emit('question-updated', { question });
+      });
+    }
+  });
+
+  socket.on('suggest-question', ({ roomId, suggestion }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const me = socketUsers.get(socket.id);
+    if (!me) return;
+    const clean = String(suggestion || '').trim().slice(0, 120);
+    if (!clean) return;
+    roomPendingSuggestion.set(roomId, { fromSocketId: socket.id, fromUsername: me.username, suggestion: clean });
+    const other = room.users.find(u => u.socketId && u.socketId !== socket.id);
+    if (other) io.to(other.socketId).emit('suggestion-received', { suggestion: clean, fromUsername: me.username });
+  });
+
+  socket.on('respond-suggestion', ({ roomId, accepted }) => {
+    const room    = rooms.get(roomId);
+    if (!room) return;
+    const pending = roomPendingSuggestion.get(roomId);
+    if (!pending) return;
+    roomPendingSuggestion.delete(roomId);
+    if (!accepted) {
+      const fromSock = io.sockets.sockets.get(pending.fromSocketId);
+      if (fromSock) fromSock.emit('suggestion-rejected');
+      return;
+    }
+    io.to(roomId).emit('question-generating');
+    generateDebateQuestion(pending.suggestion).then(question => {
+      io.to(roomId).emit('question-updated', { question: question || pending.suggestion });
+    });
+  });
+
   socket.on('disconnect', () => {
     queue.delete(socket.id);
     io.emit('queue-size', { size: queue.size });
@@ -648,6 +745,8 @@ function closeRoom(roomId, bySocketId, reason) {
   io.to(roomId).emit('debate-ended', { reason, by: bySocketId });
   io.in(roomId).socketsLeave(roomId);
   rooms.delete(roomId);
+  roomDeclines.delete(roomId);
+  roomPendingSuggestion.delete(roomId);
   broadcastOnlineUsers();
 }
 
