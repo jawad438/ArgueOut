@@ -147,6 +147,59 @@ async function generateDebateQuestion(hint) {
   }
 }
 
+function fmtUser(u) {
+  const econ   = (u.politicalX || 0) >= 0 ? 'Economic Right' : 'Economic Left';
+  const social = (u.politicalY || 0) >= 0 ? 'Authoritarian'  : 'Libertarian';
+  return [
+    `Username: ${u.username}`,
+    `Political compass: X=${(u.politicalX||0).toFixed(2)} (${econ}), Y=${(u.politicalY||0).toFixed(2)} (${social})`,
+    u.age      ? `Age: ${u.age}`           : null,
+    u.gender   ? `Gender: ${u.gender}`     : null,
+    u.religion ? `Religion: ${u.religion}` : null,
+    u.country  ? `Country: ${u.country}`   : null,
+  ].filter(Boolean).join(', ');
+}
+
+async function generateDebateQuestionForPair(user1, user2) {
+  const userMsg = `Debate pair — generate the most explosive question for these exact two opponents:\n1. ${fmtUser(user1)}\n2. ${fmtUser(user2)}\n\nFocus on maximising the clash between their profiles. Output the question field only — do not pick a username.`;
+  try {
+    const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://argueout.app',
+        'X-Title': 'ArgueOut'
+      },
+      body: JSON.stringify({
+        model: SUGGEST_MODEL,
+        messages: [
+          { role: 'system', content: SUGGEST_SYSTEM },
+          { role: 'user',   content: userMsg }
+        ],
+        temperature: 0.9,
+        max_tokens: 400
+      })
+    });
+    if (!orRes.ok) return null;
+    const data = await orRes.json();
+    const raw  = (data.choices?.[0]?.message?.content || '').trim();
+    const stripped = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    let parsed;
+    try { parsed = JSON.parse(stripped); } catch (_) {}
+    if (!parsed) {
+      const matches = [...stripped.matchAll(/\{[^{}]*"question"[^{}]*\}/gs)];
+      for (let i = matches.length - 1; i >= 0; i--) {
+        try { parsed = JSON.parse(matches[i][0]); break; } catch (_) {}
+      }
+    }
+    return parsed?.question || null;
+  } catch (err) {
+    console.error('generateDebateQuestionForPair error:', err);
+    return null;
+  }
+}
+
 app.post('/api/suggest-opponent', async (req, res) => {
   const { idToken } = req.body || {};
   if (!idToken) return res.status(401).json({ error: 'No token' });
@@ -185,20 +238,7 @@ app.post('/api/suggest-opponent', async (req, res) => {
   // Take up to 8 for the API call
   const sample = candidates.slice(0, 8);
 
-  function fmt(u) {
-    const econ   = u.politicalX >= 0 ? 'Economic Right' : 'Economic Left';
-    const social = u.politicalY >= 0 ? 'Authoritarian' : 'Libertarian';
-    return [
-      `Username: ${u.username}`,
-      `Political compass: X=${u.politicalX.toFixed(2)} (${econ}), Y=${u.politicalY.toFixed(2)} (${social})`,
-      u.age      ? `Age: ${u.age}` : null,
-      u.gender   ? `Gender: ${u.gender}` : null,
-      u.religion ? `Religion: ${u.religion}` : null,
-      u.country  ? `Country: ${u.country}` : null,
-    ].filter(Boolean).join(', ');
-  }
-
-  const userMsg = `Viewer: ${fmt(currentUser)}\n\nCandidates:\n${sample.map((c, i) => `${i + 1}. ${fmt(c)}`).join('\n')}`;
+  const userMsg = `Viewer: ${fmtUser(currentUser)}\n\nCandidates:\n${sample.map((c, i) => `${i + 1}. ${fmtUser(c)}`).join('\n')}`;
 
   try {
     const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -631,7 +671,11 @@ io.on('connection', socket => {
     if (reqs.size >= 2) {
       roomQuestionRequests.delete(roomId);
       io.to(roomId).emit('question-generating');
-      generateDebateQuestion(null).then(question => {
+      const profiles = room.users.map(u => {
+        for (const ou of onlineUsers.values()) { if (ou.userId === u.userId) return ou; }
+        return u;
+      });
+      generateDebateQuestionForPair(profiles[0], profiles[1]).then(question => {
         if (question) io.to(roomId).emit('question-updated', { question });
       });
     }
