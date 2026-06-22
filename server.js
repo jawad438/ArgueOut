@@ -76,7 +76,7 @@ app.get('/favicon.ico', (_, res) => {
 });
 
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
-const SUGGEST_MODEL  = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+const SUGGEST_MODEL  = 'openai/gpt-oss-20b:free';
 
 const SUGGEST_SYSTEM = `You are the matchmaking engine for ArgueOut, a live political debate platform. Your job is to pick the single most compelling debate opponent for a user from a list of online candidates.
 
