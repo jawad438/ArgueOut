@@ -76,51 +76,100 @@ function countryFlag(name) {
 
 function initCountryPicker(searchId, dropdownId, hiddenId, onChange) {
   var search = document.getElementById(searchId);
-  var dd     = document.getElementById(dropdownId);
   var hidden = document.getElementById(hiddenId);
-  if (!search || !dd || !hidden) return;
+  if (!search || !hidden) return;
 
-  function render(list) {
+  // Create a floating dropdown on body so it escapes any overflow:hidden parent
+  var dd = document.createElement('div');
+  dd.className = 'country-dropdown country-dropdown-float';
+  document.body.appendChild(dd);
+
+  function positionDropdown() {
+    var rect = search.getBoundingClientRect();
+    var spaceBelow = window.innerHeight - rect.bottom;
+    var spaceAbove = rect.top;
+    var ddH = Math.min(220, dd.scrollHeight || 220);
+
+    dd.style.left  = rect.left + 'px';
+    dd.style.width = rect.width + 'px';
+
+    // Flip upward if not enough space below
+    if (spaceBelow < ddH + 8 && spaceAbove > spaceBelow) {
+      dd.style.top    = 'auto';
+      dd.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    } else {
+      dd.style.bottom = 'auto';
+      dd.style.top    = (rect.bottom + 4) + 'px';
+    }
+  }
+
+  function open(list) {
     dd.innerHTML = '';
     if (!list.length) {
-      dd.innerHTML = '<div class="country-opt country-opt-empty">No results</div>';
+      var empty = document.createElement('div');
+      empty.className = 'country-opt country-opt-empty';
+      empty.textContent = 'No results';
+      dd.appendChild(empty);
     } else {
-      list.forEach(function (c) {
+      list.forEach(function(c) {
         var el = document.createElement('button');
         el.type = 'button';
         el.className = 'country-opt';
         el.textContent = c.f + ' ' + c.n;
-        el.addEventListener('mousedown', function (e) {
+        el.addEventListener('mousedown', function(e) {
           e.preventDefault();
           select(c);
         });
         dd.appendChild(el);
       });
     }
-    dd.classList.add('open');
+    positionDropdown();
+    dd.style.display = 'block';
+  }
+
+  function close() {
+    dd.style.display = 'none';
   }
 
   function select(c) {
     search.value = c.f + ' ' + c.n;
     hidden.value = c.n;
-    dd.classList.remove('open');
-    dd.innerHTML = '';
+    close();
     if (onChange) onChange(c.n);
   }
 
-  search.addEventListener('input', function () {
+  search.addEventListener('focus', function() {
+    var q = search.value.toLowerCase().trim();
+    var flag = countryFlag(''); // just to strip known flag prefix
+    // Strip flag prefix if present so searching works
+    var raw = search.value.replace(/^\S+\s/, '').toLowerCase().trim();
+    if (raw) {
+      open(COUNTRIES.filter(function(c) { return c.n.toLowerCase().indexOf(raw) !== -1; }));
+    } else {
+      open(COUNTRIES);
+    }
+  });
+
+  search.addEventListener('input', function() {
     var q = search.value.toLowerCase().trim();
     hidden.value = '';
-    if (!q) { dd.classList.remove('open'); dd.innerHTML = ''; return; }
-    render(COUNTRIES.filter(function (c) { return c.n.toLowerCase().indexOf(q) !== -1; }).slice(0, 30));
+    if (!q) { open(COUNTRIES); return; }
+    open(COUNTRIES.filter(function(c) {
+      return c.n.toLowerCase().indexOf(q) !== -1 ||
+             (c.f + ' ' + c.n).toLowerCase().indexOf(q) !== -1;
+    }));
   });
 
-  search.addEventListener('focus', function () {
-    if (!search.value) render(COUNTRIES.slice(0, 30));
+  search.addEventListener('blur', function() {
+    setTimeout(close, 160);
   });
 
-  search.addEventListener('blur', function () {
-    setTimeout(function () { dd.classList.remove('open'); }, 150);
+  window.addEventListener('scroll', function() {
+    if (dd.style.display !== 'none') positionDropdown();
+  }, true);
+
+  window.addEventListener('resize', function() {
+    if (dd.style.display !== 'none') positionDropdown();
   });
 }
 
@@ -138,25 +187,11 @@ function setCountryPickerValue(searchId, hiddenId, countryName) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-  // Register page
+document.addEventListener('DOMContentLoaded', function() {
   if (document.getElementById('countrySearch')) {
-    initCountryPicker('countrySearch', 'countryDropdown', 'country');
-    document.addEventListener('click', function (e) {
-      if (!e.target.closest('#countryPicker')) {
-        var dd = document.getElementById('countryDropdown');
-        if (dd) dd.classList.remove('open');
-      }
-    });
+    initCountryPicker('countrySearch', null, 'country');
   }
-  // Lobby sidebar
   if (document.getElementById('sidebarCountrySearch')) {
-    initCountryPicker('sidebarCountrySearch', 'sidebarCountryDropdown', 'sidebarCountry');
-    document.addEventListener('click', function (e) {
-      if (!e.target.closest('#sidebarCountryPicker')) {
-        var dd = document.getElementById('sidebarCountryDropdown');
-        if (dd) dd.classList.remove('open');
-      }
-    });
+    initCountryPicker('sidebarCountrySearch', null, 'sidebarCountry');
   }
 });
