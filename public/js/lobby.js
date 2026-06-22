@@ -662,7 +662,13 @@ function showSuggestCard(data) {
   suggestUsername = data.username;
   suggestQuestion = data.question || null;
 
-  addToNotifHistory({ icon: '💡', text: `Recommended: ${data.name || data.username} — "${data.reason || 'Good match'}"` });
+  const _tags = (data.tags || []).join(' · ');
+  const _notifText = [
+    (data.name || data.username) + (data.reason ? ': ' + data.reason : ''),
+    _tags ? '[' + _tags + ']' : '',
+    data.question ? 'Ask them: "' + data.question + '"' : ''
+  ].filter(Boolean).join('  ');
+  addToNotifHistory({ icon: '💡', text: _notifText });
 
   // Avatar
   const av = document.getElementById('suggestAvatar');
