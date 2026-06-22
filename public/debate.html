@@ -220,6 +220,12 @@
   </div>
 </div>
 
+<!-- Image lightbox -->
+<div id="imgLightbox" onclick="closeLightbox()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out">
+  <img id="imgLightboxImg" style="max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.7);pointer-events:none" alt="Full size image">
+  <button onclick="closeLightbox()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.14);border:none;color:#fff;cursor:pointer;border-radius:50%;width:38px;height:38px;font-size:1.1rem;display:flex;align-items:center;justify-content:center;pointer-events:auto" aria-label="Close image">✕</button>
+</div>
+
 <div id="toast-container"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>

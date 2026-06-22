@@ -1613,6 +1613,16 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
 }
 .chat-img-msg:hover { opacity: 0.85; }
 
+/* Chat link detection */
+.chat-link { color: var(--blue, #60a5fa); text-decoration: underline; word-break: break-all; }
+.chat-link:hover { opacity: 0.8; }
+
+/* Image lightbox */
+#imgLightbox { animation: fadeIn 150ms ease; }
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+#imgLightboxImg { animation: scaleIn 200ms ease; }
+@keyframes scaleIn { from { transform: scale(0.92); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+
 .chat-img-upload-btn {
   background: none; border: none;
   cursor: pointer;

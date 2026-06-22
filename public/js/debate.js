@@ -425,7 +425,7 @@ function addChatMessage(fromUser, message, timestamp, isMine) {
       <span class="chat-msg-author">${escapeHtml(fromUser)}</span>
       <span class="chat-msg-time">${time}</span>
     </div>
-    <div class="chat-msg-bubble">${escapeHtml(message)}</div>
+    <div class="chat-msg-bubble">${linkifyText(message)}</div>
   `;
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
@@ -456,7 +456,7 @@ function addChatImage(fromUser, imageData, imageName, timestamp, isMine, imageId
     </div>
     <div class="chat-msg-bubble" style="padding:6px">
       <img src="${objUrl}" alt="${escapeHtml(imageName)}" class="chat-img-msg"
-           onclick="window.open(this.src,'_blank')" title="Click to open full size" />
+           onclick="openLightbox(this.src)" title="Click to expand" />
       ${message ? `<div style="padding:6px 4px 2px;font-size:0.88rem;line-height:1.55">${escapeHtml(message)}</div>` : ''}
     </div>
   `;
@@ -469,6 +469,34 @@ function escapeHtml(str) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+function linkifyText(str) {
+  const urlRe = /(https?:\/\/[^\s]+)/g;
+  return str.split(urlRe).map((part, i) => {
+    if (i % 2 === 1) {
+      const escaped = escapeHtml(part);
+      return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="chat-link">${escaped}</a>`;
+    }
+    return escapeHtml(part);
+  }).join('');
+}
+
+function openLightbox(src) {
+  const lb  = document.getElementById('imgLightbox');
+  const img = document.getElementById('imgLightboxImg');
+  if (!lb || !img) return;
+  img.src = src;
+  lb.style.display = 'flex';
+}
+
+function closeLightbox() {
+  const lb = document.getElementById('imgLightbox');
+  if (lb) lb.style.display = 'none';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLightbox();
+});
 
 // ── Question controls ─────────────────────────────────────────
 let mySkipped  = false;
