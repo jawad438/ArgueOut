@@ -159,7 +159,7 @@ app.post('/api/suggest-opponent', async (req, res) => {
           { role: 'user',   content: userMsg }
         ],
         temperature: 0.75,
-        max_tokens: 320
+        max_tokens: 2048
       })
     });
 
@@ -178,12 +178,20 @@ app.post('/api/suggest-opponent', async (req, res) => {
       return res.status(500).json({ error: 'No suggestion returned' });
     }
 
-    // Strip potential markdown fences
-    const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    // Strip markdown fences, then try to extract JSON from anywhere in the response
+    // (reasoning models write chain-of-thought before outputting the JSON object)
+    const stripped = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     let parsed;
-    try {
-      parsed = JSON.parse(jsonStr);
-    } catch (parseErr) {
+    // First try the whole response as JSON
+    try { parsed = JSON.parse(stripped); } catch (_) {}
+    // Then scan for the last {...} block that contains "username"
+    if (!parsed) {
+      const matches = [...stripped.matchAll(/\{[^{}]*"username"[^{}]*\}/gs)];
+      for (let i = matches.length - 1; i >= 0; i--) {
+        try { parsed = JSON.parse(matches[i][0]); break; } catch (_) {}
+      }
+    }
+    if (!parsed) {
       console.error('OpenRouter JSON parse failed. Raw content:', raw);
       return res.status(500).json({ error: 'Suggestion parse failed' });
     }
