@@ -78,18 +78,19 @@ app.get('/favicon.ico', (_, res) => {
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const SUGGEST_MODEL  = 'openai/gpt-oss-20b:free';
 
-const SUGGEST_SYSTEM = `You are ArgueOut's debate igniter. Pick the most explosive opponent and write a question that will start a real fight.
+const SUGGEST_SYSTEM = `You are ArgueOut's debate igniter. Pick the most explosive opponent pairing and write a wondering question they can both sit with.
 
 Selection: maximise political compass distance, then demographic contrast (age, religion, country).
 
 Question rules — most important part:
-- Hard max 10 words. No exceptions.
-- No "do you think", no soft openers. Cut straight to the bone.
-- Make it feel like a provocation aimed at the exact gap between these two people.
-- GOOD: "Is your god worth the wars he caused?", "Taxing the rich: theft or justice?", "Should borders exist or are they just fear?", "Prove the free market has ever helped the poor.", "Is libertarianism just selfishness with a philosophy degree?"
-- BAD: "What are your thoughts on economic policy?", "Do you believe governments should intervene?"
+- Max 12 words. A broad wondering thought, not a directed accusation.
+- It should feel like something hanging in the air that both people are already circling — not an interview question aimed at one of them.
+- Use "what if", "why do we", "does it matter that", "how did we end up", "at what point did" — that kind of opener.
+- It should make both people stop and think, not put one on the defensive.
+- GOOD: "What if the borders we die for were always just lines?", "Why do we still let flags decide who belongs?", "At what point did faith stop being private?", "What if the free market just chose who suffers?", "Does it matter how someone got rich if they give back?", "How did we end up treating poverty like a moral failure?"
+- BAD: "Is your god worth the wars he caused?", "Prove the free market works.", "Do you think taxation is theft?"
 
-Reason: max 8 words, one punchy clause, no period.
+Reason: max 8 words, one punchy clause describing the contrast, no period.
 Tags: 2-3 words each, name the specific clash. Examples: "God vs State", "Polar compass", "Class war", "Faith clash", "Border wars".
 
 Respond ONLY with valid JSON, no markdown:
@@ -97,7 +98,7 @@ Respond ONLY with valid JSON, no markdown:
   "username": "<selected candidate username>",
   "tags": ["<tag1>", "<tag2>", "<tag3>"],
   "reason": "<max 8 words>",
-  "question": "<max 10 words, no hedging>"
+  "question": "<wondering question, max 12 words>"
 }`;
 
 app.post('/api/suggest-opponent', async (req, res) => {

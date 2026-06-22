@@ -665,12 +665,11 @@ function showSuggestCard(data) {
   suggestUsername = data.username;
   suggestQuestion = data.question || null;
 
-  const _tags = (data.tags || []).join(' · ');
-  const _notifText = [
-    (data.name || data.username) + (data.reason ? ': ' + data.reason : ''),
-    _tags ? '[' + _tags + ']' : '',
-    data.question ? 'Ask them: "' + data.question + '"' : ''
-  ].filter(Boolean).join('  ');
+  const _name = data.name || data.username;
+  const _reason = data.reason || 'completely different worldview';
+  const _notifText = data.question
+    ? `You should debate ${_name} — ${_reason}. ${data.question}`
+    : `You should debate ${_name} — ${_reason}.`;
   addToNotifHistory({
     icon: '💡', text: _notifText, type: 'suggest',
     userId: data.userId, username: data.username, question: data.question || null
