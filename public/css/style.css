@@ -1305,6 +1305,14 @@ html[data-theme="light"] .spark-banner { background: rgba(139,92,246,0.08); bord
 .notif-item-body { flex: 1; min-width: 0; }
 .notif-item-text { font-size: 0.84rem; color: var(--text-1); line-height: 1.45; }
 .notif-item-time { font-size: 0.73rem; color: var(--text-3); margin-top: 3px; }
+.notif-item-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.notif-action-btn { padding: 5px 12px; border-radius: var(--r-full); font-size: 0.74rem; font-weight: 600; font-family: 'Space Grotesk', sans-serif; cursor: pointer; border: 1px solid; transition: background 150ms; line-height: 1; touch-action: manipulation; }
+.notif-action-accept  { background: rgba(34,197,94,0.12);  color: var(--green);  border-color: rgba(34,197,94,0.3); }
+.notif-action-accept:hover  { background: rgba(34,197,94,0.22); }
+.notif-action-decline { background: rgba(239,68,68,0.08); color: var(--red);   border-color: rgba(239,68,68,0.22); }
+.notif-action-decline:hover { background: rgba(239,68,68,0.18); }
+.notif-action-challenge { background: rgba(139,92,246,0.12); color: var(--purple); border-color: rgba(139,92,246,0.28); }
+.notif-action-challenge:hover { background: rgba(139,92,246,0.22); }
 
 /* ══════════════════════════════════════════════════════════════
    ONLINE DIRECTORY

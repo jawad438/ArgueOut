@@ -9,7 +9,6 @@ let opponent = null;
 try { opponent = JSON.parse(localStorage.getItem('debateOpponent')); } catch {}
 
 const debateQuestion = localStorage.getItem('debateQuestion') || null;
-localStorage.removeItem('debateQuestion');
 
 let currentUsername  = localStorage.getItem('username') || 'You';
 let currentIdToken   = null;
@@ -473,6 +472,7 @@ function escapeHtml(str) {
 
 // ── Debate ended ──────────────────────────────────────────────
 socket.on('debate-ended', ({ reason }) => {
+  localStorage.removeItem('debateQuestion');
   clearInterval(timerInterval);
   if (peerConn) peerConn.close();
   if (localStream) localStream.getTracks().forEach(t => t.stop());

@@ -420,7 +420,10 @@ socket.on('challenge-received', ({ from, question }) => {
   const notifBody = question
     ? `${from.username} challenged you! "${question}"`
     : `${from.username} challenged you to a debate!`;
-  addToNotifHistory({ icon: '⚔️', text: notifBody });
+  addToNotifHistory({
+    icon: '⚔️', text: notifBody, type: 'challenge',
+    challengerSocketId: from.socketId
+  });
 
   if (Notification.permission === 'granted') {
     new Notification('⚔️ ArgueOut Challenge', {
@@ -668,7 +671,10 @@ function showSuggestCard(data) {
     _tags ? '[' + _tags + ']' : '',
     data.question ? 'Ask them: "' + data.question + '"' : ''
   ].filter(Boolean).join('  ');
-  addToNotifHistory({ icon: '💡', text: _notifText });
+  addToNotifHistory({
+    icon: '💡', text: _notifText, type: 'suggest',
+    userId: data.userId, username: data.username, question: data.question || null
+  });
 
   // Avatar
   const av = document.getElementById('suggestAvatar');
@@ -758,16 +764,54 @@ function renderNotifList() {
     list.innerHTML = '<div class="notif-empty">No notifications yet</div>';
     return;
   }
-  list.innerHTML = notifHistory.map(n => {
+  list.innerHTML = notifHistory.map((n, i) => {
     const timeStr = new Date(n.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let actionHtml = '';
+    if (n.type === 'challenge') {
+      const isPending = pendingChallengeFrom && pendingChallengeFrom.socketId === n.challengerSocketId;
+      if (isPending) {
+        actionHtml = `<div class="notif-item-actions">
+          <button class="notif-action-btn notif-action-accept" onclick="notifAcceptChallenge(event)">Accept</button>
+          <button class="notif-action-btn notif-action-decline" onclick="notifDeclineChallenge(event)">Decline</button>
+        </div>`;
+      }
+    } else if (n.type === 'suggest' && n.userId) {
+      actionHtml = `<div class="notif-item-actions">
+        <button class="notif-action-btn notif-action-challenge" onclick="notifChallengeSuggest(event,${i})">Challenge</button>
+      </div>`;
+    }
     return `<div class="notif-item${n.read ? '' : ' unread'}">
       <span class="notif-item-icon">${n.icon || '🔔'}</span>
       <div class="notif-item-body">
         <div class="notif-item-text">${escapeHtml(n.text)}</div>
         <div class="notif-item-time">${timeStr}</div>
+        ${actionHtml}
       </div>
     </div>`;
   }).join('');
+}
+
+function notifChallengeSuggest(e, idx) {
+  e.stopPropagation();
+  const n = notifHistory[idx];
+  if (!n || !n.userId) return;
+  sendChallenge(n.userId, n.username || '', n.question || null);
+  closeNotifDropdown();
+}
+
+function notifAcceptChallenge(e) {
+  e.stopPropagation();
+  if (!pendingChallengeFrom) return;
+  socket.emit('accept-challenge', { challengerSocketId: pendingChallengeFrom.socketId });
+  dismissChallengeNotif();
+  closeNotifDropdown();
+}
+
+function notifDeclineChallenge(e) {
+  e.stopPropagation();
+  if (pendingChallengeFrom) socket.emit('reject-challenge', { challengerSocketId: pendingChallengeFrom.socketId });
+  dismissChallengeNotif();
+  closeNotifDropdown();
 }
 
 function openNotifDropdown() {
