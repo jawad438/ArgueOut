@@ -128,6 +128,24 @@ function updateProfileUI(profile) {
     });
   }
 
+  // Country in sidebar
+  const profileCountry   = document.getElementById('profileCountry');
+  const countryDisplayRow = document.getElementById('countryDisplayRow');
+  if (profileCountry && countryDisplayRow) {
+    if (profile.country) {
+      const flag = (typeof countryFlag === 'function') ? countryFlag(profile.country) : '';
+      profileCountry.textContent     = flag + profile.country;
+      profileCountry.style.color     = 'var(--text-2)';
+      profileCountry.style.fontStyle = 'normal';
+      profileCountry.dataset.raw     = profile.country;
+    } else {
+      profileCountry.textContent     = 'No country set';
+      profileCountry.style.color     = 'var(--text-3)';
+      profileCountry.style.fontStyle = 'italic';
+      profileCountry.dataset.raw     = '';
+    }
+  }
+
   // Bio
   const bioText = document.getElementById('bioText');
   if (bioText) {
@@ -324,6 +342,19 @@ function openUserProfile(userId) {
   if (user.religion && user.religion !== 'prefer_not_to_say') tags.push(_cap(user.religion));
   const upTags = document.getElementById('upTags');
   if (upTags) upTags.innerHTML = tags.map(t => `<span class="profile-tag">${escapeHtml(t)}</span>`).join('');
+
+  // Country row in up-card
+  const upCountryRow = document.getElementById('upCountryRow');
+  const upCountryEl  = document.getElementById('upCountry');
+  if (upCountryRow && upCountryEl) {
+    if (user.country) {
+      const flag = (typeof countryFlag === 'function') ? countryFlag(user.country) : '';
+      upCountryEl.textContent       = flag + escapeHtml(user.country);
+      upCountryRow.style.display    = 'flex';
+    } else {
+      upCountryRow.style.display    = 'none';
+    }
+  }
 
   // Actions
   const challengeBtn = document.getElementById('challengeBtn');
@@ -928,6 +959,65 @@ async function saveUsername() {
     }
   } finally {
     btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+// ── Country edit ─────────────────────────────────────────────
+function startCountryEdit() {
+  const display = document.getElementById('countryDisplayRow');
+  const edit    = document.getElementById('countryEditRow');
+  if (!display || !edit) return;
+  display.style.display = 'none';
+  edit.style.display    = 'block';
+
+  // Pre-fill with current value
+  const current = document.getElementById('profileCountry');
+  if (current && typeof setCountryPickerValue === 'function') {
+    const name = current.dataset.raw || '';
+    setCountryPickerValue('sidebarCountrySearch', 'sidebarCountry', name);
+  }
+  const inp = document.getElementById('sidebarCountrySearch');
+  if (inp) setTimeout(() => inp.focus(), 50);
+}
+
+function cancelCountryEdit() {
+  document.getElementById('countryDisplayRow').style.display = 'flex';
+  document.getElementById('countryEditRow').style.display    = 'none';
+}
+
+async function saveCountry() {
+  const btn  = document.getElementById('saveCountryBtn');
+  const val  = (document.getElementById('sidebarCountry') || {}).value || '';
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+
+  btn.disabled    = true;
+  btn.textContent = 'Saving...';
+  try {
+    await firestoreDb.collection('users').doc(user.uid).update({ country: val });
+
+    const profileCountry = document.getElementById('profileCountry');
+    if (profileCountry) {
+      if (val) {
+        const flag = (typeof countryFlag === 'function') ? countryFlag(val) : '';
+        profileCountry.textContent   = flag + val;
+        profileCountry.style.color   = 'var(--text-2)';
+        profileCountry.style.fontStyle = 'normal';
+        profileCountry.dataset.raw   = val;
+      } else {
+        profileCountry.textContent   = 'No country set';
+        profileCountry.style.color   = 'var(--text-3)';
+        profileCountry.style.fontStyle = 'italic';
+        profileCountry.dataset.raw   = '';
+      }
+    }
+    cancelCountryEdit();
+    showToast('Country updated.', 'success');
+  } catch {
+    showToast('Could not update country. Try again.', 'error');
+  } finally {
+    btn.disabled    = false;
     btn.textContent = 'Save';
   }
 }

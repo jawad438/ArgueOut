@@ -224,6 +224,7 @@ function broadcastOnlineUsers() {
     age:        u.age,
     gender:     u.gender,
     religion:   u.religion,
+    country:    u.country || '',
     bio:        u.bio || '',
     inDebate:   u.inDebate || false
   }));

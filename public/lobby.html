@@ -119,6 +119,25 @@
         </div>
       </div>
 
+      <!-- Country display / edit -->
+      <div id="countryDisplayRow" style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+        <div id="profileCountry" style="font-size:0.85rem;color:var(--text-3);font-style:italic">No country set</div>
+        <button onclick="startCountryEdit()" title="Edit country" aria-label="Edit country" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0;opacity:0.55;transition:opacity 150ms" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.55'">
+          <svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
+      <div id="countryEditRow" style="display:none;width:100%;margin-bottom:12px">
+        <div class="country-picker" id="sidebarCountryPicker">
+          <input type="text" class="form-input" id="sidebarCountrySearch" placeholder="Search country..." autocomplete="off" style="font-size:0.9rem;padding:8px 12px;height:auto;min-height:auto" />
+          <div class="country-dropdown" id="sidebarCountryDropdown"></div>
+          <input type="hidden" id="sidebarCountry" />
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+          <button onclick="cancelCountryEdit()" class="btn btn-ghost btn-sm" style="padding:4px 10px">Cancel</button>
+          <button onclick="saveCountry()" class="btn btn-primary btn-sm" style="padding:4px 12px" id="saveCountryBtn">Save</button>
+        </div>
+      </div>
+
       <a href="/compass" class="btn btn-ghost btn-sm btn-full">
         <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></svg>
         Update Position
@@ -350,8 +369,11 @@
       <!-- Bio (hidden when empty) -->
       <div class="up-bio" id="upBio" style="display:none"></div>
 
-      <!-- Age / gender / religion tags -->
+      <!-- Age / gender / religion / country tags -->
       <div class="up-tags" id="upTags"></div>
+      <div id="upCountryRow" style="display:none;align-items:center;gap:6px;margin-top:6px;margin-bottom:4px">
+        <span id="upCountry" style="font-size:0.85rem;color:var(--text-2)"></span>
+      </div>
 
       <!-- Actions -->
       <div class="up-actions">
@@ -380,6 +402,7 @@
 <script src="/js/bg.js"></script>
 <script src="/js/theme.js"></script>
 <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="/js/countries.js"></script>
 <script src="/js/lobby.js"></script>
 <script>
 (function(){
