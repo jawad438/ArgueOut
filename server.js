@@ -75,8 +75,10 @@ app.get('/favicon.ico', (_, res) => {
   res.sendFile(path.join(__dirname, 'public', 'favicon.png'));
 });
 
-const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
-const SUGGEST_MODEL  = 'meta-llama/llama-3.3-70b-instruct:free';
+const OPENROUTER_KEY   = process.env.OPENROUTER_API_KEY;
+const SUGGEST_MODEL    = 'meta-llama/llama-3.3-70b-instruct:free';
+const FALLBACK_MODEL   = 'meta-llama/llama-3.1-8b-instruct:free';
+const OR_RATE_LIMITED  = Symbol('rate-limited');
 
 const SUGGEST_SYSTEM = `You are ArgueOut's debate igniter. Pick the most explosive opponent pairing and write a debate question.
 
@@ -107,7 +109,7 @@ One sentence, max 12 words. No hedging. No "what do you think." Respond ONLY wit
 
 // ── OpenRouter shared caller ──────────────────────────────────
 
-async function callOpenRouter(fnName, body) {
+async function callOpenRouterOnce(fnName, body) {
   const t0   = Date.now();
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), 30000);
@@ -127,6 +129,7 @@ async function callOpenRouter(fnName, body) {
     const ms   = Date.now() - t0;
     const text = await res.text();
     console.log(`[OR:${fnName}] ← ${res.status} in ${ms}ms | ${text.slice(0, 600)}`);
+    if (res.status === 429) return OR_RATE_LIMITED;
     if (!res.ok) return null;
     try { return JSON.parse(text); } catch { return null; }
   } catch (err) {
@@ -136,6 +139,16 @@ async function callOpenRouter(fnName, body) {
   } finally {
     clearTimeout(tid);
   }
+}
+
+async function callOpenRouter(fnName, body) {
+  const result = await callOpenRouterOnce(fnName, body);
+  if (result === OR_RATE_LIMITED) {
+    console.log(`[OR:${fnName}] primary rate-limited — switching to fallback model immediately`);
+    const fb = await callOpenRouterOnce(`${fnName}:fb`, { ...body, model: FALLBACK_MODEL });
+    return fb === OR_RATE_LIMITED ? null : fb;
+  }
+  return result;
 }
 
 function extractQuestion(data) {
