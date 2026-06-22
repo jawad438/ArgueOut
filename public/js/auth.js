@@ -157,6 +157,9 @@ if (avatarRing) {
 
 // ── LOGIN PAGE ────────────────────────────────────────────────
 
+const LOGIN_MAX  = 5;
+const LOGIN_WAIT = 60 * 1000;
+
 const loginForm = document.getElementById('loginForm');
 if (loginForm) {
   const togglePw = document.getElementById('togglePw');
@@ -169,9 +172,43 @@ if (loginForm) {
     });
   }
 
+  // Rate-limit helpers (sessionStorage — resets when tab closes, persists on refresh)
+  const _attempts    = () => parseInt(sessionStorage.getItem('ao-li-a') || '0', 10);
+  const _lockedUntil = () => parseInt(sessionStorage.getItem('ao-li-t') || '0', 10);
+  const _resetLimit  = () => { sessionStorage.removeItem('ao-li-a'); sessionStorage.removeItem('ao-li-t'); };
+
+  let _cdTimer = null;
+  function _startCountdown() {
+    if (_cdTimer) clearInterval(_cdTimer);
+    const btn = document.getElementById('loginBtn');
+    if (btn) btn.disabled = true;
+    _cdTimer = setInterval(() => {
+      const secs = Math.ceil((_lockedUntil() - Date.now()) / 1000);
+      if (secs <= 0) {
+        clearInterval(_cdTimer); _cdTimer = null;
+        _resetLimit();
+        hideError('loginError');
+        const b = document.getElementById('loginBtn');
+        if (b) b.disabled = false;
+        return;
+      }
+      showError('loginError', 'loginErrorText', `Too many failed attempts. Please wait ${secs}s.`);
+    }, 500);
+  }
+
+  // Restore lockout if user refreshes while locked
+  if (_lockedUntil() > Date.now()) _startCountdown();
+  else if (_lockedUntil() > 0)     _resetLimit();
+
   loginForm.addEventListener('submit', async e => {
     e.preventDefault();
     hideError('loginError');
+
+    if (_lockedUntil() > Date.now()) {
+      const secs = Math.ceil((_lockedUntil() - Date.now()) / 1000);
+      showError('loginError', 'loginErrorText', `Too many failed attempts. Please wait ${secs}s.`);
+      return;
+    }
 
     const input    = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
@@ -207,15 +244,32 @@ if (loginForm) {
       localStorage.setItem('userId',   user.uid);
       if (profile.avatarUrl) localStorage.setItem('avatarDataUrl', profile.avatarUrl);
 
+      _resetLimit(); // clear attempt counter on success
       showToast('Welcome back!', 'success');
       setTimeout(() => {
         const next = new URLSearchParams(location.search).get('next');
         window.location.href = next || (profile.compassSet ? '/lobby' : '/compass');
       }, 600);
     } catch (err) {
-      showError('loginError', 'loginErrorText', friendlyError(err.code || err.message));
+      const count = _attempts() + 1;
+      if (count >= LOGIN_MAX) {
+        sessionStorage.setItem('ao-li-t', String(Date.now() + LOGIN_WAIT));
+        sessionStorage.setItem('ao-li-a', '0');
+        showError('loginError', 'loginErrorText', 'Too many failed attempts. Please wait 60s.');
+        _startCountdown();
+      } else {
+        sessionStorage.setItem('ao-li-a', String(count));
+        const left   = LOGIN_MAX - count;
+        const suffix = left === 1 ? '1 attempt left.' : `${left} attempts left.`;
+        showError('loginError', 'loginErrorText', `${friendlyError(err.code || err.message)} ${suffix}`);
+      }
     } finally {
-      setLoading(btn, false);
+      if (_lockedUntil() > Date.now()) {
+        // Keep button disabled — countdown manages re-enable. Just restore text.
+        btn.innerHTML = btn._origText || btn.innerHTML;
+      } else {
+        setLoading(btn, false);
+      }
     }
   });
 }

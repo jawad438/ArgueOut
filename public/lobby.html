@@ -41,6 +41,7 @@
         <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
       </div>
     </div>
+    <a href="/admin" class="btn btn-sm" id="adminPanelBtn" style="display:none;background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.25)">Admin Panel</a>
     <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign Out</button>
     <div id="notifDropdown" class="notif-dropdown" style="display:none">
       <div class="notif-dropdown-header">
@@ -380,6 +381,10 @@
           <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/></svg>
           Challenge to Debate
         </button>
+        <button class="btn btn-full" id="reportFromModalBtn" style="display:none;background:rgba(239,68,68,0.08);color:var(--red);border:1px solid rgba(239,68,68,0.2);margin-top:6px" onclick="reportFromModal()">
+          <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;margin-right:6px" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Report User
+        </button>
         <div id="challengePendingMsg" style="display:none;text-align:center;padding:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r-md)">
           <div style="font-size:0.88rem;color:var(--text-2);margin-bottom:2px">Challenge sent</div>
           <div style="font-size:0.75rem;color:var(--text-3)">Waiting for their response...</div>
@@ -391,6 +396,41 @@
     </div>
 
   </div>
+</div>
+
+<!-- Report modal -->
+<div class="modal-overlay" id="reportModal" style="display:none" onclick="if(event.target===this)closeReportModal()">
+  <div class="auth-card" style="max-width:420px;width:100%;position:relative">
+    <button onclick="closeReportModal()" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center" aria-label="Close">
+      <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div style="margin-bottom:18px">
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px">Report User</div>
+      <div style="font-size:0.85rem;color:var(--text-3)">Reporting: <span id="reportTargetName" style="color:var(--text-1);font-weight:600"></span></div>
+    </div>
+    <div style="font-size:0.88rem;font-weight:600;margin-bottom:10px;color:var(--text-2)">Select a reason:</div>
+    <div id="reportReasons" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+      <label class="report-reason-opt"><input type="radio" name="reportReason" value="Harassment or bullying" /> Harassment or bullying</label>
+      <label class="report-reason-opt"><input type="radio" name="reportReason" value="Hate speech" /> Hate speech</label>
+      <label class="report-reason-opt"><input type="radio" name="reportReason" value="Threats or violence" /> Threats or violence</label>
+      <label class="report-reason-opt"><input type="radio" name="reportReason" value="Spam or off-topic" /> Spam or off-topic</label>
+      <label class="report-reason-opt"><input type="radio" name="reportReason" value="Inappropriate behavior" /> Inappropriate behavior</label>
+      <label class="report-reason-opt"><input type="radio" name="reportReason" value="__other__" /> Other…</label>
+    </div>
+    <div id="reportOtherWrap" style="display:none;margin-bottom:14px">
+      <input class="form-input" id="reportOtherInput" type="text" maxlength="200" placeholder="Describe the reason…" />
+    </div>
+    <div id="reportModalError" style="display:none;color:var(--red);font-size:0.82rem;margin-bottom:10px"></div>
+    <button class="btn btn-primary btn-full" id="submitReportBtn" onclick="submitReport()">Submit Report</button>
+  </div>
+</div>
+
+<!-- Ban notice overlay -->
+<div id="banOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:32px">
+  <svg style="width:48px;height:48px;fill:none;stroke:var(--red);stroke-width:1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+  <div style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800;color:var(--red)">Account Suspended</div>
+  <div id="banMessage" style="font-size:0.95rem;color:var(--text-2);max-width:400px;line-height:1.6"></div>
+  <button onclick="auth.signOut().then(()=>{localStorage.clear();window.location.href='/login';})" class="btn btn-ghost btn-sm" style="margin-top:8px">Sign Out</button>
 </div>
 
 <div id="toast-container"></div>

@@ -263,7 +263,7 @@ function renderDirectory(users) {
       ? '<span style="font-size:0.7rem;color:var(--amber)">In debate</span>'
       : '<span style="font-size:0.7rem;color:var(--green)">● Online</span>';
     return `
-      <div class="directory-user-row" style="animation:dirRowEnter 280ms var(--ease-out) ${i * 45}ms both" onclick="openUserProfile('${escapeHtml(u.userId)}')">
+      <div class="directory-user-row" style="animation:dirRowEnter 280ms var(--ease-out) ${i * 45}ms both;position:relative" onclick="openUserProfile('${escapeHtml(u.userId)}')">
         <div class="directory-avatar">${avatarHtml}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:0.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.name || u.username)}</div>
@@ -273,6 +273,13 @@ function renderDirectory(users) {
           <span class="badge ${info.badge}" style="font-size:0.6rem;padding:2px 6px">${info.label}</span>
           ${statusHtml}
         </div>
+        <button title="Report user" onclick="event.stopPropagation();openReportModal('${escapeHtml(u.userId)}','${escapeHtml(u.username)}','lobby')"
+          style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:rgba(239,68,68,0.4);padding:4px;display:flex;align-items:center;border-radius:4px;transition:color 150ms,background 150ms"
+          onmouseenter="this.style.color='var(--red)';this.style.background='rgba(239,68,68,0.08)'"
+          onmouseleave="this.style.color='rgba(239,68,68,0.4)';this.style.background='none'"
+          aria-label="Report ${escapeHtml(u.username)}">
+          <svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
       </div>
     `;
   }).join('');
@@ -376,6 +383,11 @@ function openUserProfile(userId) {
       challengeBtn.onclick = () => sendChallenge(user.userId, user.username);
     }
   }
+
+  // Show report button (hidden for yourself)
+  const reportBtn = document.getElementById('reportFromModalBtn');
+  const myId = currentUserId || localStorage.getItem('userId');
+  if (reportBtn) reportBtn.style.display = user.userId !== myId ? 'flex' : 'none';
 
   const modal = document.getElementById('userProfileModal');
   if (modal) modal.style.display = 'flex';
@@ -618,6 +630,27 @@ auth.onAuthStateChanged(async (user) => {
 
     currentUserId = user.uid;
     updateProfileUI(profile);
+
+    // Show admin panel button if admin
+    if (profile.isAdmin) {
+      const adminBtn = document.getElementById('adminPanelBtn');
+      if (adminBtn) adminBtn.style.display = 'flex';
+    }
+
+    // Load Firestore notifications (messages sent while offline)
+    firestoreDb.collection('notifications').doc(user.uid).collection('items')
+      .where('read', '==', false)
+      .orderBy('createdAt', 'desc')
+      .limit(20)
+      .get()
+      .then(snap => {
+        snap.docs.reverse().forEach(d => {
+          const item = d.data();
+          addToNotifHistory({ icon: '📢', text: item.message, type: 'admin' });
+          d.ref.update({ read: true });
+        });
+      })
+      .catch(() => {});
 
     currentIdToken = await user.getIdToken();
     if (!socket.connected) socket.connect();
@@ -1129,3 +1162,99 @@ if (profilePicInput) {
     reader.readAsDataURL(file);
   });
 }
+
+// ── Ban + admin notification handlers ────────────────────────
+socket.on('account-banned', ({ message }) => {
+  const overlay = document.getElementById('banOverlay');
+  const msg     = document.getElementById('banMessage');
+  if (msg)     msg.textContent  = message;
+  if (overlay) { overlay.style.display = 'flex'; }
+});
+
+socket.on('admin-notification', ({ message }) => {
+  addToNotifHistory({ icon: '📢', text: message, type: 'admin' });
+  showToast('You have a new message.', 'info');
+  if (Notification.permission === 'granted') {
+    new Notification('ArgueOut — New Message', { body: message, icon: '/logo.png' });
+  }
+});
+
+// ── Report modal (lobby) ──────────────────────────────────────
+let _reportTargetId  = null;
+let _reportTargetName = null;
+
+function openReportModal(userId, username, location) {
+  _reportTargetId   = userId;
+  _reportTargetName = username;
+  _reportLocation   = location || 'lobby';
+  const modal = document.getElementById('reportModal');
+  const nameEl = document.getElementById('reportTargetName');
+  const errEl  = document.getElementById('reportModalError');
+  const otherWrap = document.getElementById('reportOtherWrap');
+  if (nameEl)    nameEl.textContent    = `@${username}`;
+  if (errEl)     errEl.style.display   = 'none';
+  if (otherWrap) otherWrap.style.display = 'none';
+  // Deselect all radios
+  document.querySelectorAll('input[name="reportReason"]').forEach(r => { r.checked = false; });
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeReportModal() {
+  const modal = document.getElementById('reportModal');
+  if (modal) modal.style.display = 'none';
+  _reportTargetId   = null;
+  _reportTargetName = null;
+}
+
+function reportFromModal() {
+  const user = onlineUsersCache.find(u => {
+    const modal = document.getElementById('userProfileModal');
+    const nameEl = document.getElementById('upUsername');
+    return nameEl && u.username === (nameEl.textContent || '').replace(/^@/, '');
+  });
+  if (!user) return;
+  closeProfileModal();
+  openReportModal(user.userId, user.username, 'lobby');
+}
+
+function submitReport() {
+  const selected = document.querySelector('input[name="reportReason"]:checked');
+  const errEl    = document.getElementById('reportModalError');
+  const otherWrap = document.getElementById('reportOtherWrap');
+  if (!selected) {
+    errEl.textContent = 'Please select a reason.';
+    errEl.style.display = 'block';
+    return;
+  }
+  let reason = selected.value;
+  if (reason === '__other__') {
+    const custom = (document.getElementById('reportOtherInput')?.value || '').trim();
+    if (!custom) {
+      errEl.textContent = 'Please describe the reason.';
+      errEl.style.display = 'block';
+      return;
+    }
+    reason = custom;
+  }
+  const btn = document.getElementById('submitReportBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  socket.emit('report-user', {
+    reportedUserId:   _reportTargetId,
+    reportedUsername: _reportTargetName,
+    reason,
+    location: _reportLocation || 'lobby'
+  });
+  socket.once('report-sent', () => {
+    closeReportModal();
+    showToast('Report submitted. Thank you.', 'success');
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit Report'; }
+  });
+}
+
+// Show "other" input when "Other…" is selected
+document.addEventListener('change', e => {
+  if (e.target.name === 'reportReason') {
+    const otherWrap = document.getElementById('reportOtherWrap');
+    if (otherWrap) otherWrap.style.display = e.target.value === '__other__' ? 'block' : 'none';
+  }
+});

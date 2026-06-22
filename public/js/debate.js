@@ -848,3 +848,74 @@ auth.onAuthStateChanged(async (user) => {
   currentIdToken = await user.getIdToken();
   if (!socket.connected) socket.connect();
 });
+
+// ── Ban handler ───────────────────────────────────────────────
+socket.on('account-banned', ({ message }) => {
+  const overlay = document.getElementById('banOverlay');
+  const msg     = document.getElementById('banMessage');
+  if (msg)     msg.textContent = message;
+  if (overlay) { overlay.style.display = 'flex'; }
+});
+
+// ── Report (debate) ───────────────────────────────────────────
+let _reportOpponentId   = null;
+let _reportOpponentName = null;
+
+function openDebateReport() {
+  _reportOpponentId   = opponent?.userId || null;
+  _reportOpponentName = opponent?.username || 'Opponent';
+  const modal  = document.getElementById('reportModal');
+  const nameEl = document.getElementById('reportTargetName');
+  const errEl  = document.getElementById('reportModalError');
+  const otherWrap = document.getElementById('reportOtherWrap');
+  if (nameEl)    nameEl.textContent      = `@${_reportOpponentName}`;
+  if (errEl)     errEl.style.display     = 'none';
+  if (otherWrap) otherWrap.style.display = 'none';
+  document.querySelectorAll('input[name="reportReason"]').forEach(r => { r.checked = false; });
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeReportModal() {
+  const modal = document.getElementById('reportModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function submitReport() {
+  const selected = document.querySelector('input[name="reportReason"]:checked');
+  const errEl    = document.getElementById('reportModalError');
+  if (!selected) {
+    errEl.textContent   = 'Please select a reason.';
+    errEl.style.display = 'block';
+    return;
+  }
+  let reason = selected.value;
+  if (reason === '__other__') {
+    const custom = (document.getElementById('reportOtherInput')?.value || '').trim();
+    if (!custom) {
+      errEl.textContent   = 'Please describe the reason.';
+      errEl.style.display = 'block';
+      return;
+    }
+    reason = custom;
+  }
+  const btn = document.getElementById('submitReportBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  socket.emit('report-user', {
+    reportedUserId:   _reportOpponentId,
+    reportedUsername: _reportOpponentName,
+    reason,
+    location: 'debate'
+  });
+  socket.once('report-sent', () => {
+    closeReportModal();
+    showToast('Report submitted. Thank you.', 'success');
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit Report'; }
+  });
+}
+
+document.addEventListener('change', e => {
+  if (e.target.name === 'reportReason') {
+    const otherWrap = document.getElementById('reportOtherWrap');
+    if (otherWrap) otherWrap.style.display = e.target.value === '__other__' ? 'block' : 'none';
+  }
+});

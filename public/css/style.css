@@ -2458,3 +2458,20 @@ html[data-theme="light"] .modal-overlay { background: rgba(200,200,220,0.62); }
   html:not([data-theme="dark"]) .up-bio       { background: rgba(139,92,246,0.05); border-color: rgba(139,92,246,0.10); }
   html:not([data-theme="dark"]) .modal-overlay { background: rgba(200,200,220,0.62); }
 }
+
+/* ── Report modal ─────────────────────────────────────────── */
+.report-reason-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--text-2);
+  transition: background 150ms, border-color 150ms, color 150ms;
+}
+.report-reason-opt:hover { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.3); color: var(--text-1); }
+.report-reason-opt input[type="radio"] { accent-color: var(--purple); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }

@@ -23,6 +23,36 @@ async function verifyFirebaseToken(idToken) {
   catch { return null; }
 }
 
+// ── Admin provisioning ────────────────────────────────────────
+(async function provisionAdmin() {
+  const ADMIN_EMAIL    = 'admin@argueout.app';
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+  if (!ADMIN_PASSWORD) { console.log('[admin] ADMIN_PASSWORD not set — skipping provisioning'); return; }
+  try {
+    const doc = await fstore.collection('usernames').doc('admin').get();
+    if (doc.exists) return; // already set up
+    let uid;
+    try {
+      const rec = await admin.auth().getUserByEmail(ADMIN_EMAIL);
+      uid = rec.uid;
+    } catch {
+      const rec = await admin.auth().createUser({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, displayName: 'Admin' });
+      uid = rec.uid;
+    }
+    const batch = fstore.batch();
+    batch.set(fstore.collection('users').doc(uid), {
+      username: 'admin', name: 'Admin', email: ADMIN_EMAIL,
+      isAdmin: true, politicalX: 0, politicalY: 0, compassSet: true,
+      avatarUrl: null, createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    batch.set(fstore.collection('usernames').doc('admin'), { uid, email: ADMIN_EMAIL });
+    await batch.commit();
+    console.log('[admin] admin account provisioned ✓');
+  } catch (err) {
+    console.error('[admin] provisioning error:', err.message);
+  }
+})();
+
 // ── Express ───────────────────────────────────────────────────
 const app    = express();
 const server = http.createServer(app);
@@ -386,6 +416,22 @@ io.on('connection', socket => {
       socket.emit('auth-error', { error: 'Database error' }); return;
     }
 
+    // ── Ban check ──────────────────────────────────────────────
+    if (userData.banned) {
+      const bannedUntil = userData.bannedUntil ? userData.bannedUntil.toDate() : null;
+      if (!bannedUntil || bannedUntil > new Date()) {
+        socket.emit('account-banned', {
+          message: bannedUntil
+            ? `Your account is suspended until ${bannedUntil.toUTCString()}.`
+            : 'Your account has been permanently banned.',
+          until: bannedUntil ? bannedUntil.toISOString() : null
+        });
+        return;
+      }
+      // Expired ban — auto-lift
+      await fstore.collection('users').doc(decoded.uid).update({ banned: false, bannedUntil: null });
+    }
+
     socketUsers.set(socket.id, {
       userId:     decoded.uid,
       username:   userData.username,
@@ -706,6 +752,124 @@ io.on('connection', socket => {
     generateDebateQuestion(pending.suggestion).then(question => {
       io.to(roomId).emit('question-updated', { question: question || pending.suggestion });
     });
+  });
+
+  // ── Report user ──────────────────────────────────────────────
+  socket.on('report-user', async ({ reportedUserId, reportedUsername, reason, location }) => {
+    const me = socketUsers.get(socket.id) || onlineUsers.get(socket.id);
+    if (!me || !reportedUserId || !reason) return;
+    try {
+      await fstore.collection('reports').add({
+        reporterId:       me.userId,
+        reporterUsername: me.username,
+        reportedId:       reportedUserId,
+        reportedUsername: String(reportedUsername || '').slice(0, 50),
+        reason:           String(reason).slice(0, 200),
+        location:         String(location || '').slice(0, 50),
+        status:           'pending',
+        createdAt:        admin.firestore.FieldValue.serverTimestamp()
+      });
+      socket.emit('report-sent');
+      console.log(`[report] ${me.username} → ${reportedUsername}: "${reason}"`);
+    } catch (err) {
+      console.error('[report] error:', err.message);
+    }
+  });
+
+  // ── Admin helpers ────────────────────────────────────────────
+  async function _isAdmin() {
+    const me = socketUsers.get(socket.id);
+    if (!me) return false;
+    try {
+      const doc = await fstore.collection('users').doc(me.userId).get();
+      return doc.exists && doc.data().isAdmin === true;
+    } catch { return false; }
+  }
+
+  socket.on('admin-get-reports', async ({ filter } = {}) => {
+    if (!await _isAdmin()) return;
+    let q = fstore.collection('reports').orderBy('createdAt', 'desc').limit(150);
+    if (filter === 'pending') q = q.where('status', '==', 'pending');
+    const snap = await q.get();
+    socket.emit('admin-reports', {
+      reports: snap.docs.map(d => ({
+        id: d.id, ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.()?.toISOString() || null
+      }))
+    });
+  });
+
+  socket.on('admin-dismiss-report', async ({ reportId }) => {
+    if (!await _isAdmin()) return;
+    await fstore.collection('reports').doc(reportId).update({ status: 'dismissed' });
+    socket.emit('admin-action-done', { action: 'dismiss-report', reportId });
+  });
+
+  socket.on('admin-search-users', async ({ query }) => {
+    if (!await _isAdmin()) return;
+    const q = String(query || '').trim().slice(0, 30);
+    if (!q) return;
+    const snap = await fstore.collection('users')
+      .where('username', '>=', q).where('username', '<=', q + '')
+      .limit(20).get();
+    socket.emit('admin-users', {
+      users: snap.docs.map(d => ({
+        uid:        d.id,
+        username:   d.data().username,
+        name:       d.data().name,
+        email:      d.data().email || '',
+        banned:     d.data().banned || false,
+        bannedUntil: d.data().bannedUntil?.toDate?.()?.toISOString() || null,
+        isAdmin:    d.data().isAdmin || false
+      }))
+    });
+  });
+
+  socket.on('admin-ban-user', async ({ targetUserId, durationMs }) => {
+    if (!await _isAdmin()) return;
+    if (!targetUserId) return;
+    const banData = durationMs
+      ? { banned: true, bannedUntil: admin.firestore.Timestamp.fromMillis(Date.now() + Number(durationMs)) }
+      : { banned: true, bannedUntil: null };
+    await fstore.collection('users').doc(targetUserId).update(banData);
+    // Kick if online
+    for (const [sid, u] of onlineUsers) {
+      if (u.userId === targetUserId) {
+        const until = durationMs ? new Date(Date.now() + Number(durationMs)).toUTCString() : null;
+        io.to(sid).emit('account-banned', {
+          message: until ? `You have been suspended until ${until}.` : 'Your account has been permanently banned.',
+          until
+        });
+      }
+    }
+    socket.emit('admin-action-done', { action: 'ban', targetUserId });
+    console.log(`[admin] ban ${targetUserId} durationMs=${durationMs || 'permanent'}`);
+  });
+
+  socket.on('admin-unban-user', async ({ targetUserId }) => {
+    if (!await _isAdmin()) return;
+    await fstore.collection('users').doc(targetUserId).update({ banned: false, bannedUntil: null });
+    socket.emit('admin-action-done', { action: 'unban', targetUserId });
+    console.log(`[admin] unban ${targetUserId}`);
+  });
+
+  socket.on('admin-send-notification', async ({ targetUserId, message }) => {
+    if (!await _isAdmin()) return;
+    const clean = String(message || '').trim().slice(0, 500);
+    if (!clean || !targetUserId) return;
+    await fstore.collection('notifications').doc(targetUserId).collection('items').add({
+      type: 'admin', message: clean, read: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    // Real-time push if they're online right now
+    for (const [sid, u] of onlineUsers) {
+      if (u.userId === targetUserId) {
+        io.to(sid).emit('admin-notification', { message: clean });
+        break;
+      }
+    }
+    socket.emit('admin-action-done', { action: 'notification', targetUserId });
+    console.log(`[admin] notification → ${targetUserId}: "${clean.slice(0, 60)}"`);
   });
 
   socket.on('disconnect', () => {
