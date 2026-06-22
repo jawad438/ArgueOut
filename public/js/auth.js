@@ -39,12 +39,12 @@ function setLoading(btn, loading, label = 'Please wait...') {
 
 function friendlyError(code) {
   const map = {
-    'auth/email-already-in-use':  'Username already taken. Choose another.',
-    'auth/invalid-email':         'Invalid username format.',
+    'auth/email-already-in-use':  'An account with this email already exists. Try signing in instead.',
+    'auth/invalid-email':         'Invalid email address.',
     'auth/weak-password':         'Password too weak — use at least 6 characters.',
-    'auth/user-not-found':        'Invalid username or password.',
-    'auth/wrong-password':        'Invalid username or password.',
-    'auth/invalid-credential':    'Invalid username or password.',
+    'auth/user-not-found':        'Invalid username, email, or password.',
+    'auth/wrong-password':        'Invalid username, email, or password.',
+    'auth/invalid-credential':    'Invalid username, email, or password.',
     'auth/too-many-requests':     'Too many attempts. Wait a few minutes and try again.',
     'auth/network-request-failed':'Network error. Check your internet connection.',
   };
@@ -173,18 +173,30 @@ if (loginForm) {
     e.preventDefault();
     hideError('loginError');
 
-    const username = document.getElementById('username').value.trim();
+    const input    = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
     const btn      = document.getElementById('loginBtn');
 
-    if (!username || !password) {
+    if (!input || !password) {
       showError('loginError', 'loginErrorText', 'Please fill in all fields.');
       return;
     }
 
     setLoading(btn, true, 'Signing in...');
     try {
-      const userCred = await auth.signInWithEmailAndPassword(fakeEmail(username), password);
+      // Resolve the Firebase Auth email from the input (real email or username lookup)
+      let authEmail;
+      if (input.includes('@')) {
+        authEmail = input.toLowerCase();
+      } else {
+        try {
+          const doc = await firestoreDb.collection('usernames').doc(input).get();
+          authEmail = (doc.exists && doc.data().email) ? doc.data().email : fakeEmail(input);
+        } catch {
+          authEmail = fakeEmail(input);
+        }
+      }
+      const userCred = await auth.signInWithEmailAndPassword(authEmail, password);
       const user     = userCred.user;
 
       const doc = await firestoreDb.collection('users').doc(user.uid).get();
@@ -314,9 +326,9 @@ if (step2Form) {
         // Google user already authenticated — just use their existing UID
         uid = window._googlePending.uid;
       } else {
-        // Normal sign-up: create Firebase Auth user with fake-email pattern
+        // Normal sign-up: create Firebase Auth user with real email
         const userCred = await auth.createUserWithEmailAndPassword(
-          fakeEmail(regData.username), regData.password
+          regData.email, regData.password
         );
         uid = userCred.user.uid;
       }
@@ -354,7 +366,7 @@ if (step2Form) {
         avatarUrl,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      batch.set(firestoreDb.collection('usernames').doc(regData.username), { uid });
+      batch.set(firestoreDb.collection('usernames').doc(regData.username), { uid, email: regData.email || '' });
       await batch.commit();
 
       localStorage.setItem('username', regData.username);
