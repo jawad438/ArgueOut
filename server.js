@@ -144,7 +144,7 @@ app.use(helmet({
       mediaSrc:       ["'self'", 'blob:'],
       connectSrc:     ["'self'", 'wss:', 'ws:', 'https://*.googleapis.com', 'https://*.firebaseapp.com', 'https://openrouter.ai', 'https://ip-api.com'],
       scriptSrcAttr:  ["'unsafe-inline'"],
-      frameSrc:       ["'none'"],
+      frameSrc:       ["https://argueout.firebaseapp.com"],
       objectSrc:      ["'none'"],
       baseUri:        ["'self'"],
       formAction:     ["'self'"],
