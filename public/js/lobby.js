@@ -1314,17 +1314,6 @@ document.addEventListener('change', e => {
 
 });
 
-async function openAdminPanel() {
-  try {
-    const token = await auth.currentUser.getIdToken(true);
-    const res = await fetch('/api/admin-auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: token })
-    });
-    if (!res.ok) { showToast('Admin access denied.', 'error'); return; }
-    window.location.href = '/admin';
-  } catch {
-    showToast('Failed to open admin panel.', 'error');
-  }
+function openAdminPanel() {
+  window.location.href = '/admin';
 }

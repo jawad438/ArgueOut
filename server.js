@@ -226,19 +226,9 @@ app.get('/api/admin-me', async (req, res) => {
   }
 });
 
-// /admin — serve private page only with valid admin cookie, otherwise 404
-app.get('/admin', async (req, res) => {
-  const cookies = parseCookies(req);
-  const sessToken = cookies.admin_sess;
-  if (!sessToken) return res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
-  try {
-    const decoded = await admin.auth().verifyIdToken(sessToken);
-    const doc = await fstore.collection('users').doc(decoded.uid).get();
-    if (!doc.exists || !doc.data().isAdmin) throw new Error('not admin');
-    res.sendFile(path.join(__dirname, 'private', 'admin.html'));
-  } catch {
-    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
-  }
+// /admin — serve admin page; admin.js handles auth guard client-side via /api/admin-me
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'private', 'admin.html'));
 });
 
 // Redirect /path.html -> /path (clean URLs)
