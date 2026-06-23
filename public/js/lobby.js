@@ -1262,6 +1262,8 @@ document.addEventListener('change', e => {
     if (otherWrap) otherWrap.style.display = e.target.value === '__other__' ? 'block' : 'none';
   }
 
+});
+
 async function openAdminPanel() {
   try {
     const token = await auth.currentUser.getIdToken(true);
@@ -1276,4 +1278,3 @@ async function openAdminPanel() {
     showToast('Failed to open admin panel.', 'error');
   }
 }
-});
