@@ -969,7 +969,9 @@ async function saveBio() {
   saveBtn.textContent = 'Saving...';
 
   try {
-    await firestoreDb.collection('users').doc(user.uid).update({ bio: newBio });
+    const token = await user.getIdToken();
+    const r = await fetch('/api/profile/bio', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ bio: newBio }) });
+    if (!r.ok) throw new Error('Failed');
     if (bioText) {
       if (newBio) {
         bioText.textContent   = newBio;
@@ -1025,7 +1027,9 @@ async function saveName() {
   btn.disabled = true;
   btn.textContent = 'Saving...';
   try {
-    await firestoreDb.collection('users').doc(user.uid).update({ name: newName });
+    const token = await user.getIdToken();
+    const r = await fetch('/api/profile/name', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ name: newName }) });
+    if (!r.ok) throw new Error('Failed');
     const nameEl = document.getElementById('profileName');
     if (nameEl) nameEl.textContent = newName;
     cancelNameEdit();
@@ -1070,27 +1074,18 @@ async function saveUsername() {
   if (newUsername === oldUsername) { cancelUsernameEdit(); return; }
 
   btn.disabled = true;
-  btn.textContent = 'Checking...';
+  btn.textContent = 'Saving...';
   try {
-    const existing = await firestoreDb.collection('usernames').doc(newUsername).get();
-    if (existing.exists) {
-      showToast('Username already taken. Try another.', 'error');
-      return;
-    }
-
-    btn.textContent = 'Saving...';
-
-    // Password-based accounts use username@argueout.app as Firebase Auth email - keep it in sync
+    // Password-based accounts use username@argueout.app as Firebase Auth email - keep in sync
     const isPasswordAccount = user.email && user.email.endsWith('@argueout.app');
     if (isPasswordAccount) {
       await user.updateEmail(`${newUsername.toLowerCase().replace(/[^a-z0-9_]/g, '')}@argueout.app`);
     }
 
-    const batch = firestoreDb.batch();
-    batch.update(firestoreDb.collection('users').doc(user.uid), { username: newUsername });
-    if (oldUsername) batch.delete(firestoreDb.collection('usernames').doc(oldUsername));
-    batch.set(firestoreDb.collection('usernames').doc(newUsername), { uid: user.uid });
-    await batch.commit();
+    const token = await user.getIdToken();
+    const r = await fetch('/api/profile/username', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ username: newUsername, oldUsername }) });
+    if (r.status === 409) { showToast('Username already taken. Try another.', 'error'); return; }
+    if (!r.ok) throw new Error('Failed');
 
     localStorage.setItem('username', newUsername);
     const usernameEl = document.getElementById('profileUsername');
@@ -1143,7 +1138,9 @@ async function saveCountry() {
   btn.disabled    = true;
   btn.textContent = 'Saving...';
   try {
-    await firestoreDb.collection('users').doc(user.uid).update({ country: val });
+    const token = await user.getIdToken();
+    const r = await fetch('/api/profile/country', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ country: val }) });
+    if (!r.ok) throw new Error('Failed');
     if (socket) socket.emit('update-country', { country: val });
 
     const profileCountry = document.getElementById('profileCountry');
@@ -1195,7 +1192,9 @@ if (profilePicInput) {
       applyAvatar(ev.target.result, initial); // immediate preview
       try {
         const compressed = await compressAvatar(ev.target.result);
-        await firestoreDb.collection('users').doc(user.uid).update({ avatarUrl: compressed });
+        const token = await user.getIdToken();
+        const r = await fetch('/api/profile/avatar', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ avatarUrl: compressed }) });
+        if (!r.ok) throw new Error('Failed');
         localStorage.setItem('avatarDataUrl', compressed);
         applyAvatar(compressed, initial);
         showToast('Profile picture updated!', 'success');

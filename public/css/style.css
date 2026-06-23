@@ -385,7 +385,7 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   background-clip: text;
   letter-spacing: -0.02em;
 }
-.nav-actions { display: flex; align-items: center; gap: 12px; }
+.nav-actions { display: flex; align-items: center; gap: 12px; position: relative; }
 .nav-user {
   display: flex;
   align-items: center;

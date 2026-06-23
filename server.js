@@ -226,6 +226,77 @@ app.get('/api/admin-me', async (req, res) => {
   }
 });
 
+// -- Profile update endpoints (Admin SDK — bypasses Firestore security rules) ----------
+async function getAuthUser(req) {
+  const h = req.headers.authorization || '';
+  const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!t) return null;
+  try { return await admin.auth().verifyIdToken(t); } catch { return null; }
+}
+
+app.post('/api/profile/name', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const name = (req.body?.name || '').trim().slice(0, 50);
+  if (!name) return res.status(400).json({ error: 'Name cannot be empty' });
+  try {
+    await fstore.collection('users').doc(decoded.uid).update({ name });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/profile/bio', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const bio = typeof req.body?.bio === 'string' ? req.body.bio.trim().slice(0, 280) : '';
+  try {
+    await fstore.collection('users').doc(decoded.uid).update({ bio });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/profile/country', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const country = typeof req.body?.country === 'string' ? req.body.country.trim().slice(0, 60) : '';
+  try {
+    await fstore.collection('users').doc(decoded.uid).update({ country });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/profile/avatar', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const avatarUrl = req.body?.avatarUrl || '';
+  if (typeof avatarUrl !== 'string' || !avatarUrl.startsWith('data:image/'))
+    return res.status(400).json({ error: 'Invalid image' });
+  try {
+    await fstore.collection('users').doc(decoded.uid).update({ avatarUrl });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/profile/username', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const { username, oldUsername } = req.body || {};
+  if (!username || !/^[a-zA-Z0-9_]{3,20}$/.test(username))
+    return res.status(400).json({ error: 'Invalid username format' });
+  try {
+    const existing = await fstore.collection('usernames').doc(username).get();
+    if (existing.exists && existing.data().uid !== decoded.uid)
+      return res.status(409).json({ error: 'Username already taken' });
+    const batch = fstore.batch();
+    batch.update(fstore.collection('users').doc(decoded.uid), { username });
+    if (oldUsername && oldUsername !== username)
+      batch.delete(fstore.collection('usernames').doc(oldUsername));
+    batch.set(fstore.collection('usernames').doc(username), { uid: decoded.uid });
+    await batch.commit();
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
 // /admin — serve admin page; admin.js handles auth guard client-side via /api/admin-me
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'private', 'admin.html'));
