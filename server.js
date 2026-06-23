@@ -1,11 +1,13 @@
 ﻿require('dotenv').config();
-const express  = require('express');
-const http     = require('http');
+const express    = require('express');
+const http       = require('http');
 const { Server } = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
-const path     = require('path');
-const fs       = require('fs');
-const admin    = require('firebase-admin');
+const path       = require('path');
+const fs         = require('fs');
+const admin      = require('firebase-admin');
+const helmet     = require('helmet');
+const rateLimit  = require('express-rate-limit');
 
 // -- Firebase Admin --------------------------------------------
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
@@ -82,12 +84,105 @@ async function verifyFirebaseToken(idToken) {
   }
 })();
 
+// -- Input validation helpers ----------------------------------
+function safeStr(val, maxLen = 200) {
+  if (typeof val !== 'string') return '';
+  return val.trim().slice(0, maxLen);
+}
+function safeId(val) {
+  if (typeof val !== 'string') return null;
+  // Firestore doc IDs: printable non-slash chars, 1-128 length
+  if (val.length < 1 || val.length > 128 || /[/\x00]/.test(val)) return null;
+  return val;
+}
+function safeInt(val, min, max) {
+  const n = Number(val);
+  if (!Number.isFinite(n) || n < min || n > max) return null;
+  return Math.floor(n);
+}
+
+// -- Socket.io event rate limiting -----------------------------
+// Map: socketId -> Map<eventName, { count, resetAt }>
+const _socketRates = new Map();
+function socketAllow(socketId, event, maxPerMinute) {
+  const now = Date.now();
+  if (!_socketRates.has(socketId)) _socketRates.set(socketId, new Map());
+  const m = _socketRates.get(socketId);
+  if (!m.has(event)) m.set(event, { count: 0, resetAt: now + 60000 });
+  const r = m.get(event);
+  if (now > r.resetAt) { r.count = 0; r.resetAt = now + 60000; }
+  r.count++;
+  return r.count <= maxPerMinute;
+}
+function socketCleanup(socketId) { _socketRates.delete(socketId); }
+
 // -- Express ---------------------------------------------------
 const app    = express();
 const server = http.createServer(app);
-const io     = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
-app.use(express.json());
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+  : null; // null = allow all (dev mode)
+
+const io = new Server(server, {
+  cors: {
+    origin: ALLOWED_ORIGINS || '*',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Security headers via helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:     ["'self'"],
+      scriptSrc:      ["'self'", "'unsafe-inline'", 'https://www.gstatic.com', 'https://cdn.socket.io'],
+      styleSrc:       ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc:        ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc:         ["'self'", 'data:', 'https:', 'blob:'],
+      mediaSrc:       ["'self'", 'blob:'],
+      connectSrc:     ["'self'", 'wss:', 'ws:', 'https://*.googleapis.com', 'https://*.firebaseapp.com', 'https://openrouter.ai', 'https://ip-api.com'],
+      frameSrc:       ["'none'"],
+      objectSrc:      ["'none'"],
+      baseUri:        ["'self'"],
+      formAction:     ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // required for WebRTC getUserMedia
+  hsts: process.env.NODE_ENV === 'production'
+    ? { maxAge: 63072000, includeSubDomains: true, preload: true }
+    : false,
+}));
+
+// Additional headers not covered by default helmet config
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Permissions-Policy', 'camera=*, microphone=*, geolocation=()');
+  next();
+});
+
+// Rate limiting — global (all routes)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: req => getClientIp(req),
+  message: { error: 'Too many requests. Please slow down.' },
+  skip: req => req.path === '/api/health'
+});
+app.use(globalLimiter);
+
+// Tighter limit on sensitive API endpoints
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  keyGenerator: req => getClientIp(req),
+  message: { error: 'Too many requests to this endpoint.' }
+});
+
+app.use(express.json({ limit: '64kb' })); // cap request body size
 
 // Block IP-banned clients from all HTTP pages
 app.use((req, res, next) => {
@@ -99,10 +194,11 @@ app.use((req, res, next) => {
 });
 
 // Admin session endpoint — call this before navigating to /admin
-app.post('/api/admin-auth', async (req, res) => {
+app.post('/api/admin-auth', strictLimiter, async (req, res) => {
   try {
     const { idToken } = req.body || {};
-    if (!idToken) return res.status(400).json({ error: 'No token' });
+    if (!idToken || typeof idToken !== 'string' || idToken.length > 4096)
+      return res.status(400).json({ error: 'No token' });
     const decoded = await admin.auth().verifyIdToken(idToken);
     const doc = await fstore.collection('users').doc(decoded.uid).get();
     if (!doc.exists || !doc.data().isAdmin) return res.status(403).json({ error: 'Not admin' });
@@ -111,7 +207,7 @@ app.post('/api/admin-auth', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[admin-auth]', err.message);
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: 'Unauthorized' }); // don't leak internal error
   }
 });
 
@@ -321,9 +417,10 @@ async function generateDebateQuestionForPair(user1, user2) {
   return extractQuestion(data);
 }
 
-app.post('/api/suggest-opponent', async (req, res) => {
+app.post('/api/suggest-opponent', strictLimiter, async (req, res) => {
   const { idToken } = req.body || {};
-  if (!idToken) return res.status(401).json({ error: 'No token' });
+  if (!idToken || typeof idToken !== 'string' || idToken.length > 4096)
+    return res.status(401).json({ error: 'No token' });
 
   const decoded = await verifyFirebaseToken(idToken);
   if (!decoded) return res.status(401).json({ error: 'Invalid token' });
@@ -481,20 +578,42 @@ function broadcastOnlineUsers() {
   io.emit('online-users', list);
 }
 
+// Per-IP socket connection rate limiting (max 20 connections per IP per minute)
+const _socketConnectCounts = new Map();
+setInterval(() => _socketConnectCounts.clear(), 60000);
+
 // -- Socket.io -------------------------------------------------
 
 io.on('connection', socket => {
   const clientIp = socket.handshake.headers['x-forwarded-for']?.split(',')[0].trim() || socket.handshake.address || '';
   socket.data.ip = clientIp;
+  socket.data.isAdmin = false;
+  socket.data.userId  = null;
+
+  // IP ban check
   if (clientIp && bannedIpSet.has(clientIp)) {
     socket.emit('account-banned', { message: 'Your IP address has been banned.', until: null });
     socket.disconnect(true);
-    // eslint-disable-next-line no-useless-return
     return;
+  }
+
+  // Connection-rate limiting per IP (bot / DoS protection)
+  if (clientIp) {
+    const prev = _socketConnectCounts.get(clientIp) || 0;
+    if (prev >= 20) {
+      socket.disconnect(true);
+      return;
+    }
+    _socketConnectCounts.set(clientIp, prev + 1);
   }
 
   // -- Auth ----------------------------------------------------
   socket.on('authenticate', async ({ idToken }) => {
+    // Rate-limit authentication attempts (max 5 per minute per socket)
+    if (!socketAllow(socket.id, 'authenticate', 5)) {
+      socket.emit('auth-error', { error: 'Too many authentication attempts.' });
+      return;
+    }
     const decoded = await verifyFirebaseToken(idToken);
     if (!decoded) { socket.emit('auth-error', { error: 'Invalid token' }); return; }
 
@@ -523,6 +642,10 @@ io.on('connection', socket => {
       await fstore.collection('users').doc(decoded.uid).update({ banned: false, bannedUntil: null });
     }
 
+    // Cache auth state on the socket for fast lookups (no repeated Firestore reads)
+    socket.data.userId  = decoded.uid;
+    socket.data.isAdmin = userData.isAdmin === true;
+
     socketUsers.set(socket.id, {
       userId:     decoded.uid,
       username:   userData.username,
@@ -547,6 +670,25 @@ io.on('connection', socket => {
     broadcastOnlineUsers();
 
     socket.emit('authenticated', { userId: decoded.uid, username: userData.username });
+
+    // Deliver any pending (unread) admin notifications from Firestore
+    try {
+      const notifSnap = await fstore.collection('notifications').doc(decoded.uid)
+        .collection('items').where('read', '==', false).limit(20).get();
+      if (!notifSnap.empty) {
+        const batch = fstore.batch();
+        const messages = [];
+        notifSnap.docs.forEach(d => {
+          const msg = d.data().message;
+          if (msg) messages.push(msg);
+          batch.update(d.ref, { read: true });
+        });
+        if (messages.length) socket.emit('admin-notifications-pending', { messages });
+        await batch.commit();
+      }
+    } catch (err) {
+      console.error('[auth] pending notifications error:', err.message);
+    }
   });
 
   // -- Matchmaking ----------------------------------------------
@@ -638,25 +780,32 @@ io.on('connection', socket => {
   // -- Chat -----------------------------------------------------
 
   socket.on('chat-message', ({ roomId, message, imageData, imageId, imageName }) => {
+    // Rate limit: max 30 chat messages per minute per socket
+    if (!socketAllow(socket.id, 'chat-message', 30)) return;
+
     const room = rooms.get(roomId);
     if (!room) return;
     const me = socketUsers.get(socket.id);
+    // Verify the sender actually belongs to this room
+    if (!room.users.some(u => u.socketId === socket.id)) return;
+
     const payload = {
       from:      socket.id,
       username:  me?.username ?? 'Unknown',
-      message:   String(message || '').substring(0, 500),
+      message:   safeStr(message, 500),
       timestamp: new Date().toISOString()
     };
 
-    // Image base64 - relay to OTHER user only (sender renders their own immediately)
+    // Image base64 — validate size (max 2 MB) before relaying
     if (imageData && imageId) {
+      if (typeof imageData !== 'string' || imageData.length > 2 * 1024 * 1024) return;
       const other = room.users.find(u => u.socketId && u.socketId !== socket.id);
       if (other) {
         io.to(other.socketId).emit('chat-message', {
           ...payload,
           imageData,
-          imageId,
-          imageName: String(imageName || 'image').substring(0, 100)
+          imageId:   safeStr(imageId, 64),
+          imageName: safeStr(imageName || 'image', 100)
         });
       }
       return;
@@ -672,10 +821,13 @@ io.on('connection', socket => {
   // -- Challenge system -----------------------------------------
 
   socket.on('send-challenge', ({ targetUserId, question }) => {
+    if (!socketAllow(socket.id, 'send-challenge', 10)) return;
     const me = onlineUsers.get(socket.id);
     if (!me) return;
+    const safeTarget = safeId(targetUserId);
+    if (!safeTarget) return;
     // Find target - prefer lobby (not-inDebate) socket
-    const entries = [...onlineUsers.entries()].filter(([, u]) => u.userId === targetUserId);
+    const entries = [...onlineUsers.entries()].filter(([, u]) => u.userId === safeTarget);
     if (!entries.length) { socket.emit('challenge-error', { error: 'User is no longer online.' }); return; }
     const lobbyEntry = entries.find(([, u]) => !u.inDebate) || entries[0];
     const [targetSocketId, targetUser] = lobbyEntry;
@@ -847,16 +999,21 @@ io.on('connection', socket => {
 
   // -- Report user ----------------------------------------------
   socket.on('report-user', async ({ reportedUserId, reportedUsername, reason, location }) => {
+    // Max 5 reports per minute per socket (abuse prevention)
+    if (!socketAllow(socket.id, 'report-user', 5)) return;
     const me = socketUsers.get(socket.id) || onlineUsers.get(socket.id);
-    if (!me || !reportedUserId || !reason) return;
+    const safeTarget = safeId(reportedUserId);
+    if (!me || !safeTarget || !reason) return;
+    // Prevent self-reporting
+    if (safeTarget === me.userId) return;
     try {
       await fstore.collection('reports').add({
         reporterId:       me.userId,
         reporterUsername: me.username,
-        reportedId:       reportedUserId,
-        reportedUsername: String(reportedUsername || '').slice(0, 50),
-        reason:           String(reason).slice(0, 200),
-        location:         String(location || '').slice(0, 50),
+        reportedId:       safeTarget,
+        reportedUsername: safeStr(reportedUsername, 50),
+        reason:           safeStr(reason, 200),
+        location:         safeStr(location, 50),
         status:           'pending',
         createdAt:        admin.firestore.FieldValue.serverTimestamp()
       });
@@ -868,18 +1025,14 @@ io.on('connection', socket => {
   });
 
   // -- Admin helpers --------------------------------------------
-  async function _isAdmin() {
-    const me = socketUsers.get(socket.id);
-    if (!me) return false;
-    try {
-      const doc = await fstore.collection('users').doc(me.userId).get();
-      return doc.exists && doc.data().isAdmin === true;
-    } catch { return false; }
+  function _isAdmin() {
+    // Use the flag cached during authenticate — no Firestore round-trip needed
+    return socket.data.isAdmin === true && socket.data.userId != null;
   }
 
   socket.on('admin-get-reports', async ({ filter } = {}) => {
     try {
-      if (!await _isAdmin()) return;
+      if (!_isAdmin()) return;
       const snap = await fstore.collection('reports').orderBy('createdAt', 'desc').limit(150).get();
       let reports = snap.docs.map(d => ({
         id: d.id, ...d.data(),
@@ -895,7 +1048,7 @@ io.on('connection', socket => {
 
   socket.on('admin-dismiss-report', async ({ reportId }) => {
     try {
-      if (!await _isAdmin()) return;
+      if (!_isAdmin()) return;
       await fstore.collection('reports').doc(reportId).update({ status: 'dismissed' });
       socket.emit('admin-action-done', { action: 'dismiss-report', reportId });
     } catch (err) { console.error('[admin-dismiss-report] error:', err.message); }
@@ -903,7 +1056,7 @@ io.on('connection', socket => {
 
   socket.on('admin-search-users', async ({ query }) => {
     try {
-      if (!await _isAdmin()) return;
+      if (!_isAdmin()) return;
       const q = String(query || '').trim().slice(0, 30);
       if (!q) return;
       const snap = await fstore.collection('users')
@@ -929,7 +1082,7 @@ io.on('connection', socket => {
 
   socket.on('admin-get-all-users', async () => {
     try {
-      if (!await _isAdmin()) return;
+      if (!_isAdmin()) return;
       const snap = await fstore.collection('users').orderBy('createdAt', 'desc').limit(200).get();
       socket.emit('admin-all-users', {
         users: snap.docs.map(d => ({
@@ -951,7 +1104,7 @@ io.on('connection', socket => {
 
   socket.on('admin-ban-user', async ({ targetUserId, durationMs }) => {
     try {
-      if (!await _isAdmin()) return;
+      if (!_isAdmin()) return;
       if (!targetUserId) return;
       const banData = durationMs
         ? { banned: true, bannedUntil: admin.firestore.Timestamp.fromMillis(Date.now() + Number(durationMs)) }
@@ -973,7 +1126,7 @@ io.on('connection', socket => {
 
   socket.on('admin-unban-user', async ({ targetUserId }) => {
     try {
-      if (!await _isAdmin()) return;
+      if (!_isAdmin()) return;
       const userDoc = await fstore.collection('users').doc(targetUserId).get();
       const bannedIp = userDoc.exists ? userDoc.data().bannedIp : null;
       await fstore.collection('users').doc(targetUserId).update({ banned: false, bannedUntil: null, ipBanned: false, bannedIp: null });
@@ -988,7 +1141,7 @@ io.on('connection', socket => {
 
   socket.on('admin-get-firebase-users', async () => {
     try {
-      if (!await _isAdmin()) return;
+      if (!_isAdmin()) return;
       // List all Firebase Auth users (paginated)
       const authUsers = [];
       let nextPageToken;
@@ -1030,7 +1183,7 @@ io.on('connection', socket => {
 
   socket.on('admin-ip-ban', async ({ targetUserId }) => {
     try {
-      if (!await _isAdmin()) return;
+      if (!_isAdmin()) return;
       if (!targetUserId) return;
       // Find the target user's IP from active sockets
       let targetIp = null;
@@ -1063,21 +1216,24 @@ io.on('connection', socket => {
 
   socket.on('admin-send-notification', async ({ targetUserId, message }) => {
     try {
-      if (!await _isAdmin()) return;
-      const clean = String(message || '').trim().slice(0, 500);
-      if (!clean || !targetUserId) return;
-      await fstore.collection('notifications').doc(targetUserId).collection('items').add({
+      if (!_isAdmin()) return;
+      const cleanTarget = safeId(targetUserId);
+      const clean = safeStr(message, 500);
+      if (!clean || !cleanTarget) return;
+      await fstore.collection('notifications').doc(cleanTarget).collection('items').add({
         type: 'admin', message: clean, read: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
+      // Emit to ALL sockets belonging to this user (multi-tab support)
+      let delivered = false;
       for (const [sid, u] of onlineUsers) {
-        if (u.userId === targetUserId) {
+        if (u.userId === cleanTarget) {
           io.to(sid).emit('admin-notification', { message: clean });
-          break;
+          delivered = true;
         }
       }
-      socket.emit('admin-action-done', { action: 'notification', targetUserId });
-      console.log('[admin] notification sent to ' + targetUserId);
+      socket.emit('admin-action-done', { action: 'notification', targetUserId: cleanTarget });
+      console.log(`[admin] notification sent to ${cleanTarget} (socket-delivered: ${delivered})`);
     } catch (err) { console.error('[admin-send-notification] error:', err.message); }
   });
 
@@ -1093,6 +1249,7 @@ io.on('connection', socket => {
     }
     onlineUsers.delete(socket.id);
     socketUsers.delete(socket.id);
+    socketCleanup(socket.id); // clean up rate-limit state
     broadcastOnlineUsers();
   });
 });

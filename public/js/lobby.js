@@ -187,7 +187,19 @@ let onlineUsersCache   = [];
 let pendingChallengeFrom = null; // { socketId, userId, username }
 
 socket.on('connect', () => {
-  if (currentIdToken) socket.emit('authenticate', { idToken: currentIdToken });
+  // Always get a fresh token on connect/reconnect — avoids expired-token auth-error
+  const user = typeof auth !== 'undefined' && auth.currentUser;
+  if (user) {
+    user.getIdToken().then(token => {
+      currentIdToken = token;
+      socket.emit('authenticate', { idToken: token });
+    }).catch(() => {
+      // Fallback to cached token if refresh fails
+      if (currentIdToken) socket.emit('authenticate', { idToken: currentIdToken });
+    });
+  } else if (currentIdToken) {
+    socket.emit('authenticate', { idToken: currentIdToken });
+  }
 });
 
 socket.on('authenticated', () => {
@@ -643,20 +655,8 @@ auth.onAuthStateChanged(async (user) => {
       if (adminBtn) adminBtn.style.display = 'flex';
     }
 
-    // Load Firestore notifications (messages sent while offline)
-    firestoreDb.collection('notifications').doc(user.uid).collection('items')
-      .where('read', '==', false)
-      .orderBy('createdAt', 'desc')
-      .limit(20)
-      .get()
-      .then(snap => {
-        snap.docs.reverse().forEach(d => {
-          const item = d.data();
-          addToNotifHistory({ icon: null, text: item.message, type: 'admin', fromAdmin: true });
-          d.ref.update({ read: true });
-        });
-      })
-      .catch(() => {});
+    // Restore persisted admin notifications from localStorage first
+    loadAdminNotifsFromStorage(user.uid);
 
     currentIdToken = await user.getIdToken();
     if (!socket.connected) socket.connect();
@@ -778,12 +778,44 @@ document.addEventListener('DOMContentLoaded', function () {
 // -- Notification history & dropdown --------------------------
 let notifHistory = [];
 let notifDropdownOpen = false;
+let _adminNotifStorageKey = null;
+
+function saveAdminNotifsToStorage(uid) {
+  if (!uid) return;
+  const key = 'ao_admin_notifs_' + uid;
+  const adminNotifs = notifHistory.filter(n => n.fromAdmin);
+  try { localStorage.setItem(key, JSON.stringify(adminNotifs)); } catch {}
+}
+
+function loadAdminNotifsFromStorage(uid) {
+  if (!uid) return;
+  _adminNotifStorageKey = 'ao_admin_notifs_' + uid;
+  try {
+    const raw = localStorage.getItem(_adminNotifStorageKey);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!Array.isArray(saved)) return;
+    saved.forEach(n => {
+      notifHistory.push({ ...n, read: true });
+    });
+    refreshNotifBadge();
+  } catch {}
+}
 
 function addToNotifHistory(notif) {
   notifHistory.unshift({ ...notif, time: new Date().toISOString(), read: false });
   if (notifHistory.length > 50) notifHistory.pop();
   refreshNotifBadge();
   if (notifDropdownOpen) renderNotifList();
+  if (notif.fromAdmin) {
+    const storageKey = _adminNotifStorageKey || (currentUserId ? 'ao_admin_notifs_' + currentUserId : null);
+    if (storageKey) {
+      try {
+        const adminNotifs = notifHistory.filter(n => n.fromAdmin);
+        localStorage.setItem(storageKey, JSON.stringify(adminNotifs));
+      } catch {}
+    }
+  }
 }
 
 function refreshNotifBadge() {
@@ -818,10 +850,13 @@ function renderNotifList() {
         <button class="notif-action-btn notif-action-challenge" onclick="notifChallengeSuggest(event,${i})">Challenge</button>
       </div>`;
     }
+    const iconHtml = n.fromAdmin
+      ? '<span style="font-size:0.62rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(139,92,246,0.2);color:var(--purple);letter-spacing:0.04em">ADMIN</span>'
+      : (n.icon ? escapeHtml(n.icon) : '');
     return `<div class="notif-item${n.read ? '' : ' unread'}">
-      <span class="notif-item-icon"></span>
+      <span class="notif-item-icon">${iconHtml}</span>
       <div class="notif-item-body">
-        <div class="notif-item-text"></div>
+        <div class="notif-item-text">${escapeHtml(n.text || '')}</div>
         <div class="notif-item-time">${timeStr}</div>
         ${actionHtml}
       </div>
@@ -870,6 +905,9 @@ function closeNotifDropdown() {
 
 function clearNotifications() {
   notifHistory = [];
+  if (_adminNotifStorageKey) {
+    try { localStorage.removeItem(_adminNotifStorageKey); } catch {}
+  }
   refreshNotifBadge();
   renderNotifList();
 }
@@ -1181,6 +1219,18 @@ socket.on('admin-notification', ({ message }) => {
   if (Notification.permission === 'granted') {
     new Notification('ArgueOut - New Message', { body: message, icon: '/logo.png' });
   }
+});
+
+// Pending messages delivered on socket auth (offline delivery via Firestore)
+socket.on('admin-notifications-pending', ({ messages }) => {
+  if (!Array.isArray(messages) || !messages.length) return;
+  messages.forEach(message => {
+    if (!notifHistory.some(n => n.fromAdmin && n.text === message)) {
+      addToNotifHistory({ icon: null, text: message, type: 'admin', fromAdmin: true });
+    }
+  });
+  const count = messages.length;
+  showToast(count === 1 ? 'You have a pending message.' : `You have ${count} pending messages.`, 'info');
 });
 
 // -- Report modal (lobby) --------------------------------------
