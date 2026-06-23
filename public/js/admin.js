@@ -394,13 +394,19 @@ function sendNotification() {
   statusEl.style.color = 'var(--text-3)';
 }
 
-// Auth guard — uses server-side cookie check to avoid client Firestore permission issues
+// Auth guard — waits for Firebase auth, sends Bearer token to verify admin status server-side
+let _adminVerified = false;
 auth.onAuthStateChanged(async user => {
+  if (_adminVerified) return; // only run once
   if (!user) { window.location.href = '/login'; return; }
   try {
-    const res = await fetch('/api/admin-me');
+    const token = await user.getIdToken();
+    const res = await fetch('/api/admin-me', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
     if (!res.ok) { window.location.href = '/lobby'; return; }
     const data = await res.json();
+    _adminVerified = true;
     const el = document.getElementById('adminUsername');
     if (el) el.textContent = `@${data.username}`;
     socket.connect();
