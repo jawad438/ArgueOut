@@ -9,13 +9,13 @@
   document.body.prepend(canvas);
 
   const ctx = canvas.getContext('2d');
-  let W, H, particles, deepNodes, pulses = [], mouse = { x: -9999, y: -9999 };
+  let W, H, particles, pulses = [], mouse = { x: -9999, y: -9999 };
 
   const COLOURS      = ['#8b5cf6', '#6366f1', '#3b82f6', '#ef4444', '#a78bfa', '#818cf8'];
-  const PULSE_COLS   = ['#a78bfa', '#818cf8', '#60a5fa', '#c4b5fd'];
-  const CONNECT_DIST = 180;
+  const PULSE_COLS   = ['rgba(167,139,250,', 'rgba(129,140,248,', 'rgba(96,165,250,'];
+  const CONNECT_DIST = 150;
   const MOUSE_DIST   = 160;
-  const MAX_PULSES   = 60;
+  const MAX_PULSES   = 25;
 
   function resize() {
     W = canvas.width  = window.innerWidth;
@@ -26,34 +26,15 @@
   function rand(a, b) { return a + Math.random() * (b - a); }
 
   function initParticles() {
-    const count = Math.floor((W * H) / 9000);
+    const count = Math.floor((W * H) / 11000);
     particles = Array.from({ length: count }, () => ({
       x:   rand(0, W), y: rand(0, H),
       vx:  rand(-0.18, 0.18), vy: rand(-0.18, 0.18),
       r:   rand(1, 2.4),
       col: COLOURS[Math.floor(Math.random() * COLOURS.length)],
-      a:   rand(0.35, 0.9)
-    }));
-    // Deep background nodes — larger, slower, dimmer
-    const deepCount = Math.floor((W * H) / 40000);
-    deepNodes = Array.from({ length: deepCount }, () => ({
-      x:   rand(0, W), y: rand(0, H),
-      vx:  rand(-0.05, 0.05), vy: rand(-0.05, 0.05),
-      r:   rand(3, 6),
-      col: COLOURS[Math.floor(Math.random() * COLOURS.length)],
-      a:   rand(0.06, 0.14)
+      a:   rand(0.3, 0.85)
     }));
     pulses = [];
-  }
-
-  function spawnPulse(ax, ay, bx, by) {
-    if (pulses.length >= MAX_PULSES) return;
-    pulses.push({
-      ax, ay, bx, by,
-      t:   0,
-      col: PULSE_COLS[Math.floor(Math.random() * PULSE_COLS.length)],
-      spd: rand(0.008, 0.022)
-    });
   }
 
   function draw() {
@@ -86,20 +67,7 @@
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
-    // ── Deep background nodes ────────────────────────────────────
-    deepNodes.forEach(n => {
-      n.x += n.vx; n.y += n.vy;
-      if (n.x < 0) n.x = W; if (n.x > W) n.x = 0;
-      if (n.y < 0) n.y = H; if (n.y > H) n.y = 0;
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-      ctx.fillStyle = n.col;
-      ctx.globalAlpha = n.a;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    });
-
-    // ── Particles + connections ──────────────────────────────────
+    // ── Particles ───────────────────────────────────────────────
     particles.forEach(p => {
       p.x += p.vx; p.y += p.vy;
       if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
@@ -129,33 +97,36 @@
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < CONNECT_DIST) {
           const ratio = 1 - dist / CONNECT_DIST;
-          const alpha = ratio * 0.25;
-          ctx.strokeStyle = `rgba(139,92,246,${alpha})`;
-          ctx.lineWidth   = 0.5 + ratio * 0.8;
+          ctx.strokeStyle = `rgba(139,92,246,${ratio * 0.22})`;
+          ctx.lineWidth   = 0.5 + ratio * 0.7;
           ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
 
-          // Randomly spawn a data pulse on this connection
-          if (Math.random() < 0.0003) spawnPulse(a.x, a.y, b.x, b.y);
+          if (pulses.length < MAX_PULSES && Math.random() < 0.0002) {
+            const col = PULSE_COLS[Math.floor(Math.random() * PULSE_COLS.length)];
+            pulses.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, t: 0,
+                          spd: rand(0.012, 0.028), col });
+          }
         }
       }
     }
 
-    // ── Data pulses ──────────────────────────────────────────────
-    ctx.lineWidth = 1;
+    // ── Data pulses (lightweight — no gradient, just arc) ───────
     pulses = pulses.filter(p => p.t <= 1);
     pulses.forEach(p => {
       p.t += p.spd;
-      const px = p.ax + (p.bx - p.ax) * p.t;
-      const py = p.ay + (p.by - p.ay) * p.t;
-      // Fade in/out at edges
-      const fade = Math.sin(p.t * Math.PI);
-      const g = ctx.createRadialGradient(px, py, 0, px, py, 5);
-      g.addColorStop(0, p.col);
-      g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g;
-      ctx.globalAlpha = fade * 0.85;
-      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
+      const px   = p.ax + (p.bx - p.ax) * p.t;
+      const py   = p.ay + (p.by - p.ay) * p.t;
+      const fade = Math.sin(p.t * Math.PI);   // 0→1→0
+      // outer glow
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fillStyle = p.col + (fade * 0.25) + ')';
+      ctx.fill();
+      // bright core
+      ctx.beginPath();
+      ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = p.col + (fade * 0.9) + ')';
+      ctx.fill();
     });
 
     requestAnimationFrame(draw);
