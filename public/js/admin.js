@@ -394,17 +394,15 @@ function sendNotification() {
   statusEl.style.color = 'var(--text-3)';
 }
 
-// Auth guard
+// Auth guard — uses server-side cookie check to avoid client Firestore permission issues
 auth.onAuthStateChanged(async user => {
   if (!user) { window.location.href = '/login'; return; }
   try {
-    const doc = await firestoreDb.collection('users').doc(user.uid).get();
-    if (!doc.exists || !doc.data().isAdmin) {
-      window.location.href = '/lobby';
-      return;
-    }
+    const res = await fetch('/api/admin-me');
+    if (!res.ok) { window.location.href = '/lobby'; return; }
+    const data = await res.json();
     const el = document.getElementById('adminUsername');
-    if (el) el.textContent = `@${doc.data().username}`;
+    if (el) el.textContent = `@${data.username}`;
     socket.connect();
   } catch {
     window.location.href = '/lobby';

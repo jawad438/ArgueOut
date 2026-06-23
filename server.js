@@ -211,6 +211,21 @@ app.post('/api/admin-auth', strictLimiter, async (req, res) => {
   }
 });
 
+// /api/admin-me — verify admin cookie and return user info (used by admin.js instead of client-side Firestore)
+app.get('/api/admin-me', async (req, res) => {
+  const cookies = parseCookies(req);
+  const sessToken = cookies.admin_sess;
+  if (!sessToken) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const decoded = await admin.auth().verifyIdToken(sessToken);
+    const doc = await fstore.collection('users').doc(decoded.uid).get();
+    if (!doc.exists || !doc.data().isAdmin) return res.status(403).json({ error: 'Not admin' });
+    res.json({ username: doc.data().username, uid: decoded.uid });
+  } catch {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+});
+
 // /admin — serve private page only with valid admin cookie, otherwise 404
 app.get('/admin', async (req, res) => {
   const cookies = parseCookies(req);
