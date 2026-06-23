@@ -143,6 +143,7 @@ app.use(helmet({
       imgSrc:         ["'self'", 'data:', 'https:', 'blob:'],
       mediaSrc:       ["'self'", 'blob:'],
       connectSrc:     ["'self'", 'wss:', 'ws:', 'https://*.googleapis.com', 'https://*.firebaseapp.com', 'https://openrouter.ai', 'https://ip-api.com'],
+      scriptSrcAttr:  ["'unsafe-inline'"],
       frameSrc:       ["'none'"],
       objectSrc:      ["'none'"],
       baseUri:        ["'self'"],
