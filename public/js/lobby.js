@@ -1,6 +1,6 @@
-﻿/* lobby.js â€” matchmaking lobby with Socket.io + Firebase */
+﻿/* lobby.js - matchmaking lobby with Socket.io + Firebase */
 
-// â”€â”€ Image compression â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Image compression -----------------------------------------
 function compressAvatar(dataUrl) {
   return new Promise(resolve => {
     const img = new Image();
@@ -18,12 +18,12 @@ function compressAvatar(dataUrl) {
   });
 }
 
-// â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Toast -----------------------------------------------------
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   if (!container) return;
   const colors = { success: 'var(--green)', error: 'var(--red)', info: 'var(--purple)' };
-  const icons  = { success: 'âœ“', error: 'âœ•', info: 'â„¹' };
+  const icons  = { success: '✓', error: '✕', info: 'ℹ' };
   const toast  = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.innerHTML = `<span class="toast-icon" style="color:${colors[type]}">${icons[type]}</span> ${message}`;
@@ -31,7 +31,7 @@ function showToast(message, type = 'info') {
   setTimeout(() => toast.remove(), 4500);
 }
 
-// â”€â”€ Compass helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Compass helpers -------------------------------------------
 function getQuadrantInfo(px, py) {
   const econ   = px >= 0 ? 'Right' : 'Left';
   const social = py >= 0 ? 'Authoritarian' : 'Libertarian';
@@ -74,7 +74,7 @@ function drawMiniCompass(canvas, px, py) {
   ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2); ctx.fill();
 }
 
-// â”€â”€ Avatar helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Avatar helpers --------------------------------------------
 function applyAvatar(avatarUrl, initial) {
   const navAvatar  = document.getElementById('navAvatar');
   const profAvatar = document.getElementById('profileAvatar');
@@ -89,7 +89,7 @@ function applyAvatar(avatarUrl, initial) {
   }
 }
 
-// â”€â”€ Profile UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Profile UI ------------------------------------------------
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
 function updateProfileUI(profile) {
@@ -169,20 +169,20 @@ function updateProfileUI(profile) {
   if (miniCanvas) drawMiniCompass(miniCanvas, profile.politicalX || 0, profile.politicalY || 0);
 }
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Helpers ---------------------------------------------------
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// â”€â”€ Socket.io (delayed connect until Firebase Auth ready) â”€â”€â”€â”€â”€
+// -- Socket.io (delayed connect until Firebase Auth ready) -----
 const socket = io({ autoConnect: false });
 let inQueue       = false;
 let currentIdToken = null;
 let currentUserId  = null;
 
-// â”€â”€ Online directory / challenge state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Online directory / challenge state ------------------------
 let onlineUsersCache   = [];
 let pendingChallengeFrom = null; // { socketId, userId, username }
 
@@ -195,7 +195,7 @@ socket.on('authenticated', () => {
     history.replaceState({}, '', '/lobby');
     setTimeout(() => socket.emit('join-queue'), 300);
   }
-  // Trigger suggestion after socket is confirmed â€” guarantees user is in onlineUsers
+  // Trigger suggestion after socket is confirmed - guarantees user is in onlineUsers
   if (currentIdToken) {
     setTimeout(() => fetchSuggestedOpponent(currentIdToken), 3000);
   }
@@ -211,7 +211,7 @@ socket.on('auth-error', ({ error }) => {
 socket.on('queue-joined', () => {
   inQueue = true;
   showSearching();
-  showToast('Added to queue â€” searching for an opponent...', 'info');
+  showToast('Added to queue - searching for an opponent...', 'info');
 });
 
 socket.on('queue-left', () => { inQueue = false; showIdle(); });
@@ -223,7 +223,7 @@ socket.on('queue-size', ({ size }) => {
 
 socket.on('match-found', ({ roomId, opponent }) => {
   inQueue = false;
-  // Peak-moment flash â€” gives the user a satisfying visual before redirect
+  // Peak-moment flash - gives the user a satisfying visual before redirect
   const searchCard = document.getElementById('searchCard');
   if (searchCard) searchCard.classList.add('match-found-flash');
   showToast(`Matched with ${opponent.username}!`, 'success');
@@ -233,7 +233,7 @@ socket.on('match-found', ({ roomId, opponent }) => {
   setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
 });
 
-// â”€â”€ Online users directory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Online users directory ------------------------------------
 socket.on('online-users', (users) => {
   onlineUsersCache = users;
   renderDirectory(users);
@@ -259,27 +259,27 @@ function renderDirectory(users) {
       ? `<img src="${escapeHtml(u.avatarUrl)}" alt="${escapeHtml(u.username)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
       : escapeHtml((u.username || 'U')[0].toUpperCase());
     const info = getQuadrantInfo(u.politicalX || 0, u.politicalY || 0);
-    const statusHtml = u.inDebate
+    const inDebateChip = u.inDebate
       ? '<span style="font-size:0.7rem;color:var(--amber)">In debate</span>'
-      : '<span style="font-size:0.7rem;color:var(--green)">â— Online</span>';
+      : '';
     return `
-      <div class="directory-user-row" style="animation:dirRowEnter 280ms var(--ease-out) ${i * 45}ms both;position:relative" onclick="openUserProfile('${escapeHtml(u.userId)}')">
+      <div class="directory-user-row" style="animation:dirRowEnter 280ms var(--ease-out) ${i * 45}ms both" onclick="openUserProfile('${escapeHtml(u.userId)}')">
         <div class="directory-avatar">${avatarHtml}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:0.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.name || u.username)}</div>
           <div style="font-size:0.75rem;color:var(--text-3)">@${escapeHtml(u.username)}</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${inDebateChip}
           <span class="badge ${info.badge}" style="font-size:0.6rem;padding:2px 6px">${info.label}</span>
-          ${statusHtml}
+          <button title="Report user" onclick="event.stopPropagation();openReportModal('${escapeHtml(u.userId)}','${escapeHtml(u.username)}','lobby')"
+            style="background:none;border:none;cursor:pointer;color:rgba(239,68,68,0.4);padding:4px;display:flex;align-items:center;border-radius:4px;transition:color 150ms,background 150ms"
+            onmouseenter="this.style.color='var(--red)';this.style.background='rgba(239,68,68,0.08)'"
+            onmouseleave="this.style.color='rgba(239,68,68,0.4)';this.style.background='none'"
+            aria-label="Report ${escapeHtml(u.username)}">
+            <svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </button>
         </div>
-        <button title="Report user" onclick="event.stopPropagation();openReportModal('${escapeHtml(u.userId)}','${escapeHtml(u.username)}','lobby')"
-          style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:rgba(239,68,68,0.4);padding:4px;display:flex;align-items:center;border-radius:4px;transition:color 150ms,background 150ms"
-          onmouseenter="this.style.color='var(--red)';this.style.background='rgba(239,68,68,0.08)'"
-          onmouseleave="this.style.color='rgba(239,68,68,0.4)';this.style.background='none'"
-          aria-label="Report ${escapeHtml(u.username)}">
-          <svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </button>
       </div>
     `;
   }).join('');
@@ -325,7 +325,7 @@ function openUserProfile(userId) {
   if (upBadges) {
     const statusChip = user.inDebate
       ? `<span class="up-status-chip in-debate">In debate</span>`
-      : `<span class="up-status-chip online">â— Online</span>`;
+      : `<span class="up-status-chip online">Online</span>`;
     upBadges.innerHTML = `<span class="badge ${info.badge}">${escapeHtml(info.label)}</span>${statusChip}`;
   }
 
@@ -408,7 +408,7 @@ function closeProfileModal() {
   }
 }
 
-// â”€â”€ Challenge system â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Challenge system ------------------------------------------
 function sendChallenge(targetUserId, targetUsername, question) {
   socket.emit('send-challenge', { targetUserId, question: question || null });
   showToast(`Challenge sent to ${targetUsername}!`, 'info');
@@ -433,19 +433,19 @@ socket.on('challenge-received', ({ from, question }) => {
     ? `${from.username} challenged you! "${question}"`
     : `${from.username} challenged you to a debate!`;
   addToNotifHistory({
-    icon: 'âš”ï¸', text: notifBody, type: 'challenge',
+    icon: '⚔️', text: notifBody, type: 'challenge',
     challengerSocketId: from.socketId
   });
 
   if (Notification.permission === 'granted') {
-    new Notification('âš”ï¸ ArgueOut Challenge', {
+    new Notification('⚔️ ArgueOut Challenge', {
       body: question ? `${from.username}: "${question}"` : `${from.username} is challenging you to a debate!`,
       icon: '/logo.png'
     });
   }
 
   const notifText = document.getElementById('challengeNotifText');
-  if (notifText) notifText.textContent = `âš”ï¸ ${from.username} challenged you to a debate!`;
+  if (notifText) notifText.textContent = `⚔️ ${from.username} challenged you to a debate!`;
 
   const panel = document.getElementById('challengeNotifPanel');
   if (panel) panel.classList.add('active');
@@ -458,7 +458,7 @@ socket.on('challenge-received', ({ from, question }) => {
 });
 
 socket.on('challenge-accepted', ({ roomId, opponent, question }) => {
-  addToNotifHistory({ icon: 'âœ…', text: `${opponent.username} accepted your challenge!` });
+  addToNotifHistory({ icon: '✅', text: `${opponent.username} accepted your challenge!` });
   showToast(`Challenge accepted! Starting debate...`, 'success');
   localStorage.setItem('debateRoomId', roomId);
   localStorage.setItem('debateOpponent', JSON.stringify(opponent));
@@ -467,7 +467,7 @@ socket.on('challenge-accepted', ({ roomId, opponent, question }) => {
   setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
 });
 
-// â”€â”€ Invite link events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Invite link events ----------------------------------------
 let currentInviteUrl = '';
 let pendingInviteRoomId   = null;
 let pendingInviteOpponent = null;
@@ -549,7 +549,7 @@ if (generateInviteBtn) {
 }
 
 socket.on('challenge-rejected', ({ byUsername }) => {
-  addToNotifHistory({ icon: 'âŒ', text: `${byUsername} declined your challenge.` });
+  addToNotifHistory({ icon: '❌', text: `${byUsername} declined your challenge.` });
   showToast(`${byUsername} declined your challenge.`, 'info');
   closeProfileModal();
 });
@@ -581,7 +581,7 @@ if (rejectChallengeBtn) {
 }
 if (dismissChallengeBtn) dismissChallengeBtn.addEventListener('click', dismissChallengeNotif);
 
-// â”€â”€ UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- UI state --------------------------------------------------
 function showSearching() {
   const idle   = document.getElementById('idleCard');
   const search = document.getElementById('searchCard');
@@ -596,7 +596,7 @@ function showIdle() {
   if (search) search.style.display = 'none';
 }
 
-// â”€â”€ Button handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Button handlers -------------------------------------------
 const findBtn   = document.getElementById('findBtn');
 const cancelBtn = document.getElementById('cancelBtn');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -613,7 +613,7 @@ if (logoutBtn) {
   });
 }
 
-// â”€â”€ Firebase Auth â†’ load profile â†’ connect socket â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Firebase Auth -> load profile -> connect socket -------------
 auth.onAuthStateChanged(async (user) => {
   if (!user) { window.location.href = '/login'; return; }
 
@@ -672,7 +672,7 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-// â”€â”€ Smart opponent suggestion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Smart opponent suggestion ---------------------------------
 let suggestUserId   = null;
 let suggestUsername = null;
 let suggestQuestion = null;
@@ -707,8 +707,8 @@ function showSuggestCard(data) {
   const _name = data.name || data.username;
   const _reason = data.reason || 'completely different worldview';
   const _notifText = data.question
-    ? `You should debate ${_name} â€” ${_reason}. ${data.question}`
-    : `You should debate ${_name} â€” ${_reason}.`;
+    ? `You should debate ${_name} - ${_reason}. ${data.question}`
+    : `You should debate ${_name} - ${_reason}.`;
   addToNotifHistory({
     icon: 'ðŸ’¡', text: _notifText, type: 'suggest',
     userId: data.userId, username: data.username, question: data.question || null
@@ -775,7 +775,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-// â”€â”€ Notification history & dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Notification history & dropdown --------------------------
 let notifHistory = [];
 let notifDropdownOpen = false;
 
@@ -897,7 +897,7 @@ document.addEventListener('click', e => {
   }
 });
 
-// â”€â”€ Bio edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Bio edit --------------------------------------------------
 function startBioEdit() {
   const bioDisplay  = document.getElementById('bioDisplay');
   const bioEdit     = document.getElementById('bioEdit');
@@ -961,7 +961,7 @@ document.addEventListener('input', e => {
   }
 });
 
-// â”€â”€ Name edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Name edit --------------------------------------------------
 function startNameEdit() {
   const nameEl = document.getElementById('profileName');
   document.getElementById('nameDisplayRow').style.display = 'none';
@@ -1000,7 +1000,7 @@ async function saveName() {
   }
 }
 
-// â”€â”€ Username edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Username edit ----------------------------------------------
 function startUsernameEdit() {
   const usernameEl = document.getElementById('profileUsername');
   const current    = (usernameEl?.textContent || '').replace(/^@/, '');
@@ -1026,7 +1026,7 @@ async function saveUsername() {
 
   if (!newUsername) { showToast('Username cannot be empty.', 'error'); return; }
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
-    showToast('Username: 3â€“20 chars, letters/numbers/underscore only.', 'error');
+    showToast('Username: 3-20 chars, letters/numbers/underscore only.', 'error');
     return;
   }
   if (newUsername === oldUsername) { cancelUsernameEdit(); return; }
@@ -1042,7 +1042,7 @@ async function saveUsername() {
 
     btn.textContent = 'Saving...';
 
-    // Password-based accounts use username@argueout.app as Firebase Auth email â€” keep it in sync
+    // Password-based accounts use username@argueout.app as Firebase Auth email - keep it in sync
     const isPasswordAccount = user.email && user.email.endsWith('@argueout.app');
     if (isPasswordAccount) {
       await user.updateEmail(`${newUsername.toLowerCase().replace(/[^a-z0-9_]/g, '')}@argueout.app`);
@@ -1073,7 +1073,7 @@ async function saveUsername() {
   }
 }
 
-// â”€â”€ Country edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Country edit ---------------------------------------------
 function startCountryEdit() {
   const display = document.getElementById('countryDisplayRow');
   const edit    = document.getElementById('countryEditRow');
@@ -1133,7 +1133,7 @@ async function saveCountry() {
   }
 }
 
-// â”€â”€ Profile picture change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Profile picture change ------------------------------------
 const profilePicInput = document.getElementById('profilePicInput');
 const profilePicWrap  = document.getElementById('profilePicWrap');
 const avatarHover     = document.getElementById('avatarHover');
@@ -1169,7 +1169,7 @@ if (profilePicInput) {
   });
 }
 
-// â”€â”€ Ban + admin notification handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Ban + admin notification handlers ------------------------
 socket.on('account-banned', ({ message, until }) => {
   // Redirect to /banned — that page shows local-timezone countdown
   window.location.href = '/banned';
@@ -1179,11 +1179,11 @@ socket.on('admin-notification', ({ message }) => {
   addToNotifHistory({ icon: null, text: message, type: 'admin', fromAdmin: true });
   showToast('You have a new message.', 'info');
   if (Notification.permission === 'granted') {
-    new Notification('ArgueOut â€” New Message', { body: message, icon: '/logo.png' });
+    new Notification('ArgueOut - New Message', { body: message, icon: '/logo.png' });
   }
 });
 
-// â”€â”€ Report modal (lobby) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Report modal (lobby) --------------------------------------
 let _reportTargetId  = null;
 let _reportTargetName = null;
 
@@ -1241,7 +1241,7 @@ function submitReport() {
     reason = custom;
   }
   const btn = document.getElementById('submitReportBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Submittingâ€¦'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
   socket.emit('report-user', {
     reportedUserId:   _reportTargetId,
     reportedUsername: _reportTargetName,
@@ -1255,7 +1255,7 @@ function submitReport() {
   });
 }
 
-// Show "other" input when "Otherâ€¦" is selected
+// Show "other" input when "Other..." is selected
 document.addEventListener('change', e => {
   if (e.target.name === 'reportReason') {
     const otherWrap = document.getElementById('reportOtherWrap');

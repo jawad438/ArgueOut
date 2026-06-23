@@ -7,7 +7,7 @@ const path     = require('path');
 const fs       = require('fs');
 const admin    = require('firebase-admin');
 
-// â”€â”€ Firebase Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Firebase Admin --------------------------------------------
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
   ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
   : require('./serviceAccountKey.json');
@@ -52,11 +52,11 @@ async function verifyFirebaseToken(idToken) {
   catch { return null; }
 }
 
-// â”€â”€ Admin provisioning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Admin provisioning ----------------------------------------
 (async function provisionAdmin() {
   const ADMIN_EMAIL    = 'admin@argueout.app';
   const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-  if (!ADMIN_PASSWORD) { console.log('[admin] ADMIN_PASSWORD not set â€” skipping provisioning'); return; }
+  if (!ADMIN_PASSWORD) { console.log('[admin] ADMIN_PASSWORD not set - skipping provisioning'); return; }
   try {
     const doc = await fstore.collection('usernames').doc('admin').get();
     if (doc.exists) return; // already set up
@@ -76,13 +76,13 @@ async function verifyFirebaseToken(idToken) {
     });
     batch.set(fstore.collection('usernames').doc('admin'), { uid, email: ADMIN_EMAIL });
     await batch.commit();
-    console.log('[admin] admin account provisioned âœ“');
+    console.log('[admin] admin account provisioned ✓');
   } catch (err) {
     console.error('[admin] provisioning error:', err.message);
   }
 })();
 
-// â”€â”€ Express â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Express ---------------------------------------------------
 const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
@@ -130,7 +130,7 @@ app.get('/admin', async (req, res) => {
   }
 });
 
-// Redirect /path.html â†’ /path (clean URLs)
+// Redirect /path.html -> /path (clean URLs)
 app.use((req, res, next) => {
   if (req.path.endsWith('.html')) {
     const clean = req.path.slice(0, -5) || '/';
@@ -197,12 +197,12 @@ const SUGGEST_SYSTEM = `You are ArgueOut's debate igniter. Pick the most explosi
 
 Selection: maximise political compass distance, then demographic contrast (age, religion, country).
 
-Question rules â€” most important part:
+Question rules - most important part:
 - One direct yes/no or either/or debate question. Max 12 words.
-- The kind of question that immediately splits a room â€” everyone has an instinctive answer and no one agrees.
+- The kind of question that immediately splits a room - everyone has an instinctive answer and no one agrees.
 - Phrase as "Is X a Y?", "Should we Z?", "Was X Y?", "Does X actually Y?", "Is X or X?"
 - GOOD: "Is food a right or a privilege?", "Should we risk the meat industry to save the environment?", "Is abortion healthcare?", "Was Jesus a good person?", "Does capitalism help or hurt the poor?", "Should drugs be legal?", "Is religion doing more harm than good?", "Should borders be open?"
-- BAD: "What if borders didn't exist?", "Why do we let flags define us?", "How did we end up here?" â€” too vague, no one can disagree cleanly
+- BAD: "What if borders didn't exist?", "Why do we let flags define us?", "How did we end up here?" - too vague, no one can disagree cleanly
 
 Reason: max 8 words, one punchy clause describing the contrast, no period.
 Tags: 2-3 words each, name the specific clash. Examples: "God vs State", "Polar compass", "Class war", "Faith clash", "Border wars".
@@ -220,14 +220,14 @@ Phrase as "Is X a Y?", "Should we Z?", "Was X Y?", "Does X actually Y?", "Is it 
 Examples: "Is food a right or a privilege?", "Should we risk the meat industry to save the environment?", "Is abortion healthcare?", "Was Jesus a good person?", "Does capitalism help or hurt the poor?", "Should drugs be legal?", "Is religion doing more harm than good?"
 One sentence, max 12 words. No hedging. No "what do you think." Respond ONLY with valid JSON: {"question": "<question here>"}`;
 
-// â”€â”€ OpenRouter shared caller â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- OpenRouter shared caller ----------------------------------
 
 async function callOpenRouterOnce(fnName, body) {
   const t0   = Date.now();
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), 30000);
   try {
-    console.log(`[OR:${fnName}] â†’ ${body.model}  max_tokens=${body.max_tokens}`);
+    console.log(`[OR:${fnName}] -> ${body.model}  max_tokens=${body.max_tokens}`);
     const res  = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -241,13 +241,13 @@ async function callOpenRouterOnce(fnName, body) {
     });
     const ms   = Date.now() - t0;
     const text = await res.text();
-    console.log(`[OR:${fnName}] â† ${res.status} in ${ms}ms | ${text.slice(0, 600)}`);
+    console.log(`[OR:${fnName}] <- ${res.status} in ${ms}ms | ${text.slice(0, 600)}`);
     if (res.status === 429) return OR_RATE_LIMITED;
     if (!res.ok) return null;
     try { return JSON.parse(text); } catch { return null; }
   } catch (err) {
     const ms = Date.now() - t0;
-    console.error(`[OR:${fnName}] âœ— ${ms}ms â€” ${err.name === 'AbortError' ? 'TIMEOUT (30s)' : err.message}`);
+    console.error(`[OR:${fnName}] ✗ ${ms}ms - ${err.name === 'AbortError' ? 'TIMEOUT (30s)' : err.message}`);
     return null;
   } finally {
     clearTimeout(tid);
@@ -257,7 +257,7 @@ async function callOpenRouterOnce(fnName, body) {
 async function callOpenRouter(fnName, body) {
   const result = await callOpenRouterOnce(fnName, body);
   if (result === OR_RATE_LIMITED) {
-    console.log(`[OR:${fnName}] primary rate-limited â€” switching to fallback model immediately`);
+    console.log(`[OR:${fnName}] primary rate-limited - switching to fallback model immediately`);
     const fb = await callOpenRouterOnce(`${fnName}:fb`, { ...body, model: FALLBACK_MODEL });
     return fb === OR_RATE_LIMITED ? null : fb;
   }
@@ -280,7 +280,7 @@ function extractQuestion(data) {
 
 async function generateDebateQuestion(hint) {
   const userMsg = hint
-    ? `Generate a debate question about or related to this topic: "${hint}". Use the same format â€” direct, divisive, answerable from opposing sides.`
+    ? `Generate a debate question about or related to this topic: "${hint}". Use the same format - direct, divisive, answerable from opposing sides.`
     : 'Generate a debate question for two people with opposing political views.';
   const data = await callOpenRouter('genQuestion', {
     model: SUGGEST_MODEL,
@@ -308,7 +308,7 @@ function fmtUser(u) {
 }
 
 async function generateDebateQuestionForPair(user1, user2) {
-  const userMsg = `Debate pair â€” generate the most explosive question for these exact two opponents:\n1. ${fmtUser(user1)}\n2. ${fmtUser(user2)}\n\nFocus on maximising the clash between their profiles. Output the question field only â€” do not pick a username.`;
+  const userMsg = `Debate pair - generate the most explosive question for these exact two opponents:\n1. ${fmtUser(user1)}\n2. ${fmtUser(user2)}\n\nFocus on maximising the clash between their profiles. Output the question field only - do not pick a username.`;
   const data = await callOpenRouter('genPairQuestion', {
     model: SUGGEST_MODEL,
     messages: [
@@ -375,7 +375,7 @@ app.post('/api/suggest-opponent', async (req, res) => {
 
   const raw      = (data.choices?.[0]?.message?.content || '').trim();
   if (!raw) {
-    console.error('[OR:suggestOpponent] empty content â€” full data:', JSON.stringify(data));
+    console.error('[OR:suggestOpponent] empty content - full data:', JSON.stringify(data));
     return res.status(500).json({ error: 'No suggestion returned' });
   }
 
@@ -410,34 +410,34 @@ app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
-// â”€â”€ In-memory state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- In-memory state -------------------------------------------
 
-// socketId â†’ { userId, username, politicalX, politicalY }
+// socketId -> { userId, username, politicalX, politicalY }
 const queue = new Map();
 
-// roomId â†’ { users: [ { userId, username, politicalX, politicalY, socketId } ] }
+// roomId -> { users: [ { userId, username, politicalX, politicalY, socketId } ] }
 const rooms = new Map();
 
-// socketId â†’ user info (minimal, for matchmaking/chat)
+// socketId -> user info (minimal, for matchmaking/chat)
 const socketUsers = new Map();
 
-// socketId â†’ full profile (for online directory & challenges)
+// socketId -> full profile (for online directory & challenges)
 const onlineUsers = new Map();
 
-// invite token â†’ { hostUserId, hostUsername, expiresAt }
+// invite token -> { hostUserId, hostUsername, expiresAt }
 const inviteTokens = new Map();
 
-// userId â†’ Set<targetUserId>  â€” who was suggested to whom (excluded from future suggestions)
+// userId -> Set<targetUserId>  - who was suggested to whom (excluded from future suggestions)
 const suggestedMap = new Map();
-// userId â†’ Set<targetUserId>  â€” who debated whom (also excluded)
+// userId -> Set<targetUserId>  - who debated whom (also excluded)
 const debatedMap   = new Map();
-// challengerSocketId â†’ question string  â€” question attached to pending challenge
+// challengerSocketId -> question string  - question attached to pending challenge
 const pendingQuestions = new Map();
-// roomId â†’ Set<userId>  â€” who has declined the current question
+// roomId -> Set<userId>  - who has declined the current question
 const roomDeclines = new Map();
-// roomId â†’ { fromSocketId, fromUsername, suggestion }
+// roomId -> { fromSocketId, fromUsername, suggestion }
 const roomPendingSuggestion = new Map();
-// roomId â†’ Set<userId>  â€” who has requested a new question (both must agree)
+// roomId -> Set<userId>  - who has requested a new question (both must agree)
 const roomQuestionRequests = new Map();
 
 function addSuggested(userId, targetUserId) {
@@ -457,7 +457,7 @@ setInterval(() => {
 }, 60000);
 
 function broadcastOnlineUsers() {
-  // Deduplicate by userId â€” keep the most recent entry (last socketId wins)
+  // Deduplicate by userId - keep the most recent entry (last socketId wins)
   const seen = new Map();
   for (const u of onlineUsers.values()) {
     const existing = seen.get(u.userId);
@@ -481,7 +481,7 @@ function broadcastOnlineUsers() {
   io.emit('online-users', list);
 }
 
-// â”€â”€ Socket.io â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Socket.io -------------------------------------------------
 
 io.on('connection', socket => {
   const clientIp = socket.handshake.headers['x-forwarded-for']?.split(',')[0].trim() || socket.handshake.address || '';
@@ -493,7 +493,7 @@ io.on('connection', socket => {
     return;
   }
 
-  // â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Auth ----------------------------------------------------
   socket.on('authenticate', async ({ idToken }) => {
     const decoded = await verifyFirebaseToken(idToken);
     if (!decoded) { socket.emit('auth-error', { error: 'Invalid token' }); return; }
@@ -507,7 +507,7 @@ io.on('connection', socket => {
       socket.emit('auth-error', { error: 'Database error' }); return;
     }
 
-    // â”€â”€ Ban check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // -- Ban check ----------------------------------------------
     if (userData.banned) {
       const bannedUntil = userData.bannedUntil ? userData.bannedUntil.toDate() : null;
       if (!bannedUntil || bannedUntil > new Date()) {
@@ -519,7 +519,7 @@ io.on('connection', socket => {
         });
         return;
       }
-      // Expired ban â€” auto-lift
+      // Expired ban - auto-lift
       await fstore.collection('users').doc(decoded.uid).update({ banned: false, bannedUntil: null });
     }
 
@@ -549,7 +549,7 @@ io.on('connection', socket => {
     socket.emit('authenticated', { userId: decoded.uid, username: userData.username });
   });
 
-  // â”€â”€ Matchmaking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Matchmaking ----------------------------------------------
 
   socket.on('join-queue', () => {
     const me = socketUsers.get(socket.id);
@@ -566,7 +566,7 @@ io.on('connection', socket => {
     io.emit('queue-size', { size: queue.size });
   });
 
-  // â”€â”€ Rejoin debate room after page navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Rejoin debate room after page navigation -----------------
 
   socket.on('join-debate-room', async ({ idToken, roomId }) => {
     const decoded = await verifyFirebaseToken(idToken);
@@ -612,7 +612,7 @@ io.on('connection', socket => {
     }
   });
 
-  // â”€â”€ WebRTC signaling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- WebRTC signaling -----------------------------------------
 
   socket.on('webrtc-offer', ({ roomId, offer }) => {
     const room = rooms.get(roomId);
@@ -635,7 +635,7 @@ io.on('connection', socket => {
     if (other) io.to(other.socketId).emit('webrtc-ice', { candidate });
   });
 
-  // â”€â”€ Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Chat -----------------------------------------------------
 
   socket.on('chat-message', ({ roomId, message, imageData, imageId, imageName }) => {
     const room = rooms.get(roomId);
@@ -648,7 +648,7 @@ io.on('connection', socket => {
       timestamp: new Date().toISOString()
     };
 
-    // Image base64 â€” relay to OTHER user only (sender renders their own immediately)
+    // Image base64 - relay to OTHER user only (sender renders their own immediately)
     if (imageData && imageId) {
       const other = room.users.find(u => u.socketId && u.socketId !== socket.id);
       if (other) {
@@ -665,16 +665,16 @@ io.on('connection', socket => {
     io.to(roomId).emit('chat-message', payload);
   });
 
-  // â”€â”€ End debate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- End debate ------------------------------------------------
 
   socket.on('end-debate', ({ roomId }) => closeRoom(roomId, socket.id, 'ended'));
 
-  // â”€â”€ Challenge system â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Challenge system -----------------------------------------
 
   socket.on('send-challenge', ({ targetUserId, question }) => {
     const me = onlineUsers.get(socket.id);
     if (!me) return;
-    // Find target â€” prefer lobby (not-inDebate) socket
+    // Find target - prefer lobby (not-inDebate) socket
     const entries = [...onlineUsers.entries()].filter(([, u]) => u.userId === targetUserId);
     if (!entries.length) { socket.emit('challenge-error', { error: 'User is no longer online.' }); return; }
     const lobbyEntry = entries.find(([, u]) => !u.inDebate) || entries[0];
@@ -713,7 +713,7 @@ io.on('connection', socket => {
     s2.emit('challenge-accepted', { roomId, question, opponent: { username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY } });
   });
 
-  // â”€â”€ Invite links â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Invite links ---------------------------------------------
 
   socket.on('generate-invite', ({ expiryMs }) => {
     const me = onlineUsers.get(socket.id);
@@ -774,7 +774,7 @@ io.on('connection', socket => {
     if (entry) { entry.country = country || ''; broadcastOnlineUsers(); }
   });
 
-  // â”€â”€ In-debate question controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- In-debate question controls ------------------------------
 
   socket.on('request-question', ({ roomId }) => {
     const room = rooms.get(roomId);
@@ -845,7 +845,7 @@ io.on('connection', socket => {
     });
   });
 
-  // â”€â”€ Report user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Report user ----------------------------------------------
   socket.on('report-user', async ({ reportedUserId, reportedUsername, reason, location }) => {
     const me = socketUsers.get(socket.id) || onlineUsers.get(socket.id);
     if (!me || !reportedUserId || !reason) return;
@@ -861,13 +861,13 @@ io.on('connection', socket => {
         createdAt:        admin.firestore.FieldValue.serverTimestamp()
       });
       socket.emit('report-sent');
-      console.log(`[report] ${me.username} â†’ ${reportedUsername}: "${reason}"`);
+      console.log(`[report] ${me.username} -> ${reportedUsername}: "${reason}"`);
     } catch (err) {
       console.error('[report] error:', err.message);
     }
   });
 
-  // â”€â”€ Admin helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Admin helpers --------------------------------------------
   async function _isAdmin() {
     const me = socketUsers.get(socket.id);
     if (!me) return false;
@@ -1097,7 +1097,7 @@ io.on('connection', socket => {
   });
 });
 
-// â”€â”€ Matchmaking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Matchmaking -----------------------------------------------
 
 function attemptMatch(newSocketId) {
   if (queue.size < 2) return;
@@ -1130,7 +1130,7 @@ function attemptMatch(newSocketId) {
 
   const roomId = uuidv4();
 
-  // socketId starts as null â€” lobby sockets are NOT in the room.
+  // socketId starts as null - lobby sockets are NOT in the room.
   // It gets set to the debate-page socket in join-debate-room.
   // This prevents the lobby disconnect from prematurely closing the room.
   rooms.set(roomId, {
@@ -1172,11 +1172,11 @@ function closeRoom(roomId, bySocketId, reason) {
   broadcastOnlineUsers();
 }
 
-// â”€â”€ Start â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Start -----------------------------------------------------
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n  ArgueOut is running â†’ http://localhost:${PORT}\n`);
+  console.log(`\n  ArgueOut is running -> http://localhost:${PORT}\n`);
 });
 
 
