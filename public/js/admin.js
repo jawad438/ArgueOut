@@ -67,19 +67,19 @@ socket.on('admin-reports', ({ reports }) => {
 // Legacy search results
 socket.on('admin-users', ({ users }) => {
   allUsersCache = users;
-  renderUsers(users);
+  filterUsers();
 });
 
 // All users from admin-get-all-users
 socket.on('admin-all-users', ({ users }) => {
   allUsersCache = users;
-  renderUsers(users);
+  filterUsers();
 });
 
 // Rich Firebase Auth user list
 socket.on('admin-firebase-users', ({ users }) => {
   allUsersCache = users;
-  renderUsers(users);
+  filterUsers();
 });
 
 socket.on('admin-action-done', ({ action, targetUserId, ip }) => {
@@ -347,20 +347,41 @@ function prefillNotify(uid, username) {
 }
 
 async function resolveNotifUser() {
-  const username = (document.getElementById('notifTo')?.value || '').trim();
+  const rawInput = (document.getElementById('notifTo')?.value || '').trim();
   const statusEl = document.getElementById('notifResolveStatus');
-  if (!username) return;
+  if (!rawInput) return;
   statusEl.textContent = 'Looking up...';
-  try {
-    const doc = await firestoreDb.collection('usernames').doc(username).get();
-    if (!doc.exists) { statusEl.textContent = 'User not found.'; resolvedNotifUserId = null; return; }
-    resolvedNotifUserId = doc.data().uid;
-    statusEl.textContent = `Resolved: ${username}`;
-    statusEl.style.color = 'var(--green)';
-  } catch {
-    statusEl.textContent = 'Lookup failed.';
-    resolvedNotifUserId = null;
+  statusEl.style.color = 'var(--text-3)';
+
+  // Try exact, then lowercase (usernames are stored as-entered but typically lowercase)
+  const tries = [...new Set([rawInput, rawInput.toLowerCase()])];
+  let uid = null;
+  for (const name of tries) {
+    try {
+      const doc = await firestoreDb.collection('usernames').doc(name).get();
+      if (doc.exists) { uid = doc.data().uid; break; }
+    } catch {}
   }
+
+  // Fallback: search allUsersCache if loaded
+  if (!uid && allUsersCache.length) {
+    const q = rawInput.toLowerCase();
+    const match = allUsersCache.find(u =>
+      (u.username || '').toLowerCase() === q ||
+      (u.email || '').toLowerCase() === q
+    );
+    if (match) uid = match.uid;
+  }
+
+  if (!uid) {
+    statusEl.textContent = 'User not found.';
+    statusEl.style.color = 'var(--red)';
+    resolvedNotifUserId = null;
+    return;
+  }
+  resolvedNotifUserId = uid;
+  statusEl.textContent = 'Resolved: ' + rawInput;
+  statusEl.style.color = 'var(--green)';
 }
 
 function sendNotification() {
