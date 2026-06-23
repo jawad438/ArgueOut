@@ -817,7 +817,7 @@ io.on('connection', socket => {
       if (!q) return;
       const snap = await fstore.collection('users')
         .where('username', '>=', q).where('username', '<=', q + '')
-        .limit(20).get();
+        .limit(30).get();
       socket.emit('admin-users', {
         users: snap.docs.map(d => ({
           uid:        d.id,
@@ -826,12 +826,35 @@ io.on('connection', socket => {
           email:      d.data().email || '',
           banned:     d.data().banned || false,
           bannedUntil: d.data().bannedUntil?.toDate?.()?.toISOString() || null,
-          isAdmin:    d.data().isAdmin || false
+          isAdmin:    d.data().isAdmin || false,
+          createdAt:  d.data().createdAt?.toDate?.()?.toISOString() || null
         }))
       });
     } catch (err) {
       console.error('[admin-search-users] error:', err.message);
       socket.emit('admin-users', { users: [] });
+    }
+  });
+
+  socket.on('admin-get-all-users', async () => {
+    try {
+      if (!await _isAdmin()) return;
+      const snap = await fstore.collection('users').orderBy('createdAt', 'desc').limit(200).get();
+      socket.emit('admin-all-users', {
+        users: snap.docs.map(d => ({
+          uid:        d.id,
+          username:   d.data().username,
+          name:       d.data().name,
+          email:      d.data().email || '',
+          banned:     d.data().banned || false,
+          bannedUntil: d.data().bannedUntil?.toDate?.()?.toISOString() || null,
+          isAdmin:    d.data().isAdmin || false,
+          createdAt:  d.data().createdAt?.toDate?.()?.toISOString() || null
+        }))
+      });
+    } catch (err) {
+      console.error('[admin-get-all-users] error:', err.message);
+      socket.emit('admin-all-users', { users: [] });
     }
   });
 

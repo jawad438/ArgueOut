@@ -1,4 +1,4 @@
-/* admin.js — Admin panel logic */
+﻿/* admin.js — Admin panel logic */
 
 function showToast(msg, type = 'info') {
   const c = document.getElementById('toast-container');
@@ -41,10 +41,11 @@ const durOptions = DURATIONS.map(d =>
   `<option value="${d.ms}">${d.label}</option>`
 ).join('');
 
-// ── Socket ────────────────────────────────────────────────────
+// Socket
 const socket = io({ autoConnect: false });
 let currentFilter = 'pending';
 let resolvedNotifUserId = null;
+let allUsersCache = [];
 
 socket.on('connect', () => {
   auth.currentUser?.getIdToken().then(token => {
@@ -64,10 +65,15 @@ socket.on('admin-users', ({ users }) => {
   renderUsers(users);
 });
 
+socket.on('admin-all-users', ({ users }) => {
+  allUsersCache = users;
+  renderUsers(users);
+});
+
 socket.on('admin-action-done', ({ action, targetUserId, reportId }) => {
   if (action === 'ban' || action === 'unban') {
     showToast(action === 'ban' ? 'User banned.' : 'User unbanned.', 'success');
-    searchUsers();
+    socket.emit('admin-get-all-users');
   }
   if (action === 'dismiss-report') {
     showToast('Report dismissed.', 'success');
@@ -83,7 +89,7 @@ socket.on('admin-action-done', ({ action, targetUserId, reportId }) => {
   }
 });
 
-// ── Tabs ──────────────────────────────────────────────────────
+// Tabs
 function switchTab(name) {
   document.querySelectorAll('.admin-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
@@ -93,14 +99,19 @@ function switchTab(name) {
   if (pane) pane.classList.add('active');
   const idx = tabNames.indexOf(name);
   if (tabs[idx]) tabs[idx].classList.add('active');
+
+  if (name === 'users') {
+    document.getElementById('usersList').innerHTML = '<div class="admin-empty">Loading...</div>';
+    socket.emit('admin-get-all-users');
+  }
 }
 
-// ── Reports ───────────────────────────────────────────────────
+// Reports
 function loadReports(filter = 'pending') {
   currentFilter = filter;
   document.getElementById('filt-pending')?.classList.toggle('active', filter === 'pending');
   document.getElementById('filt-all')?.classList.toggle('active', filter === 'all');
-  document.getElementById('reportsList').innerHTML = '<div class="admin-empty">Loading…</div>';
+  document.getElementById('reportsList').innerHTML = '<div class="admin-empty">Loading...</div>';
   socket.emit('admin-get-reports', { filter });
 }
 
@@ -125,7 +136,7 @@ function renderReports(reports) {
       <div class="report-header">
         <span class="report-parties">
           <span style="color:var(--text-3)">Reporter:</span> @${escapeHtml(r.reporterUsername)}
-          <span style="color:var(--text-3);margin:0 6px">→</span>
+          <span style="color:var(--text-3);margin:0 6px">to</span>
           <span style="color:var(--red)">Reported:</span> @${escapeHtml(r.reportedUsername)}
         </span>
         <div style="display:flex;gap:6px;align-items:center">
@@ -168,16 +179,35 @@ function banFromReport(targetUserId) {
   setTimeout(() => loadReports(currentFilter), 500);
 }
 
-// ── Users ─────────────────────────────────────────────────────
-function searchUsers() {
-  const q = (document.getElementById('userSearchInput')?.value || '').trim();
-  if (!q) return;
-  document.getElementById('usersList').innerHTML = '<div class="admin-empty">Searching…</div>';
-  socket.emit('admin-search-users', { query: q });
+// Users
+function filterUsers() {
+  const q = (document.getElementById('userSearchInput')?.value || '').trim().toLowerCase();
+  if (!q) {
+    renderUsers(allUsersCache);
+    return;
+  }
+  const filtered = allUsersCache.filter(u =>
+    (u.username || '').toLowerCase().includes(q) ||
+    (u.name || '').toLowerCase().includes(q) ||
+    (u.email || '').toLowerCase().includes(q)
+  );
+  renderUsers(filtered);
 }
 
+function searchUsers() {
+  filterUsers();
+}
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'userSearchInput') filterUsers();
+  if (e.target.id === 'notifMsg') {
+    document.getElementById('notifMsgCount').textContent = e.target.value.length;
+  }
+});
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.activeElement?.id === 'userSearchInput') searchUsers();
+  if (e.key === 'Enter' && document.activeElement?.id === 'userSearchInput') filterUsers();
+  if (e.key === 'Enter' && document.activeElement?.id === 'notifTo') resolveNotifUser();
 });
 
 function renderUsers(users) {
@@ -194,7 +224,7 @@ function renderUsers(users) {
     <div class="user-row">
       <div class="user-row-info">
         <div class="user-row-name">@${escapeHtml(u.username)} ${u.isAdmin ? '<span class="admin-badge">Admin</span>' : ''}</div>
-        <div class="user-row-sub">${escapeHtml(u.name || '')} · ${escapeHtml(u.email || '')}</div>
+        <div class="user-row-sub">${escapeHtml(u.name || '')} &middot; ${escapeHtml(u.email || '')}</div>
         ${banLabel ? `<div style="margin-top:4px"><span class="ban-chip">${escapeHtml(banLabel)}</span></div>` : ''}
       </div>
       <div class="user-row-actions">
@@ -227,13 +257,13 @@ function unbanUser(uid) {
   socket.emit('admin-unban-user', { targetUserId: uid });
 }
 
-// ── Notify ────────────────────────────────────────────────────
+// Notify
 function prefillNotify(uid, username) {
   resolvedNotifUserId = uid;
   const toEl = document.getElementById('notifTo');
   if (toEl) toEl.value = username;
   const statusEl = document.getElementById('notifResolveStatus');
-  if (statusEl) statusEl.textContent = `✓ Resolved: UID ${uid}`;
+  if (statusEl) statusEl.textContent = `Resolved: UID ${uid}`;
   switchTab('notify');
   document.getElementById('notifMsg')?.focus();
 }
@@ -242,15 +272,15 @@ async function resolveNotifUser() {
   const username = (document.getElementById('notifTo')?.value || '').trim();
   const statusEl = document.getElementById('notifResolveStatus');
   if (!username) return;
-  statusEl.textContent = 'Looking up…';
+  statusEl.textContent = 'Looking up...';
   try {
     const doc = await firestoreDb.collection('usernames').doc(username).get();
-    if (!doc.exists) { statusEl.textContent = '✗ User not found.'; resolvedNotifUserId = null; return; }
+    if (!doc.exists) { statusEl.textContent = 'User not found.'; resolvedNotifUserId = null; return; }
     resolvedNotifUserId = doc.data().uid;
-    statusEl.textContent = `✓ Resolved: UID ${resolvedNotifUserId}`;
+    statusEl.textContent = `Resolved: UID ${resolvedNotifUserId}`;
     statusEl.style.color = 'var(--green)';
   } catch {
-    statusEl.textContent = '✗ Lookup failed.';
+    statusEl.textContent = 'Lookup failed.';
     resolvedNotifUserId = null;
   }
 }
@@ -261,23 +291,11 @@ function sendNotification() {
   if (!resolvedNotifUserId) { statusEl.textContent = 'Look up a user first.'; statusEl.style.color = 'var(--red)'; return; }
   if (!msg) { statusEl.textContent = 'Message cannot be empty.'; statusEl.style.color = 'var(--red)'; return; }
   socket.emit('admin-send-notification', { targetUserId: resolvedNotifUserId, message: msg });
-  statusEl.textContent = 'Sending…';
+  statusEl.textContent = 'Sending...';
   statusEl.style.color = 'var(--text-3)';
 }
 
-// Notify char counter
-document.addEventListener('input', e => {
-  if (e.target.id === 'notifMsg') {
-    document.getElementById('notifMsgCount').textContent = e.target.value.length;
-  }
-});
-
-// Enter to look up user in notify
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.activeElement?.id === 'notifTo') resolveNotifUser();
-});
-
-// ── Auth guard ────────────────────────────────────────────────
+// Auth guard
 auth.onAuthStateChanged(async user => {
   if (!user) { window.location.href = '/login'; return; }
   try {
