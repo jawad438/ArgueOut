@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Panel â€” ArgueOut</title>
+  <title>Admin Panel &ndash; ArgueOut</title>
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="icon" href="/favicon.png" type="image/png" />
   <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
@@ -61,7 +61,7 @@
     </div>
     <div style="display:flex;gap:10px;align-items:center">
       <span id="adminUsername" style="font-size:0.85rem;color:var(--text-3)"></span>
-      <a href="/lobby" class="btn btn-ghost btn-sm">â† Back to Lobby</a>
+      <a href="/lobby" class="btn btn-ghost btn-sm">&larr; Back to Lobby</a>
     </div>
   </nav>
 
@@ -71,11 +71,11 @@
     <div class="stat-row" id="statsRow">
       <div class="stat-card">
         <div class="stat-label">Pending Reports</div>
-        <div class="stat-val gradient-text" id="statPending">â€”</div>
+        <div class="stat-val gradient-text" id="statPending">&ndash;</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Total Reports</div>
-        <div class="stat-val gradient-text" id="statTotal">â€”</div>
+        <div class="stat-val gradient-text" id="statTotal">&ndash;</div>
       </div>
     </div>
 
@@ -91,15 +91,15 @@
       <div class="filter-row">
         <button class="filter-btn active" id="filt-pending" onclick="loadReports('pending')">Pending</button>
         <button class="filter-btn" id="filt-all" onclick="loadReports('all')">All</button>
-        <button class="btn btn-ghost btn-sm" onclick="loadReports(currentFilter)" style="margin-left:auto">â†» Refresh</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadReports(currentFilter)" style="margin-left:auto">&#8635; Refresh</button>
       </div>
-      <div id="reportsList"><div class="admin-empty">Loading reportsâ€¦</div></div>
+      <div id="reportsList"><div class="admin-empty">Loading reports&hellip;</div></div>
     </div>
 
     <!-- Users tab -->
     <div class="admin-pane" id="pane-users">
       <div class="search-row">
-        <input class="form-input" id="userSearchInput" type="text" placeholder="Search by usernameâ€¦" autocomplete="off" />
+        <input class="form-input" id="userSearchInput" type="text" placeholder="Search by username&hellip;" autocomplete="off" />
         <button class="btn btn-primary btn-sm" onclick="searchUsers()">Search</button>
       </div>
       <div id="usersList"><div class="admin-empty">Search for a user above</div></div>
@@ -120,7 +120,7 @@
           </div>
           <div>
             <label class="form-label" for="notifMsg">Message</label>
-            <textarea class="form-input" id="notifMsg" placeholder="Write your messageâ€¦" maxlength="500"></textarea>
+            <textarea class="form-input" id="notifMsg" placeholder="Write your message&hellip;" maxlength="500"></textarea>
             <div style="font-size:0.72rem;color:var(--text-3);margin-top:4px;text-align:right"><span id="notifMsgCount">0</span>/500</div>
           </div>
           <div>
