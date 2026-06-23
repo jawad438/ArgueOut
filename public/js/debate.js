@@ -1,6 +1,6 @@
-/* debate.js — WebRTC video + Socket.io chat + Firebase Storage images */
+﻿/* debate.js â€” WebRTC video + Socket.io chat + Firebase Storage images */
 
-// ── Room context ──────────────────────────────────────────────
+// â”€â”€ Room context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const params = new URLSearchParams(location.search);
 const roomId = params.get('room') || localStorage.getItem('debateRoomId');
 if (!roomId) { window.location.href = '/lobby'; }
@@ -13,12 +13,12 @@ const debateQuestion = localStorage.getItem('debateQuestion') || null;
 let currentUsername  = localStorage.getItem('username') || 'You';
 let currentIdToken   = null;
 
-// ── Toast ─────────────────────────────────────────────────────
+// â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function showToast(msg, type = 'info') {
   const c = document.getElementById('toast-container');
   if (!c) return;
   const colors = { success: 'var(--green)', error: 'var(--red)', info: 'var(--purple)' };
-  const icons  = { success: '✓', error: '✕', info: 'ℹ' };
+  const icons  = { success: 'âœ“', error: 'âœ•', info: 'â„¹' };
   const t = document.createElement('div');
   t.className = `toast ${type}`;
   t.innerHTML = `<span class="toast-icon" style="color:${colors[type]}">${icons[type]}</span> ${msg}`;
@@ -32,7 +32,7 @@ function getPositionTag(px, py) {
   return `${py >= 0 ? 'Auth' : 'Lib'}-${px >= 0 ? 'R' : 'L'}`;
 }
 
-// ── Timer ─────────────────────────────────────────────────────
+// â”€â”€ Timer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let timerInterval = null, secondsElapsed = 0;
 
 function startTimer() {
@@ -45,7 +45,7 @@ function startTimer() {
   }, 1000);
 }
 
-// ── Opponent / Self UI ────────────────────────────────────────
+// â”€â”€ Opponent / Self UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function populateOpponentUI() {
   if (!opponent) return;
   const initial = (opponent.username || 'O')[0].toUpperCase();
@@ -58,7 +58,7 @@ function populateOpponentUI() {
   const opInfo   = document.getElementById('opponentInfo');
 
   if (opLabel)  opLabel.textContent  = opponent.username;
-  if (opTag)    opTag.textContent    = tag ? ` · ${tag}` : '';
+  if (opTag)    opTag.textContent    = tag ? ` Â· ${tag}` : '';
   if (opPHAv)   opPHAv.textContent   = initial;
   if (opPHName) opPHName.textContent = opponent.username;
   if (opInfo) {
@@ -95,7 +95,7 @@ function populateSelfUI(profile) {
 
   if (profile && selfTag) {
     const tag = getPositionTag(profile.politicalX, profile.politicalY);
-    selfTag.textContent = tag ? ` · ${tag}` : '';
+    selfTag.textContent = tag ? ` Â· ${tag}` : '';
   }
 
   // Show avatar if available
@@ -106,7 +106,7 @@ function populateSelfUI(profile) {
   }
 }
 
-// ── WebRTC ────────────────────────────────────────────────────
+// â”€â”€ WebRTC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
@@ -124,7 +124,7 @@ async function ensureLocalMedia() {
   return localMediaPromise;
 }
 
-// ── RNNoise noise suppression ─────────────────────────────────
+// â”€â”€ RNNoise noise suppression â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let rnnoiseModule    = null;
 let rnnoiseState     = null;
 let rnnoiseInPtr     = 0;
@@ -148,7 +148,7 @@ async function applyRNNoise(rawStream) {
   const src  = rnnoiseAudioCtx.createMediaStreamSource(rawStream);
   const dest = rnnoiseAudioCtx.createMediaStreamDestination();
 
-  // Typed-array ring buffers — no GC pressure during audio callbacks
+  // Typed-array ring buffers â€” no GC pressure during audio callbacks
   const IN_CAP  = RNNOISE_FRAME * 20;
   const OUT_CAP = RNNOISE_FRAME * 20;
   const inBuf   = new Float32Array(IN_CAP);
@@ -219,7 +219,7 @@ function updateNSBtn() {
   btn.classList.toggle('active', available && !noiseEnabled);
   btn.title = !available
     ? 'Noise suppression unavailable'
-    : noiseEnabled ? 'Noise suppression: ON — click to disable' : 'Noise suppression: OFF — click to enable';
+    : noiseEnabled ? 'Noise suppression: ON â€” click to disable' : 'Noise suppression: OFF â€” click to enable';
   if (lbl) lbl.textContent = !available ? 'NS' : noiseEnabled ? 'NS: ON' : 'NS: OFF';
 }
 
@@ -272,7 +272,7 @@ async function flipCamera() {
     localStream?.getVideoTracks().forEach(t => localStream.removeTrack(t));
     oldTracks.forEach(t => t.stop());
 
-    // Add new track — respects current camEnabled state
+    // Add new track â€” respects current camEnabled state
     newTrack.enabled = camEnabled;
     if (rawMicStream) rawMicStream.addTrack(newTrack);
     if (localStream && localStream !== rawMicStream) localStream.addTrack(newTrack);
@@ -340,7 +340,7 @@ async function handleOffer(offer) {
   socket.emit('webrtc-answer', { roomId, answer });
 }
 
-// ── Socket (delayed until Firebase Auth ready) ────────────────
+// â”€â”€ Socket (delayed until Firebase Auth ready) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const socket = io({ autoConnect: false });
 
 socket.on('connect', () => {
@@ -362,7 +362,7 @@ socket.on('room-not-found', () => {
 });
 
 socket.on('waiting-for-opponent', () => {
-  // opponent not yet connected — video placeholder visible
+  // opponent not yet connected â€” video placeholder visible
 });
 
 socket.on('start-webrtc', async ({ isInitiator, opponent: opp }) => {
@@ -385,9 +385,9 @@ socket.on('webrtc-offer',  async ({ offer })    => { if (!peerConn) await ensure
 socket.on('webrtc-answer', async ({ answer })   => { if (peerConn) await peerConn.setRemoteDescription(new RTCSessionDescription(answer)); });
 socket.on('webrtc-ice',    async ({ candidate }) => { if (peerConn) { try { await peerConn.addIceCandidate(new RTCIceCandidate(candidate)); } catch {} } });
 
-// ── Chat images (base64 → ObjectURL, expire on debate end) ───
+// â”€â”€ Chat images (base64 â†’ ObjectURL, expire on debate end) â”€â”€â”€
 
-const tempImageUrls = new Map(); // imageId → objectURL
+const tempImageUrls = new Map(); // imageId â†’ objectURL
 
 function generateImageId() {
   return `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -412,7 +412,7 @@ function markAllImagesExpired() {
   });
 }
 
-// ── Chat messages ─────────────────────────────────────────────
+// â”€â”€ Chat messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 socket.on('chat-message', ({ from, username: fromUser, message, timestamp, imageData, imageId, imageName }) => {
   const isMine = (fromUser === currentUsername);
 
@@ -510,7 +510,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeLightbox();
 });
 
-// ── Question controls ─────────────────────────────────────────
+// â”€â”€ Question controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let mySkipped           = false;
 let suggestSent         = false;
 let questionRequestSent = false;
@@ -625,11 +625,11 @@ socket.on('suggestion-rejected', () => {
 socket.on('question-requested', ({ fromUsername }) => {
   const status = document.getElementById('requestTopicStatus');
   const btn    = document.getElementById('requestTopicBtn');
-  if (status) status.textContent = `${fromUsername} wants a topic — request one too!`;
+  if (status) status.textContent = `${fromUsername} wants a topic â€” request one too!`;
   if (btn && !questionRequestSent) btn.classList.add('pulse-anim');
 });
 
-// ── Debate ended ──────────────────────────────────────────────
+// â”€â”€ Debate ended â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 socket.on('debate-ended', ({ reason }) => {
   localStorage.removeItem('debateQuestion');
   clearInterval(timerInterval);
@@ -651,7 +651,7 @@ socket.on('debate-ended', ({ reason }) => {
   }
 });
 
-// ── Controls ──────────────────────────────────────────────────
+// â”€â”€ Controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const muteBtn = document.getElementById('muteBtn');
 const camBtn  = document.getElementById('camBtn');
 const endBtn  = document.getElementById('endBtn');
@@ -715,7 +715,7 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
-// ── Chat sidebar ──────────────────────────────────────────────
+// â”€â”€ Chat sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const chatToggle = document.getElementById('chatToggleBtn');
 const chatSide   = document.getElementById('chatSidebar');
 const closeChat  = document.getElementById('closeChatBtn');
@@ -758,7 +758,7 @@ function closeChat_() {
 if (chatToggle) chatToggle.addEventListener('click', () => isChatVisible() ? closeChat_() : openChat());
 if (closeChat)  closeChat.addEventListener('click',  closeChat_);
 
-// ── Chat image attachment (staged before send) ───────────────
+// â”€â”€ Chat image attachment (staged before send) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let pendingAttachment = null;
 
 function showAttachmentPreview(imageData, imageName, imageId) {
@@ -801,7 +801,7 @@ if (chatImgInput) {
   });
 }
 
-// ── Chat send ─────────────────────────────────────────────────
+// â”€â”€ Chat send â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const chatInput = document.getElementById('chatInput');
 const sendBtn   = document.getElementById('sendBtn');
 
@@ -832,7 +832,7 @@ if (chatInput) {
   });
 }
 
-// ── Firebase Auth → populate UI → connect socket ──────────────
+// â”€â”€ Firebase Auth â†’ populate UI â†’ connect socket â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 populateOpponentUI();
 
 auth.onAuthStateChanged(async (user) => {
@@ -843,13 +843,21 @@ auth.onAuthStateChanged(async (user) => {
   try {
     const doc = await firestoreDb.collection('users').doc(user.uid).get();
     if (doc.exists) populateSelfUI(doc.data());
+    // Redirect if banned
+    if (doc.exists) {
+      const pd = doc.data();
+      if (pd.banned) {
+        const until = pd.bannedUntil?.toDate ? pd.bannedUntil.toDate() : (pd.bannedUntil ? new Date(pd.bannedUntil) : null);
+        if (!until || until > new Date()) { window.location.href = "/banned"; return; }
+      }
+    }
   } catch {}
 
   currentIdToken = await user.getIdToken();
   if (!socket.connected) socket.connect();
 });
 
-// ── Ban handler ───────────────────────────────────────────────
+// â”€â”€ Ban handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 socket.on('account-banned', ({ message }) => {
   const overlay = document.getElementById('banOverlay');
   const msg     = document.getElementById('banMessage');
@@ -857,7 +865,7 @@ socket.on('account-banned', ({ message }) => {
   if (overlay) { overlay.style.display = 'flex'; }
 });
 
-// ── Report (debate) ───────────────────────────────────────────
+// â”€â”€ Report (debate) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _reportOpponentId   = null;
 let _reportOpponentName = null;
 
@@ -899,7 +907,7 @@ function submitReport() {
     reason = custom;
   }
   const btn = document.getElementById('submitReportBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Submittingâ€¦'; }
   socket.emit('report-user', {
     reportedUserId:   _reportOpponentId,
     reportedUsername: _reportOpponentName,

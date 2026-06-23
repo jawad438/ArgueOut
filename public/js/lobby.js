@@ -1,6 +1,6 @@
-/* lobby.js — matchmaking lobby with Socket.io + Firebase */
+﻿/* lobby.js â€” matchmaking lobby with Socket.io + Firebase */
 
-// ── Image compression ─────────────────────────────────────────
+// â”€â”€ Image compression â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function compressAvatar(dataUrl) {
   return new Promise(resolve => {
     const img = new Image();
@@ -18,12 +18,12 @@ function compressAvatar(dataUrl) {
   });
 }
 
-// ── Toast ─────────────────────────────────────────────────────
+// â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   if (!container) return;
   const colors = { success: 'var(--green)', error: 'var(--red)', info: 'var(--purple)' };
-  const icons  = { success: '✓', error: '✕', info: 'ℹ' };
+  const icons  = { success: 'âœ“', error: 'âœ•', info: 'â„¹' };
   const toast  = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.innerHTML = `<span class="toast-icon" style="color:${colors[type]}">${icons[type]}</span> ${message}`;
@@ -31,7 +31,7 @@ function showToast(message, type = 'info') {
   setTimeout(() => toast.remove(), 4500);
 }
 
-// ── Compass helpers ───────────────────────────────────────────
+// â”€â”€ Compass helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function getQuadrantInfo(px, py) {
   const econ   = px >= 0 ? 'Right' : 'Left';
   const social = py >= 0 ? 'Authoritarian' : 'Libertarian';
@@ -74,7 +74,7 @@ function drawMiniCompass(canvas, px, py) {
   ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2); ctx.fill();
 }
 
-// ── Avatar helpers ────────────────────────────────────────────
+// â”€â”€ Avatar helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function applyAvatar(avatarUrl, initial) {
   const navAvatar  = document.getElementById('navAvatar');
   const profAvatar = document.getElementById('profileAvatar');
@@ -89,7 +89,7 @@ function applyAvatar(avatarUrl, initial) {
   }
 }
 
-// ── Profile UI ────────────────────────────────────────────────
+// â”€â”€ Profile UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
 function updateProfileUI(profile) {
@@ -169,20 +169,20 @@ function updateProfileUI(profile) {
   if (miniCanvas) drawMiniCompass(miniCanvas, profile.politicalX || 0, profile.politicalY || 0);
 }
 
-// ── Helpers ───────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ── Socket.io (delayed connect until Firebase Auth ready) ─────
+// â”€â”€ Socket.io (delayed connect until Firebase Auth ready) â”€â”€â”€â”€â”€
 const socket = io({ autoConnect: false });
 let inQueue       = false;
 let currentIdToken = null;
 let currentUserId  = null;
 
-// ── Online directory / challenge state ────────────────────────
+// â”€â”€ Online directory / challenge state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let onlineUsersCache   = [];
 let pendingChallengeFrom = null; // { socketId, userId, username }
 
@@ -195,7 +195,7 @@ socket.on('authenticated', () => {
     history.replaceState({}, '', '/lobby');
     setTimeout(() => socket.emit('join-queue'), 300);
   }
-  // Trigger suggestion after socket is confirmed — guarantees user is in onlineUsers
+  // Trigger suggestion after socket is confirmed â€” guarantees user is in onlineUsers
   if (currentIdToken) {
     setTimeout(() => fetchSuggestedOpponent(currentIdToken), 3000);
   }
@@ -211,7 +211,7 @@ socket.on('auth-error', ({ error }) => {
 socket.on('queue-joined', () => {
   inQueue = true;
   showSearching();
-  showToast('Added to queue — searching for an opponent...', 'info');
+  showToast('Added to queue â€” searching for an opponent...', 'info');
 });
 
 socket.on('queue-left', () => { inQueue = false; showIdle(); });
@@ -223,7 +223,7 @@ socket.on('queue-size', ({ size }) => {
 
 socket.on('match-found', ({ roomId, opponent }) => {
   inQueue = false;
-  // Peak-moment flash — gives the user a satisfying visual before redirect
+  // Peak-moment flash â€” gives the user a satisfying visual before redirect
   const searchCard = document.getElementById('searchCard');
   if (searchCard) searchCard.classList.add('match-found-flash');
   showToast(`Matched with ${opponent.username}!`, 'success');
@@ -233,7 +233,7 @@ socket.on('match-found', ({ roomId, opponent }) => {
   setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
 });
 
-// ── Online users directory ────────────────────────────────────
+// â”€â”€ Online users directory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 socket.on('online-users', (users) => {
   onlineUsersCache = users;
   renderDirectory(users);
@@ -261,7 +261,7 @@ function renderDirectory(users) {
     const info = getQuadrantInfo(u.politicalX || 0, u.politicalY || 0);
     const statusHtml = u.inDebate
       ? '<span style="font-size:0.7rem;color:var(--amber)">In debate</span>'
-      : '<span style="font-size:0.7rem;color:var(--green)">● Online</span>';
+      : '<span style="font-size:0.7rem;color:var(--green)">â— Online</span>';
     return `
       <div class="directory-user-row" style="animation:dirRowEnter 280ms var(--ease-out) ${i * 45}ms both;position:relative" onclick="openUserProfile('${escapeHtml(u.userId)}')">
         <div class="directory-avatar">${avatarHtml}</div>
@@ -325,7 +325,7 @@ function openUserProfile(userId) {
   if (upBadges) {
     const statusChip = user.inDebate
       ? `<span class="up-status-chip in-debate">In debate</span>`
-      : `<span class="up-status-chip online">● Online</span>`;
+      : `<span class="up-status-chip online">â— Online</span>`;
     upBadges.innerHTML = `<span class="badge ${info.badge}">${escapeHtml(info.label)}</span>${statusChip}`;
   }
 
@@ -408,7 +408,7 @@ function closeProfileModal() {
   }
 }
 
-// ── Challenge system ──────────────────────────────────────────
+// â”€â”€ Challenge system â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function sendChallenge(targetUserId, targetUsername, question) {
   socket.emit('send-challenge', { targetUserId, question: question || null });
   showToast(`Challenge sent to ${targetUsername}!`, 'info');
@@ -433,19 +433,19 @@ socket.on('challenge-received', ({ from, question }) => {
     ? `${from.username} challenged you! "${question}"`
     : `${from.username} challenged you to a debate!`;
   addToNotifHistory({
-    icon: '⚔️', text: notifBody, type: 'challenge',
+    icon: 'âš”ï¸', text: notifBody, type: 'challenge',
     challengerSocketId: from.socketId
   });
 
   if (Notification.permission === 'granted') {
-    new Notification('⚔️ ArgueOut Challenge', {
+    new Notification('âš”ï¸ ArgueOut Challenge', {
       body: question ? `${from.username}: "${question}"` : `${from.username} is challenging you to a debate!`,
       icon: '/logo.png'
     });
   }
 
   const notifText = document.getElementById('challengeNotifText');
-  if (notifText) notifText.textContent = `⚔️ ${from.username} challenged you to a debate!`;
+  if (notifText) notifText.textContent = `âš”ï¸ ${from.username} challenged you to a debate!`;
 
   const panel = document.getElementById('challengeNotifPanel');
   if (panel) panel.classList.add('active');
@@ -458,7 +458,7 @@ socket.on('challenge-received', ({ from, question }) => {
 });
 
 socket.on('challenge-accepted', ({ roomId, opponent, question }) => {
-  addToNotifHistory({ icon: '✅', text: `${opponent.username} accepted your challenge!` });
+  addToNotifHistory({ icon: 'âœ…', text: `${opponent.username} accepted your challenge!` });
   showToast(`Challenge accepted! Starting debate...`, 'success');
   localStorage.setItem('debateRoomId', roomId);
   localStorage.setItem('debateOpponent', JSON.stringify(opponent));
@@ -467,7 +467,7 @@ socket.on('challenge-accepted', ({ roomId, opponent, question }) => {
   setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
 });
 
-// ── Invite link events ────────────────────────────────────────
+// â”€â”€ Invite link events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let currentInviteUrl = '';
 let pendingInviteRoomId   = null;
 let pendingInviteOpponent = null;
@@ -503,10 +503,10 @@ socket.on('invite-accepted', ({ roomId, opponent }) => {
   pendingInviteRoomId   = roomId;
   pendingInviteOpponent = opponent;
 
-  addToNotifHistory({ icon: '🔗', text: `${opponent.username} accepted your invite!` });
+  addToNotifHistory({ icon: 'ðŸ”—', text: `${opponent.username} accepted your invite!` });
 
   if (Notification.permission === 'granted') {
-    new Notification('🔗 ArgueOut Invite', {
+    new Notification('ðŸ”— ArgueOut Invite', {
       body: `${opponent.username} accepted your invite! Tap to join the debate.`,
       icon: '/logo.png'
     });
@@ -549,7 +549,7 @@ if (generateInviteBtn) {
 }
 
 socket.on('challenge-rejected', ({ byUsername }) => {
-  addToNotifHistory({ icon: '❌', text: `${byUsername} declined your challenge.` });
+  addToNotifHistory({ icon: 'âŒ', text: `${byUsername} declined your challenge.` });
   showToast(`${byUsername} declined your challenge.`, 'info');
   closeProfileModal();
 });
@@ -581,7 +581,7 @@ if (rejectChallengeBtn) {
 }
 if (dismissChallengeBtn) dismissChallengeBtn.addEventListener('click', dismissChallengeNotif);
 
-// ── UI state ──────────────────────────────────────────────────
+// â”€â”€ UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function showSearching() {
   const idle   = document.getElementById('idleCard');
   const search = document.getElementById('searchCard');
@@ -596,7 +596,7 @@ function showIdle() {
   if (search) search.style.display = 'none';
 }
 
-// ── Button handlers ───────────────────────────────────────────
+// â”€â”€ Button handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const findBtn   = document.getElementById('findBtn');
 const cancelBtn = document.getElementById('cancelBtn');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -613,7 +613,7 @@ if (logoutBtn) {
   });
 }
 
-// ── Firebase Auth → load profile → connect socket ─────────────
+// â”€â”€ Firebase Auth â†’ load profile â†’ connect socket â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 auth.onAuthStateChanged(async (user) => {
   if (!user) { window.location.href = '/login'; return; }
 
@@ -623,6 +623,11 @@ auth.onAuthStateChanged(async (user) => {
 
     const profile = doc.data();
     if (!profile.compassSet) {
+    // Redirect banned/timed-out users immediately
+    if (profile.banned) {
+      const until = profile.bannedUntil?.toDate ? profile.bannedUntil.toDate() : (profile.bannedUntil ? new Date(profile.bannedUntil) : null);
+      if (!until || until > new Date()) { window.location.href = "/banned"; return; }
+    }
       showToast('Please set your political position first.', 'info');
       setTimeout(() => { window.location.href = '/compass'; }, 1500);
       return;
@@ -631,7 +636,6 @@ auth.onAuthStateChanged(async (user) => {
     currentUserId = user.uid;
     updateProfileUI(profile);
 
-    // Show admin panel button if admin
     if (profile.isAdmin) {
       const adminBtn = document.getElementById('adminPanelBtn');
       if (adminBtn) adminBtn.style.display = 'flex';
@@ -646,7 +650,7 @@ auth.onAuthStateChanged(async (user) => {
       .then(snap => {
         snap.docs.reverse().forEach(d => {
           const item = d.data();
-          addToNotifHistory({ icon: '📢', text: item.message, type: 'admin' });
+          addToNotifHistory({ icon: 'ðŸ“¢', text: item.message, type: 'admin' });
           d.ref.update({ read: true });
         });
       })
@@ -666,7 +670,7 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-// ── Smart opponent suggestion ─────────────────────────────────
+// â”€â”€ Smart opponent suggestion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let suggestUserId   = null;
 let suggestUsername = null;
 let suggestQuestion = null;
@@ -701,10 +705,10 @@ function showSuggestCard(data) {
   const _name = data.name || data.username;
   const _reason = data.reason || 'completely different worldview';
   const _notifText = data.question
-    ? `You should debate ${_name} — ${_reason}. ${data.question}`
-    : `You should debate ${_name} — ${_reason}.`;
+    ? `You should debate ${_name} â€” ${_reason}. ${data.question}`
+    : `You should debate ${_name} â€” ${_reason}.`;
   addToNotifHistory({
-    icon: '💡', text: _notifText, type: 'suggest',
+    icon: 'ðŸ’¡', text: _notifText, type: 'suggest',
     userId: data.userId, username: data.username, question: data.question || null
   });
 
@@ -769,7 +773,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-// ── Notification history & dropdown ──────────────────────────
+// â”€â”€ Notification history & dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let notifHistory = [];
 let notifDropdownOpen = false;
 
@@ -813,7 +817,7 @@ function renderNotifList() {
       </div>`;
     }
     return `<div class="notif-item${n.read ? '' : ' unread'}">
-      <span class="notif-item-icon">${n.icon || '🔔'}</span>
+      <span class="notif-item-icon">${n.icon || 'ðŸ””'}</span>
       <div class="notif-item-body">
         <div class="notif-item-text">${escapeHtml(n.text)}</div>
         <div class="notif-item-time">${timeStr}</div>
@@ -891,7 +895,7 @@ document.addEventListener('click', e => {
   }
 });
 
-// ── Bio edit ──────────────────────────────────────────────────
+// â”€â”€ Bio edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function startBioEdit() {
   const bioDisplay  = document.getElementById('bioDisplay');
   const bioEdit     = document.getElementById('bioEdit');
@@ -955,7 +959,7 @@ document.addEventListener('input', e => {
   }
 });
 
-// ── Name edit ──────────────────────────────────────────────────
+// â”€â”€ Name edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function startNameEdit() {
   const nameEl = document.getElementById('profileName');
   document.getElementById('nameDisplayRow').style.display = 'none';
@@ -994,7 +998,7 @@ async function saveName() {
   }
 }
 
-// ── Username edit ──────────────────────────────────────────────
+// â”€â”€ Username edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function startUsernameEdit() {
   const usernameEl = document.getElementById('profileUsername');
   const current    = (usernameEl?.textContent || '').replace(/^@/, '');
@@ -1020,7 +1024,7 @@ async function saveUsername() {
 
   if (!newUsername) { showToast('Username cannot be empty.', 'error'); return; }
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
-    showToast('Username: 3–20 chars, letters/numbers/underscore only.', 'error');
+    showToast('Username: 3â€“20 chars, letters/numbers/underscore only.', 'error');
     return;
   }
   if (newUsername === oldUsername) { cancelUsernameEdit(); return; }
@@ -1036,7 +1040,7 @@ async function saveUsername() {
 
     btn.textContent = 'Saving...';
 
-    // Password-based accounts use username@argueout.app as Firebase Auth email — keep it in sync
+    // Password-based accounts use username@argueout.app as Firebase Auth email â€” keep it in sync
     const isPasswordAccount = user.email && user.email.endsWith('@argueout.app');
     if (isPasswordAccount) {
       await user.updateEmail(`${newUsername.toLowerCase().replace(/[^a-z0-9_]/g, '')}@argueout.app`);
@@ -1067,7 +1071,7 @@ async function saveUsername() {
   }
 }
 
-// ── Country edit ─────────────────────────────────────────────
+// â”€â”€ Country edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function startCountryEdit() {
   const display = document.getElementById('countryDisplayRow');
   const edit    = document.getElementById('countryEditRow');
@@ -1127,7 +1131,7 @@ async function saveCountry() {
   }
 }
 
-// ── Profile picture change ────────────────────────────────────
+// â”€â”€ Profile picture change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const profilePicInput = document.getElementById('profilePicInput');
 const profilePicWrap  = document.getElementById('profilePicWrap');
 const avatarHover     = document.getElementById('avatarHover');
@@ -1163,7 +1167,7 @@ if (profilePicInput) {
   });
 }
 
-// ── Ban + admin notification handlers ────────────────────────
+// â”€â”€ Ban + admin notification handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 socket.on('account-banned', ({ message }) => {
   const overlay = document.getElementById('banOverlay');
   const msg     = document.getElementById('banMessage');
@@ -1172,14 +1176,14 @@ socket.on('account-banned', ({ message }) => {
 });
 
 socket.on('admin-notification', ({ message }) => {
-  addToNotifHistory({ icon: '📢', text: message, type: 'admin' });
+  addToNotifHistory({ icon: 'ðŸ“¢', text: message, type: 'admin' });
   showToast('You have a new message.', 'info');
   if (Notification.permission === 'granted') {
-    new Notification('ArgueOut — New Message', { body: message, icon: '/logo.png' });
+    new Notification('ArgueOut â€” New Message', { body: message, icon: '/logo.png' });
   }
 });
 
-// ── Report modal (lobby) ──────────────────────────────────────
+// â”€â”€ Report modal (lobby) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _reportTargetId  = null;
 let _reportTargetName = null;
 
@@ -1237,7 +1241,7 @@ function submitReport() {
     reason = custom;
   }
   const btn = document.getElementById('submitReportBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Submittingâ€¦'; }
   socket.emit('report-user', {
     reportedUserId:   _reportTargetId,
     reportedUsername: _reportTargetName,
@@ -1251,10 +1255,25 @@ function submitReport() {
   });
 }
 
-// Show "other" input when "Other…" is selected
+// Show "other" input when "Otherâ€¦" is selected
 document.addEventListener('change', e => {
   if (e.target.name === 'reportReason') {
     const otherWrap = document.getElementById('reportOtherWrap');
     if (otherWrap) otherWrap.style.display = e.target.value === '__other__' ? 'block' : 'none';
   }
+
+async function openAdminPanel() {
+  try {
+    const token = await auth.currentUser.getIdToken(true);
+    const res = await fetch('/api/admin-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: token })
+    });
+    if (!res.ok) { showToast('Admin access denied.', 'error'); return; }
+    window.location.href = '/admin';
+  } catch {
+    showToast('Failed to open admin panel.', 'error');
+  }
+}
 });

@@ -4,7 +4,7 @@ function showToast(msg, type = 'info') {
   const c = document.getElementById('toast-container');
   if (!c) return;
   const colors = { success:'var(--green)', error:'var(--red)', info:'var(--purple)' };
-  const icons  = { success:'✓', error:'✕', info:'ℹ' };
+  const icons  = { success:'&#10003;', error:'&#10005;', info:'&#8505;' };
   const t = document.createElement('div');
   t.className = `toast ${type}`;
   t.innerHTML = `<span class="toast-icon" style="color:${colors[type]}">${icons[type]}</span> ${msg}`;
@@ -22,7 +22,8 @@ function relTime(iso) {
   if (diff < 60000)  return 'just now';
   if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
-  return `${Math.floor(diff/86400000)}d ago`;
+  if (diff < 2592000000) return `${Math.floor(diff/86400000)}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 const DURATIONS = [
@@ -36,6 +37,8 @@ const DURATIONS = [
   { label: '3 days',    ms: 259200000 },
   { label: '7 days',    ms: 604800000 },
 ];
+
+const REPORT_REASONS = ['Harassment','Hate speech','Threats','Spam','Inappropriate content','Other'];
 
 const durOptions = DURATIONS.map(d =>
   `<option value="${d.ms}">${d.label}</option>`
@@ -61,19 +64,35 @@ socket.on('admin-reports', ({ reports }) => {
   renderReports(reports);
 });
 
+// Legacy search results
 socket.on('admin-users', ({ users }) => {
+  allUsersCache = users;
   renderUsers(users);
 });
 
+// All users from admin-get-all-users
 socket.on('admin-all-users', ({ users }) => {
   allUsersCache = users;
   renderUsers(users);
 });
 
-socket.on('admin-action-done', ({ action, targetUserId, reportId }) => {
+// Rich Firebase Auth user list
+socket.on('admin-firebase-users', ({ users }) => {
+  allUsersCache = users;
+  renderUsers(users);
+});
+
+socket.on('admin-action-done', ({ action, targetUserId, ip }) => {
   if (action === 'ban' || action === 'unban') {
     showToast(action === 'ban' ? 'User banned.' : 'User unbanned.', 'success');
-    socket.emit('admin-get-all-users');
+    loadAllUsers();
+  }
+  if (action === 'ip-ban') {
+    showToast('IP banned: ' + (ip || 'unknown') + '. User permanently removed.', 'success');
+    loadAllUsers();
+  }
+  if (action === 'ip-ban-failed') {
+    showToast('IP ban failed: user is not currently online.', 'error');
   }
   if (action === 'dismiss-report') {
     showToast('Report dismissed.', 'success');
@@ -101,9 +120,13 @@ function switchTab(name) {
   if (tabs[idx]) tabs[idx].classList.add('active');
 
   if (name === 'users') {
-    document.getElementById('usersList').innerHTML = '<div class="admin-empty">Loading...</div>';
-    socket.emit('admin-get-all-users');
+    loadAllUsers();
   }
+}
+
+function loadAllUsers() {
+  document.getElementById('usersList').innerHTML = '<div class="admin-empty">Loading...</div>';
+  socket.emit('admin-get-firebase-users');
 }
 
 // Reports
@@ -136,7 +159,7 @@ function renderReports(reports) {
       <div class="report-header">
         <span class="report-parties">
           <span style="color:var(--text-3)">Reporter:</span> @${escapeHtml(r.reporterUsername)}
-          <span style="color:var(--text-3);margin:0 6px">to</span>
+          <span style="color:var(--text-3);margin:0 6px">&#8594;</span>
           <span style="color:var(--red)">Reported:</span> @${escapeHtml(r.reportedUsername)}
         </span>
         <div style="display:flex;gap:6px;align-items:center">
@@ -182,10 +205,7 @@ function banFromReport(targetUserId) {
 // Users
 function filterUsers() {
   const q = (document.getElementById('userSearchInput')?.value || '').trim().toLowerCase();
-  if (!q) {
-    renderUsers(allUsersCache);
-    return;
-  }
+  if (!q) { renderUsers(allUsersCache); return; }
   const filtered = allUsersCache.filter(u =>
     (u.username || '').toLowerCase().includes(q) ||
     (u.name || '').toLowerCase().includes(q) ||
@@ -194,9 +214,7 @@ function filterUsers() {
   renderUsers(filtered);
 }
 
-function searchUsers() {
-  filterUsers();
-}
+function searchUsers() { filterUsers(); }
 
 document.addEventListener('input', e => {
   if (e.target.id === 'userSearchInput') filterUsers();
@@ -220,14 +238,26 @@ function renderUsers(users) {
     const banLabel = u.banned
       ? (u.bannedUntil ? `Suspended until ${new Date(u.bannedUntil).toLocaleString()}` : 'Permanently banned')
       : null;
+    const avatar = u.photoURL
+      ? `<img src="${escapeHtml(u.photoURL)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'" loading="lazy">`
+      : `<div style="width:36px;height:36px;border-radius:50%;background:rgba(139,92,246,0.18);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:var(--purple);flex-shrink:0">${escapeHtml((u.username||'?')[0].toUpperCase())}</div>`;
+    const joinDate = u.createdAt ? new Date(u.createdAt).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) : '';
+    const lastSeen = u.lastSignIn ? relTime(u.lastSignIn) : '';
+    const providers = (u.providers||[]).map(p => {
+      if (p === 'google.com') return '<span style="font-size:0.65rem;padding:1px 6px;border-radius:99px;background:rgba(66,133,244,0.15);color:#4285f4;border:1px solid rgba(66,133,244,0.3)">Google</span>';
+      if (p === 'password') return '<span style="font-size:0.65rem;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.07);color:var(--text-3);border:1px solid var(--border)">Email</span>';
+      return '';
+    }).join(' ');
     return `
-    <div class="user-row">
-      <div class="user-row-info">
-        <div class="user-row-name">@${escapeHtml(u.username)} ${u.isAdmin ? '<span class="admin-badge">Admin</span>' : ''}</div>
+    <div class="user-row" style="gap:12px">
+      ${avatar}
+      <div class="user-row-info" style="flex:1;min-width:0">
+        <div class="user-row-name">@${escapeHtml(u.username)} ${u.isAdmin ? '<span class="admin-badge">Admin</span>' : ''} ${providers}</div>
         <div class="user-row-sub">${escapeHtml(u.name || '')} &middot; ${escapeHtml(u.email || '')}</div>
+        <div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">Joined ${joinDate}${lastSeen ? ' &middot; Last seen ' + lastSeen : ''}</div>
         ${banLabel ? `<div style="margin-top:4px"><span class="ban-chip">${escapeHtml(banLabel)}</span></div>` : ''}
       </div>
-      <div class="user-row-actions">
+      <div class="user-row-actions" style="flex-shrink:0">
         ${!u.isAdmin ? `
         <select class="dur-select" id="udur-${u.uid}">${durOptions}</select>
         <button class="btn btn-sm" style="background:rgba(245,158,11,0.12);color:var(--amber);border:1px solid rgba(245,158,11,0.25)" onclick="timeoutUser('${u.uid}')">Timeout</button>
@@ -235,7 +265,9 @@ function renderUsers(users) {
           ? `<button class="btn btn-sm" style="background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.25)" onclick="banUser('${u.uid}')">Ban</button>`
           : `<button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--green);border:1px solid rgba(34,197,94,0.25)" onclick="unbanUser('${u.uid}')">Unban</button>`
         }
+        <button class="btn btn-sm" style="background:rgba(239,68,68,0.08);color:var(--red);border:1px solid rgba(239,68,68,0.2)" title="IP Ban — user must be online" onclick="ipBanUser('${u.uid}','${escapeHtml(u.username)}')">IP Ban</button>
         <button class="btn btn-ghost btn-sm" onclick="prefillNotify('${u.uid}','${escapeHtml(u.username)}')">Notify</button>
+        <button class="btn btn-ghost btn-sm" onclick="openAdminReport('${u.uid}','${escapeHtml(u.username)}')">Report</button>
         ` : '<span style="font-size:0.75rem;color:var(--text-3)">Admin account</span>'}
       </div>
     </div>`;
@@ -257,13 +289,57 @@ function unbanUser(uid) {
   socket.emit('admin-unban-user', { targetUserId: uid });
 }
 
+function ipBanUser(uid, username) {
+  if (!confirm(`IP ban @${username}? This permanently blocks their network.\nUser must be currently online for this to work.`)) return;
+  socket.emit('admin-ip-ban', { targetUserId: uid });
+}
+
+// Admin report modal
+let _reportTargetId = null, _reportTargetName = '';
+function openAdminReport(uid, username) {
+  _reportTargetId = uid;
+  _reportTargetName = username;
+  const m = document.getElementById('adminReportModal');
+  if (!m) return;
+  document.getElementById('adminReportTarget').textContent = '@' + username;
+  document.querySelectorAll('#adminReportModal input[name="admin-reason"]').forEach(r => r.checked = false);
+  document.getElementById('adminReportOtherWrap').style.display = 'none';
+  document.getElementById('adminReportOther').value = '';
+  m.style.display = 'flex';
+}
+function closeAdminReport() {
+  const m = document.getElementById('adminReportModal');
+  if (m) m.style.display = 'none';
+  _reportTargetId = null;
+}
+function submitAdminReport() {
+  if (!_reportTargetId) return;
+  const sel = document.querySelector('#adminReportModal input[name="admin-reason"]:checked');
+  if (!sel) { showToast('Select a reason.', 'error'); return; }
+  let reason = sel.value;
+  if (reason === 'Other') {
+    reason = document.getElementById('adminReportOther').value.trim();
+    if (!reason) { showToast('Describe the reason.', 'error'); return; }
+  }
+  socket.emit('report-user', { reportedUserId: _reportTargetId, reportedUsername: _reportTargetName, reason, location: 'admin-panel' });
+  closeAdminReport();
+  showToast('Report submitted.', 'success');
+}
+
+document.addEventListener('change', e => {
+  if (e.target.name === 'admin-reason') {
+    const otherWrap = document.getElementById('adminReportOtherWrap');
+    if (otherWrap) otherWrap.style.display = e.target.value === 'Other' ? 'block' : 'none';
+  }
+});
+
 // Notify
 function prefillNotify(uid, username) {
   resolvedNotifUserId = uid;
   const toEl = document.getElementById('notifTo');
   if (toEl) toEl.value = username;
   const statusEl = document.getElementById('notifResolveStatus');
-  if (statusEl) statusEl.textContent = `Resolved: UID ${uid}`;
+  if (statusEl) statusEl.textContent = `Resolved: ${username}`;
   switchTab('notify');
   document.getElementById('notifMsg')?.focus();
 }
@@ -277,7 +353,7 @@ async function resolveNotifUser() {
     const doc = await firestoreDb.collection('usernames').doc(username).get();
     if (!doc.exists) { statusEl.textContent = 'User not found.'; resolvedNotifUserId = null; return; }
     resolvedNotifUserId = doc.data().uid;
-    statusEl.textContent = `Resolved: UID ${resolvedNotifUserId}`;
+    statusEl.textContent = `Resolved: ${username}`;
     statusEl.style.color = 'var(--green)';
   } catch {
     statusEl.textContent = 'Lookup failed.';

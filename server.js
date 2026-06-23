@@ -18,6 +18,35 @@ admin.initializeApp({
 
 const fstore = admin.firestore();
 
+// Cookie parser (no extra dep)
+function parseCookies(req) {
+  const cookies = {};
+  const header = req.headers.cookie;
+  if (!header) return cookies;
+  header.split(';').forEach(c => {
+    const [k, ...v] = c.trim().split('=');
+    if (k) cookies[k.trim()] = v.join('=').trim();
+  });
+  return cookies;
+}
+
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  return (xff ? xff.split(',')[0] : req.socket?.remoteAddress || '').trim();
+}
+
+// IP ban cache — reloads from Firestore every 60 s
+const bannedIpSet = new Set();
+async function loadBannedIps() {
+  try {
+    const snap = await fstore.collection('banned_ips').get();
+    bannedIpSet.clear();
+    snap.docs.forEach(d => bannedIpSet.add(d.id));
+  } catch {}
+}
+loadBannedIps();
+setInterval(loadBannedIps, 60000);
+
 async function verifyFirebaseToken(idToken) {
   try { return await admin.auth().verifyIdToken(idToken); }
   catch { return null; }
@@ -59,6 +88,47 @@ const server = http.createServer(app);
 const io     = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
 app.use(express.json());
+
+// Block IP-banned clients from all HTTP pages
+app.use((req, res, next) => {
+  const ip = getClientIp(req);
+  if (ip && bannedIpSet.has(ip)) {
+    return res.status(403).sendFile(path.join(__dirname, 'public', 'ip-banned.html'));
+  }
+  next();
+});
+
+// Admin session endpoint — call this before navigating to /admin
+app.post('/api/admin-auth', async (req, res) => {
+  try {
+    const { idToken } = req.body || {};
+    if (!idToken) return res.status(400).json({ error: 'No token' });
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    const doc = await fstore.collection('users').doc(decoded.uid).get();
+    if (!doc.exists || !doc.data().isAdmin) return res.status(403).json({ error: 'Not admin' });
+    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+    res.setHeader('Set-Cookie', 'admin_sess=' + idToken + '; HttpOnly; SameSite=Strict; Max-Age=3600; Path=/' + secure);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[admin-auth]', err.message);
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// /admin — serve private page only with valid admin cookie, otherwise 404
+app.get('/admin', async (req, res) => {
+  const cookies = parseCookies(req);
+  const sessToken = cookies.admin_sess;
+  if (!sessToken) return res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+  try {
+    const decoded = await admin.auth().verifyIdToken(sessToken);
+    const doc = await fstore.collection('users').doc(decoded.uid).get();
+    if (!doc.exists || !doc.data().isAdmin) throw new Error('not admin');
+    res.sendFile(path.join(__dirname, 'private', 'admin.html'));
+  } catch {
+    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+  }
+});
 
 // Redirect /path.html â†’ /path (clean URLs)
 app.use((req, res, next) => {
@@ -401,6 +471,14 @@ function broadcastOnlineUsers() {
 // â”€â”€ Socket.io â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 io.on('connection', socket => {
+  const clientIp = socket.handshake.headers['x-forwarded-for']?.split(',')[0].trim() || socket.handshake.address || '';
+  socket.data.ip = clientIp;
+  if (clientIp && bannedIpSet.has(clientIp)) {
+    socket.emit('account-banned', { message: 'Your IP address has been banned.', until: null });
+    socket.disconnect(true);
+    // eslint-disable-next-line no-useless-return
+    return;
+  }
 
   // â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   socket.on('authenticate', async ({ idToken }) => {
@@ -889,6 +967,80 @@ io.on('connection', socket => {
     } catch (err) { console.error('[admin-unban-user] error:', err.message); }
   });
 
+  socket.on('admin-get-firebase-users', async () => {
+    try {
+      if (!await _isAdmin()) return;
+      // List all Firebase Auth users (paginated)
+      const authUsers = [];
+      let nextPageToken;
+      do {
+        const result = await admin.auth().listUsers(1000, nextPageToken);
+        authUsers.push(...result.users);
+        nextPageToken = result.pageToken;
+      } while (nextPageToken);
+      // Get Firestore profiles for ban status, username, avatarUrl
+      const fsSnap = await fstore.collection('users').get();
+      const fsMap = {};
+      fsSnap.docs.forEach(d => { fsMap[d.id] = d.data(); });
+      const users = authUsers
+        .filter(u => !u.email?.endsWith('@argueout.app') || fsMap[u.uid]?.isAdmin)
+        .map(u => {
+          const fs = fsMap[u.uid] || {};
+          return {
+            uid:        u.uid,
+            username:   fs.username || u.displayName || (u.email ? u.email.split('@')[0] : ('user_' + u.uid.slice(0,6))),
+            name:       fs.name || u.displayName || 'User',
+            email:      u.email || '',
+            photoURL:   u.photoURL || fs.avatarUrl || null,
+            banned:     fs.banned || false,
+            bannedUntil: fs.bannedUntil?.toDate?.()?.toISOString() || null,
+            isAdmin:    fs.isAdmin || false,
+            createdAt:  u.metadata.creationTime || fs.createdAt?.toDate?.()?.toISOString() || null,
+            lastSignIn: u.metadata.lastSignInTime || null,
+            providers:  u.providerData.map(p => p.providerId)
+          };
+        })
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      socket.emit('admin-firebase-users', { users });
+    } catch (err) {
+      console.error('[admin-get-firebase-users] error:', err.message);
+      socket.emit('admin-firebase-users', { users: [] });
+    }
+  });
+
+  socket.on('admin-ip-ban', async ({ targetUserId }) => {
+    try {
+      if (!await _isAdmin()) return;
+      if (!targetUserId) return;
+      // Find the target user's IP from active sockets
+      let targetIp = null;
+      for (const [sid, u] of onlineUsers) {
+        if (u.userId === targetUserId) {
+          const tsock = io.sockets.sockets.get(sid);
+          if (tsock?.data?.ip) { targetIp = tsock.data.ip; break; }
+        }
+      }
+      if (!targetIp) {
+        socket.emit('admin-action-done', { action: 'ip-ban-failed', message: 'User is not currently online — IP unknown.' });
+        return;
+      }
+      await fstore.collection('banned_ips').doc(targetIp).set({
+        bannedBy: socket.data?.userId || 'admin',
+        targetUserId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      bannedIpSet.add(targetIp);
+      await fstore.collection('users').doc(targetUserId).update({ banned: true, bannedUntil: null });
+      for (const [sid, u] of onlineUsers) {
+        if (u.userId === targetUserId) {
+          io.to(sid).emit('account-banned', { message: 'Your account has been permanently banned.', until: null });
+        }
+      }
+      socket.emit('admin-action-done', { action: 'ip-ban', targetUserId, ip: targetIp });
+      console.log('[admin] IP banned ' + targetIp + ' user=' + targetUserId);
+    } catch (err) { console.error('[admin-ip-ban] error:', err.message); }
+  });
+
   socket.on('admin-send-notification', async ({ targetUserId, message }) => {
     try {
       if (!await _isAdmin()) return;
@@ -1006,3 +1158,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n  ArgueOut is running â†’ http://localhost:${PORT}\n`);
 });
+
