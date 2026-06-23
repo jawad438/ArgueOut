@@ -622,12 +622,14 @@ auth.onAuthStateChanged(async (user) => {
     if (!doc.exists) { window.location.href = '/login'; return; }
 
     const profile = doc.data();
-    if (!profile.compassSet) {
-    // Redirect banned/timed-out users immediately
+
+    // Redirect banned/timed-out users immediately (check before anything else)
     if (profile.banned) {
       const until = profile.bannedUntil?.toDate ? profile.bannedUntil.toDate() : (profile.bannedUntil ? new Date(profile.bannedUntil) : null);
       if (!until || until > new Date()) { window.location.href = "/banned"; return; }
     }
+
+    if (!profile.compassSet) {
       showToast('Please set your political position first.', 'info');
       setTimeout(() => { window.location.href = '/compass'; }, 1500);
       return;

@@ -974,7 +974,13 @@ io.on('connection', socket => {
   socket.on('admin-unban-user', async ({ targetUserId }) => {
     try {
       if (!await _isAdmin()) return;
-      await fstore.collection('users').doc(targetUserId).update({ banned: false, bannedUntil: null });
+      const userDoc = await fstore.collection('users').doc(targetUserId).get();
+      const bannedIp = userDoc.exists ? userDoc.data().bannedIp : null;
+      await fstore.collection('users').doc(targetUserId).update({ banned: false, bannedUntil: null, ipBanned: false, bannedIp: null });
+      if (bannedIp) {
+        await fstore.collection('banned_ips').doc(bannedIp).delete();
+        bannedIpSet.delete(bannedIp);
+      }
       socket.emit('admin-action-done', { action: 'unban', targetUserId });
       console.log('[admin] unban ' + targetUserId);
     } catch (err) { console.error('[admin-unban-user] error:', err.message); }

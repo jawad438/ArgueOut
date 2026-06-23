@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Account Restricted — ArgueOut</title>
+  <title>Account Restricted &mdash; ArgueOut</title>
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="icon" href="/favicon.png" type="image/png" />
   <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
@@ -19,7 +19,7 @@
   <div class="auth-card" style="text-align:center;padding:56px 32px;max-width:460px">
     <div id="banIcon" style="font-size:3.5rem;margin-bottom:16px;line-height:1">&#x1F6AB;</div>
     <h1 id="banTitle" style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:10px">Account Restricted</h1>
-    <p id="banDesc" style="color:var(--text-2);line-height:1.7;margin-bottom:24px">Checking your account status…</p>
+    <p id="banDesc" style="color:var(--text-2);line-height:1.7;margin-bottom:24px">Checking your account status&hellip;</p>
     <div id="countdown" style="display:none;font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:700;color:var(--purple);letter-spacing:0.04em;margin-bottom:24px"></div>
     <button class="btn btn-ghost" onclick="handleSignOut()">Sign out</button>
   </div>
@@ -32,10 +32,10 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-init.js"></script>
 <script>
-const auth = firebase.auth();
-const db   = firebase.firestore();
+// auth and firestoreDb are declared by firebase-init.js — do not redeclare them
 
 let countdownInterval = null;
+let unsubSnapshot = null;
 
 function formatMs(ms) {
   if (ms <= 0) return '00:00:00';
@@ -47,6 +47,7 @@ function formatMs(ms) {
 }
 
 function startCountdown(until) {
+  if (countdownInterval) return;
   const cd = document.getElementById('countdown');
   cd.style.display = 'block';
   function tick() {
@@ -54,6 +55,7 @@ function startCountdown(until) {
     if (left <= 0) {
       cd.textContent = '00:00:00';
       clearInterval(countdownInterval);
+      countdownInterval = null;
       setTimeout(() => { window.location.href = '/lobby'; }, 1500);
       return;
     }
@@ -64,47 +66,52 @@ function startCountdown(until) {
 }
 
 function handleSignOut() {
+  if (unsubSnapshot) unsubSnapshot();
+  if (countdownInterval) clearInterval(countdownInterval);
   auth.signOut().then(() => { window.location.href = '/login'; });
 }
 
-auth.onAuthStateChanged(async user => {
-  if (!user) { window.location.href = '/login'; return; }
-  try {
-    const doc = await db.collection('users').doc(user.uid).get();
-    if (!doc.exists) { window.location.href = '/login'; return; }
-    const data = doc.data();
-
-    if (!data.banned) {
-      // Not actually banned — redirect back to lobby
-      window.location.href = '/lobby';
-      return;
-    }
-
-    const until = data.bannedUntil ? data.bannedUntil.toDate() : null;
-
-    if (until && until <= new Date()) {
-      // Timeout expired — go to lobby (server will clear it on next auth)
-      window.location.href = '/lobby';
-      return;
-    }
-
-    const titleEl = document.getElementById('banTitle');
-    const descEl  = document.getElementById('banDesc');
-    const iconEl  = document.getElementById('banIcon');
-
-    if (until) {
-      iconEl.textContent  = String.fromCodePoint(0x23F3); // hourglass
-      titleEl.textContent = 'You\'ve been timed out';
-      descEl.textContent  = 'Your account has been temporarily suspended. You\'ll be able to rejoin when the timer reaches zero.';
-      startCountdown(until.getTime());
-    } else {
-      iconEl.textContent  = String.fromCodePoint(0x1F6AB); // no entry
-      titleEl.textContent = 'You\'ve been banned';
-      descEl.textContent  = 'Your account has been permanently removed from ArgueOut due to a violation of our community guidelines.';
-    }
-  } catch (e) {
-    document.getElementById('banDesc').textContent = 'Unable to load account status. Please try again.';
+function applyBanData(data) {
+  if (!data.banned) {
+    window.location.href = '/lobby';
+    return;
   }
+
+  const until = data.bannedUntil ? data.bannedUntil.toDate() : null;
+
+  if (until && until <= new Date()) {
+    window.location.href = '/lobby';
+    return;
+  }
+
+  const titleEl = document.getElementById('banTitle');
+  const descEl  = document.getElementById('banDesc');
+  const iconEl  = document.getElementById('banIcon');
+
+  if (until) {
+    iconEl.textContent  = String.fromCodePoint(0x23F3);
+    titleEl.textContent = 'You\'ve been timed out';
+    descEl.textContent  = 'Your account has been temporarily suspended. You\'ll be able to rejoin when the timer reaches zero.';
+    startCountdown(until.getTime());
+  } else {
+    iconEl.textContent  = String.fromCodePoint(0x1F6AB);
+    titleEl.textContent = 'You\'ve been banned';
+    descEl.textContent  = 'Your account has been permanently removed from ArgueOut due to a violation of our community guidelines.';
+  }
+}
+
+auth.onAuthStateChanged(user => {
+  if (!user) { window.location.href = '/login'; return; }
+
+  unsubSnapshot = firestoreDb.collection('users').doc(user.uid).onSnapshot(
+    doc => {
+      if (!doc.exists) { window.location.href = '/login'; return; }
+      applyBanData(doc.data());
+    },
+    () => {
+      document.getElementById('banDesc').textContent = 'Unable to load account status. Please try again.';
+    }
+  );
 });
 </script>
 </body>
