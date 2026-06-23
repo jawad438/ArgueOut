@@ -858,11 +858,8 @@ auth.onAuthStateChanged(async (user) => {
 });
 
 // â”€â”€ Ban handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-socket.on('account-banned', ({ message }) => {
-  const overlay = document.getElementById('banOverlay');
-  const msg     = document.getElementById('banMessage');
-  if (msg)     msg.textContent = message;
-  if (overlay) { overlay.style.display = 'flex'; }
+socket.on('account-banned', ({ message, until }) => {
+  window.location.href = '/banned';
 });
 
 // â”€â”€ Report (debate) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

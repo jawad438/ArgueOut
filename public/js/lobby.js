@@ -650,7 +650,7 @@ auth.onAuthStateChanged(async (user) => {
       .then(snap => {
         snap.docs.reverse().forEach(d => {
           const item = d.data();
-          addToNotifHistory({ icon: 'ðŸ“¢', text: item.message, type: 'admin' });
+          addToNotifHistory({ icon: null, text: item.message, type: 'admin', fromAdmin: true });
           d.ref.update({ read: true });
         });
       })
@@ -817,9 +817,9 @@ function renderNotifList() {
       </div>`;
     }
     return `<div class="notif-item${n.read ? '' : ' unread'}">
-      <span class="notif-item-icon">${n.icon || 'ðŸ””'}</span>
+      <span class="notif-item-icon"></span>
       <div class="notif-item-body">
-        <div class="notif-item-text">${escapeHtml(n.text)}</div>
+        <div class="notif-item-text"></div>
         <div class="notif-item-time">${timeStr}</div>
         ${actionHtml}
       </div>
@@ -1168,15 +1168,13 @@ if (profilePicInput) {
 }
 
 // â”€â”€ Ban + admin notification handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-socket.on('account-banned', ({ message }) => {
-  const overlay = document.getElementById('banOverlay');
-  const msg     = document.getElementById('banMessage');
-  if (msg)     msg.textContent  = message;
-  if (overlay) { overlay.style.display = 'flex'; }
+socket.on('account-banned', ({ message, until }) => {
+  // Redirect to /banned — that page shows local-timezone countdown
+  window.location.href = '/banned';
 });
 
 socket.on('admin-notification', ({ message }) => {
-  addToNotifHistory({ icon: 'ðŸ“¢', text: message, type: 'admin' });
+  addToNotifHistory({ icon: null, text: message, type: 'admin', fromAdmin: true });
   showToast('You have a new message.', 'info');
   if (Notification.permission === 'granted') {
     new Notification('ArgueOut â€” New Message', { body: message, icon: '/logo.png' });

@@ -235,8 +235,10 @@ function renderUsers(users) {
     return;
   }
   el.innerHTML = users.map(u => {
-    const banLabel = u.banned
-      ? (u.bannedUntil ? `Suspended until ${new Date(u.bannedUntil).toLocaleString()}` : 'Permanently banned')
+    const banExpiry = u.bannedUntil ? new Date(u.bannedUntil) : null;
+    const banExpired = banExpiry && banExpiry <= new Date();
+    const banLabel = u.banned && !banExpired
+      ? (u.ipBanned ? 'IP banned (permanent)' : (u.bannedUntil ? 'Suspended until ' + banExpiry.toLocaleString() : 'Permanently banned'))
       : null;
     const avatar = u.photoURL
       ? `<img src="${escapeHtml(u.photoURL)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'" loading="lazy">`
@@ -263,7 +265,7 @@ function renderUsers(users) {
         <button class="btn btn-sm" style="background:rgba(245,158,11,0.12);color:var(--amber);border:1px solid rgba(245,158,11,0.25)" onclick="timeoutUser('${u.uid}')">Timeout</button>
         ${!u.banned
           ? `<button class="btn btn-sm" style="background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.25)" onclick="banUser('${u.uid}')">Ban</button>`
-          : `<button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--green);border:1px solid rgba(34,197,94,0.25)" onclick="unbanUser('${u.uid}')">Unban</button>`
+          : `<button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--green);border:1px solid rgba(34,197,94,0.25)" onclick="unbanUser('${u.uid}')">Unban${u.ipBanned ? ' + Remove IP Ban' : ''}</button>`
         }
         <button class="btn btn-sm" style="background:rgba(239,68,68,0.08);color:var(--red);border:1px solid rgba(239,68,68,0.2)" title="IP Ban — user must be online" onclick="ipBanUser('${u.uid}','${escapeHtml(u.username)}')">IP Ban</button>
         <button class="btn btn-ghost btn-sm" onclick="prefillNotify('${u.uid}','${escapeHtml(u.username)}')">Notify</button>

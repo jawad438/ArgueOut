@@ -1,4 +1,4 @@
-/* auth.js — Firebase Auth for login.html and register.html */
+﻿/* auth.js — Firebase Auth for login.html and register.html */
 
 // ── Utilities ─────────────────────────────────────────────────
 
@@ -354,6 +354,26 @@ if (step2Form) {
   const backBtn = document.getElementById('backBtn');
   if (backBtn) backBtn.addEventListener('click', () => goToStep(1));
 
+  // Auto-detect country from IP on page load
+  (async () => {
+    try {
+      const r = await fetch('/api/my-country');
+      const { country } = await r.json();
+      if (!country) return;
+      const hiddenEl = document.getElementById('country');
+      if (hiddenEl && !hiddenEl.value) {
+        // Use the existing picker helper if available, otherwise set directly
+        if (typeof setCountryPickerValue === 'function') {
+          setCountryPickerValue('countrySearch', 'country', country);
+        } else {
+          hiddenEl.value = country;
+          const searchEl = document.getElementById('countrySearch');
+          if (searchEl) searchEl.value = country;
+        }
+      }
+    } catch {}
+  })();
+
   step2Form.addEventListener('submit', async e => {
     e.preventDefault();
     hideError('step2Error');
@@ -515,3 +535,5 @@ function goToStep(n) {
   const sub = document.querySelector('#step1 .auth-sub');
   if (sub) sub.innerHTML = 'Step 1 of 2 &mdash; <span style="color:var(--green)">&#10003; Signed in with Google.</span> Choose your username.';
 })();
+
+

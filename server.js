@@ -152,6 +152,19 @@ app.use((req, res, next) => {
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
+// Returns the visitor's detected country code using ip-api.com (free tier)
+app.get('/api/my-country', async (req, res) => {
+  const ip = getClientIp(req);
+  if (!ip || ip === '::1' || ip === '127.0.0.1') return res.json({ country: '' });
+  try {
+    const r = await fetch('http://ip-api.com/json/' + ip + '?fields=country');
+    const d = await r.json();
+    res.json({ country: d.country || '' });
+  } catch {
+    res.json({ country: '' });
+  }
+});
+
 app.post('/api/leave', express.json(), (req, res) => {
   const { roomId, userId } = req.body || {};
   if (roomId && userId) {
@@ -500,7 +513,7 @@ io.on('connection', socket => {
       if (!bannedUntil || bannedUntil > new Date()) {
         socket.emit('account-banned', {
           message: bannedUntil
-            ? `Your account is suspended until ${bannedUntil.toUTCString()}.`
+            ? 'Your account has been temporarily suspended.'
             : 'Your account has been permanently banned.',
           until: bannedUntil ? bannedUntil.toISOString() : null
         });
@@ -946,9 +959,9 @@ io.on('connection', socket => {
       await fstore.collection('users').doc(targetUserId).update(banData);
       for (const [sid, u] of onlineUsers) {
         if (u.userId === targetUserId) {
-          const until = durationMs ? new Date(Date.now() + Number(durationMs)).toUTCString() : null;
+          const until = durationMs ? new Date(Date.now() + Number(durationMs)).toISOString() : null;
           io.to(sid).emit('account-banned', {
-            message: until ? `You have been suspended until ${until}.` : 'Your account has been permanently banned.',
+            message: until ? 'Your account has been temporarily suspended.' : 'Your account has been permanently banned.',
             until
           });
         }
@@ -983,7 +996,7 @@ io.on('connection', socket => {
       const fsMap = {};
       fsSnap.docs.forEach(d => { fsMap[d.id] = d.data(); });
       const users = authUsers
-        .filter(u => !u.email?.endsWith('@argueout.app') || fsMap[u.uid]?.isAdmin)
+        .filter(u => fsMap[u.uid] || u.email)  // include all auth users with a profile or email
         .map(u => {
           const fs = fsMap[u.uid] || {};
           return {
@@ -995,6 +1008,7 @@ io.on('connection', socket => {
             banned:     fs.banned || false,
             bannedUntil: fs.bannedUntil?.toDate?.()?.toISOString() || null,
             isAdmin:    fs.isAdmin || false,
+            ipBanned:   fs.ipBanned || false,
             createdAt:  u.metadata.creationTime || fs.createdAt?.toDate?.()?.toISOString() || null,
             lastSignIn: u.metadata.lastSignInTime || null,
             providers:  u.providerData.map(p => p.providerId)
@@ -1030,7 +1044,7 @@ io.on('connection', socket => {
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
       bannedIpSet.add(targetIp);
-      await fstore.collection('users').doc(targetUserId).update({ banned: true, bannedUntil: null });
+      await fstore.collection('users').doc(targetUserId).update({ banned: true, bannedUntil: null, ipBanned: true, bannedIp: targetIp });
       for (const [sid, u] of onlineUsers) {
         if (u.userId === targetUserId) {
           io.to(sid).emit('account-banned', { message: 'Your account has been permanently banned.', until: null });
@@ -1158,4 +1172,8 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n  ArgueOut is running â†’ http://localhost:${PORT}\n`);
 });
+
+
+
+
 
