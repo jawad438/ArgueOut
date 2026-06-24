@@ -363,8 +363,8 @@ app.get('/favicon.ico', (_, res) => {
 });
 
 const OPENROUTER_KEY   = process.env.OPENROUTER_API_KEY;
-const SUGGEST_MODEL    = 'meta-llama/llama-3.3-70b-instruct:free';
-const FALLBACK_MODEL   = 'meta-llama/llama-3.1-8b-instruct:free';
+const SUGGEST_MODEL    = 'liquid/lfm-2.5-1.2b-instruct:free';
+const FALLBACK_MODEL   = 'liquid/lfm-2.5-1.2b-instruct:free';
 const OR_RATE_LIMITED  = Symbol('rate-limited');
 
 const FALLBACK_QUESTIONS = [

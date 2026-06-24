@@ -186,6 +186,9 @@ async function applyRNNoise(rawStream) {
   const inBuf   = new Float32Array(IN_CAP);
   const outBuf  = new Float32Array(OUT_CAP);
   let inFill = 0, outFill = 0, outRead = 0;
+  // VAD gate: hold speech open for ~60 ms after last voiced frame so word endings aren't clipped
+  const HOLD_FRAMES = 6;
+  let speechHold = 0;
 
   rnnoiseProcessor = rnnoiseAudioCtx.createScriptProcessor(4096, 1, 1);
   rnnoiseProcessor.onaudioprocess = (e) => {
@@ -204,10 +207,13 @@ async function applyRNNoise(rawStream) {
     let start = 0;
     while (start + RNNOISE_FRAME <= inFill) {
       for (let i = 0; i < RNNOISE_FRAME; i++) h[io + i] = inBuf[start + i] * 32768;
-      rnnoiseModule._rnnoise_process_frame(rnnoiseState, rnnoiseOutPtr, rnnoiseInPtr);
+      // _rnnoise_process_frame returns VAD probability 0–1; gate output on it
+      const vad = rnnoiseModule._rnnoise_process_frame(rnnoiseState, rnnoiseOutPtr, rnnoiseInPtr);
+      if (vad > 0.5) speechHold = HOLD_FRAMES; else if (speechHold > 0) speechHold--;
+      const pass  = speechHold > 0;
       const space = OUT_CAP - outFill;
       const copy  = Math.min(RNNOISE_FRAME, space);
-      for (let i = 0; i < copy; i++) outBuf[outFill + i] = h[oo + i] / 32768;
+      for (let i = 0; i < copy; i++) outBuf[outFill + i] = pass ? h[oo + i] / 32768 : 0;
       outFill += copy;
       start   += RNNOISE_FRAME;
     }
