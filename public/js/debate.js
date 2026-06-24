@@ -606,7 +606,7 @@ socket.on('question-generating', () => {
   }
 });
 
-socket.on('question-updated', ({ question }) => {
+socket.on('question-updated', ({ question, error }) => {
   const banner = document.getElementById('sparkBanner');
   const rtv    = document.getElementById('requestTopicView');
   const qv     = document.getElementById('questionView');
@@ -616,13 +616,17 @@ socket.on('question-updated', ({ question }) => {
   if (rtv) rtv.style.display = 'none';
   if (qv)  qv.style.display = 'flex';
   if (banner) banner.style.display = 'flex';
-  if (qEl)   qEl.textContent = question;
+  if (error) {
+    if (qEl) { qEl.textContent = error; qEl.style.color = '#f87171'; qEl.style.fontStyle = 'italic'; }
+  } else {
+    if (qEl) { qEl.textContent = question; qEl.style.color = ''; qEl.style.fontStyle = ''; }
+    localStorage.setItem('debateQuestion', question);
+  }
   if (skip)  { skip.textContent = 'Skip'; skip.disabled = false; }
   if (sug)   { sug.textContent = 'Suggest'; sug.disabled = false; }
   mySkipped           = false;
   suggestSent         = false;
   questionRequestSent = false;
-  localStorage.setItem('debateQuestion', question);
   closeSuggestInput();
 });
 
