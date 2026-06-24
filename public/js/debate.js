@@ -45,6 +45,35 @@ function startTimer() {
   }, 1000);
 }
 
+// -- Speaking detection (VAD) ----------------------------------
+let selfVAD = null;
+let opponentVAD = null;
+
+function startVAD(stream, panelId, cssClass) {
+  try {
+    const ctx      = new AudioContext();
+    const src      = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.5;
+    src.connect(analyser);
+    const data = new Uint8Array(analyser.fftSize);
+    let speaking = false;
+    const id = setInterval(() => {
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += (data[i] - 128) ** 2;
+      const rms = Math.sqrt(sum / data.length);
+      const now = rms > 8;
+      if (now !== speaking) {
+        speaking = now;
+        document.getElementById(panelId)?.classList.toggle(cssClass, speaking);
+      }
+    }, 80);
+    return { stop() { clearInterval(id); ctx.close().catch(() => {}); } };
+  } catch { return null; }
+}
+
 // -- Opponent / Self UI ----------------------------------------
 function populateOpponentUI() {
   if (!opponent) return;
@@ -115,6 +144,7 @@ const ICE_SERVERS = [
 
 let peerConn = null, localStream = null, rawMicStream = null;
 let micEnabled = true, camEnabled = true;
+let myTurnMuted = false;
 let localMediaPromise = null;
 let currentFacingMode = 'user';
 
@@ -243,6 +273,10 @@ async function getLocalMedia() {
 
     if (selfVideo) selfVideo.srcObject = localStream;
     document.getElementById('selfNoCam')?.classList.remove('active');
+
+    selfVAD?.stop();
+    selfVAD = startVAD(rawMicStream, 'selfPanel', 'speaking-self');
+
     return localStream;
   } catch {
     showToast('Could not access camera/mic. Continuing with chat only.', 'info');
@@ -313,6 +347,8 @@ function createPeerConnection() {
       if (noCam)   noCam.style.display   = 'none';
       if (connTxt) connTxt.style.display = 'none';
       startTimer();
+      opponentVAD?.stop();
+      opponentVAD = startVAD(streams[0], 'opponentPanel', 'speaking-opponent');
     }
   };
 
@@ -633,6 +669,10 @@ socket.on('question-requested', ({ fromUsername }) => {
 socket.on('debate-ended', ({ reason }) => {
   localStorage.removeItem('debateQuestion');
   clearInterval(timerInterval);
+  clearInterval(turnCountdownInterval);
+  selfVAD?.stop();   selfVAD = null;
+  opponentVAD?.stop(); opponentVAD = null;
+  document.getElementById('turnBanner')?.style && (document.getElementById('turnBanner').style.display = 'none');
   if (peerConn) peerConn.close();
   if (localStream) localStream.getTracks().forEach(t => t.stop());
   if (rawMicStream && rawMicStream !== localStream) rawMicStream.getTracks().forEach(t => t.stop());
@@ -659,12 +699,14 @@ const endBtn  = document.getElementById('endBtn');
 if (muteBtn) {
   muteBtn.addEventListener('click', () => {
     if (!rawMicStream && !localStream) return;
+    if (myTurnMuted && micEnabled) {
+      showToast("It's not your turn — wait to unmute.", 'info');
+      return;
+    }
     micEnabled = !micEnabled;
-    // Mute the raw mic (stops audio entering the noise suppressor)
-    if (rawMicStream) rawMicStream.getAudioTracks().forEach(t => { t.enabled = micEnabled; });
-    // Also mute the processed output track if it differs
+    if (rawMicStream) rawMicStream.getAudioTracks().forEach(t => { t.enabled = micEnabled && !myTurnMuted; });
     if (localStream && localStream !== rawMicStream) {
-      localStream.getAudioTracks().forEach(t => { t.enabled = micEnabled; });
+      localStream.getAudioTracks().forEach(t => { t.enabled = micEnabled && !myTurnMuted; });
     }
     muteBtn.classList.toggle('active', !micEnabled);
     muteBtn.title = micEnabled ? 'Mute microphone' : 'Unmute microphone';
@@ -924,3 +966,102 @@ document.addEventListener('change', e => {
     if (otherWrap) otherWrap.style.display = e.target.value === '__other__' ? 'block' : 'none';
   }
 });
+
+// -- Turn system -----------------------------------------------
+let turnCountdownInterval = null;
+let freeDebateRequested   = false;
+
+function setTurnMute(mute) {
+  myTurnMuted = mute;
+  if (rawMicStream) rawMicStream.getAudioTracks().forEach(t => { t.enabled = !mute && micEnabled; });
+  if (localStream && localStream !== rawMicStream) {
+    localStream.getAudioTracks().forEach(t => { t.enabled = !mute && micEnabled; });
+  }
+}
+
+socket.on('turn-start', ({ speakerSocketId, speakerUsername, turnNumber, duration }) => {
+  const iAmSpeaker = speakerSocketId === socket.id;
+  clearInterval(turnCountdownInterval);
+
+  const banner  = document.getElementById('turnBanner');
+  const label   = document.getElementById('turnSpeakerLabel');
+  const cntdown = document.getElementById('turnCountdown');
+  const passBtn = document.getElementById('turnPassBtn');
+  const freeBtn = document.getElementById('freeDebateBtn');
+  const dot     = document.getElementById('turnDot');
+
+  if (banner)  banner.style.display = 'flex';
+  if (label)   label.textContent    = iAmSpeaker ? 'Your turn — speak now' : `${speakerUsername} is speaking`;
+  if (passBtn) passBtn.style.display = iAmSpeaker ? 'inline-flex' : 'none';
+  if (freeBtn && !freeDebateRequested) { freeBtn.textContent = 'Free Debate'; freeBtn.disabled = false; }
+  if (dot)     dot.style.background = iAmSpeaker ? '#3b82f6' : '#ef4444';
+
+  document.getElementById('selfPanel')?.classList.toggle('current-speaker', iAmSpeaker);
+  document.getElementById('opponentPanel')?.classList.toggle('current-speaker', !iAmSpeaker);
+
+  setTurnMute(!iAmSpeaker);
+
+  let secsLeft = duration;
+  const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  if (cntdown) cntdown.textContent = fmt(secsLeft);
+  turnCountdownInterval = setInterval(() => {
+    secsLeft = Math.max(0, secsLeft - 1);
+    if (cntdown) cntdown.textContent = fmt(secsLeft);
+    if (secsLeft <= 0) clearInterval(turnCountdownInterval);
+  }, 1000);
+
+  showToast(iAmSpeaker ? 'Your turn — 1 minute!' : `${speakerUsername}'s turn to speak.`, 'info');
+});
+
+socket.on('debate-mode-free', () => {
+  clearInterval(turnCountdownInterval);
+  if (myTurnMuted) setTurnMute(false);
+  document.getElementById('selfPanel')?.classList.remove('current-speaker');
+  document.getElementById('opponentPanel')?.classList.remove('current-speaker');
+  const label   = document.getElementById('turnSpeakerLabel');
+  const cntdown = document.getElementById('turnCountdown');
+  const passBtn = document.getElementById('turnPassBtn');
+  if (label)   label.textContent     = 'Free debate — speak freely';
+  if (cntdown) cntdown.textContent   = '';
+  if (passBtn) passBtn.style.display = 'none';
+  freeDebateRequested = false;
+  showToast('Free debate! Both can speak freely now.', 'success');
+  setTimeout(() => { const b = document.getElementById('turnBanner'); if (b) b.style.display = 'none'; }, 3000);
+});
+
+socket.on('free-debate-requested', ({ fromUsername }) => {
+  const panel = document.getElementById('freeDebatePanel');
+  const text  = document.getElementById('freeDebatePanelText');
+  if (text)  text.textContent = `${fromUsername} wants to switch to free debate (no turn limits)`;
+  if (panel) panel.style.display = 'block';
+  setTimeout(() => {
+    const p = document.getElementById('freeDebatePanel');
+    if (p && p.style.display !== 'none') respondFreeDebate(false);
+  }, 30000);
+});
+
+socket.on('free-debate-declined', () => {
+  freeDebateRequested = false;
+  const btn = document.getElementById('freeDebateBtn');
+  if (btn) { btn.textContent = 'Free Debate'; btn.disabled = false; }
+  showToast('Free debate request declined.', 'info');
+});
+
+function passTurn() {
+  socket.emit('turn-pass', { roomId });
+}
+
+function requestFreeDebate() {
+  if (freeDebateRequested) return;
+  freeDebateRequested = true;
+  socket.emit('request-free-debate', { roomId });
+  showToast('Free debate request sent.', 'info');
+  const btn = document.getElementById('freeDebateBtn');
+  if (btn) { btn.textContent = 'Requested...'; btn.disabled = true; }
+}
+
+function respondFreeDebate(accepted) {
+  socket.emit('accept-free-debate', { roomId, accepted });
+  const panel = document.getElementById('freeDebatePanel');
+  if (panel) panel.style.display = 'none';
+}

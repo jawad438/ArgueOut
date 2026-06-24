@@ -98,8 +98,39 @@
     </div>
   </div>
 
+  <!-- Free-debate request panel -->
+  <div id="freeDebatePanel" class="challenge-notif" style="display:none;left:24px;right:auto">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="font-size:1.5rem;flex-shrink:0">🗣️</div>
+      <div style="flex:1">
+        <div id="freeDebatePanelText" style="font-size:0.88rem;font-weight:600;margin-bottom:10px;line-height:1.4"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="respondFreeDebate(true)">Agree</button>
+          <button class="btn btn-ghost btn-sm" onclick="respondFreeDebate(false)">Decline</button>
+        </div>
+      </div>
+      <button onclick="respondFreeDebate(false)" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0" aria-label="Decline">
+        <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
   <!-- Video area -->
   <div class="video-area">
+
+    <!-- Turn system banner -->
+    <div id="turnBanner" class="turn-banner" style="display:none">
+      <div class="turn-indicator">
+        <div id="turnDot" class="turn-dot"></div>
+        <span id="turnSpeakerLabel"></span>
+      </div>
+      <span id="turnCountdown" class="turn-countdown">1:00</span>
+      <div class="turn-actions">
+        <button id="turnPassBtn" class="btn btn-sm btn-ghost" onclick="passTurn()" style="display:none">Pass Turn</button>
+        <button id="freeDebateBtn" class="btn btn-sm btn-ghost" onclick="requestFreeDebate()">Free Debate</button>
+      </div>
+    </div>
+
     <div class="video-grid">
 
       <!-- Self video -->

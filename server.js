@@ -137,7 +137,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:     ["'self'"],
-      scriptSrc:      ["'self'", "'unsafe-inline'", 'https://www.gstatic.com', 'https://cdn.socket.io', 'https://apis.google.com'],
+      scriptSrc:      ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", 'https://www.gstatic.com', 'https://cdn.socket.io', 'https://apis.google.com'],
       styleSrc:       ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc:        ["'self'", 'https://fonts.gstatic.com', 'data:'],
       imgSrc:         ["'self'", 'data:', 'https:', 'blob:'],
@@ -614,6 +614,10 @@ const roomDeclines = new Map();
 const roomPendingSuggestion = new Map();
 // roomId -> Set<userId>  - who has requested a new question (both must agree)
 const roomQuestionRequests = new Map();
+// roomId -> Timeout — per-room structured-turn countdown
+const roomTurnTimers = new Map();
+// roomId -> Set<userId> — who has requested free-debate mode
+const roomFreeRequests = new Map();
 
 function addSuggested(userId, targetUserId) {
   if (!suggestedMap.has(userId)) suggestedMap.set(userId, new Set());
@@ -625,6 +629,28 @@ function addDebated(userId1, userId2) {
   debatedMap.get(userId1).add(userId2);
   if (!debatedMap.has(userId2)) debatedMap.set(userId2, new Set());
   debatedMap.get(userId2).add(userId1);
+}
+
+function startTurn(roomId) {
+  const room = rooms.get(roomId);
+  if (!room || room.turnMode !== 'structured') return;
+  const speaker = room.users[room.currentSpeakerIdx];
+  io.to(roomId).emit('turn-start', {
+    speakerSocketId: speaker.socketId,
+    speakerUsername:  speaker.username,
+    turnNumber:       room.turnNumber,
+    duration:         60
+  });
+  clearTimeout(roomTurnTimers.get(roomId));
+  roomTurnTimers.set(roomId, setTimeout(() => advanceTurn(roomId), 60000));
+}
+
+function advanceTurn(roomId) {
+  const room = rooms.get(roomId);
+  if (!room || room.turnMode !== 'structured') return;
+  room.currentSpeakerIdx = 1 - room.currentSpeakerIdx;
+  room.turnNumber++;
+  startTurn(roomId);
 }
 setInterval(() => {
   const now = Date.now();
@@ -822,6 +848,11 @@ io.on('connection', socket => {
         isInitiator: false,
         opponent: { username: u1.username, politicalX: u1.politicalX, politicalY: u1.politicalY }
       });
+      // Start structured turn system after a brief setup window
+      room.turnMode         = 'structured';
+      room.currentSpeakerIdx = Math.random() < 0.5 ? 0 : 1;
+      room.turnNumber       = 1;
+      setTimeout(() => startTurn(roomId), 3000);
     } else {
       socket.emit('waiting-for-opponent');
       // If this is an invite room and the host just joined, tell the waiting guest to navigate
@@ -895,6 +926,42 @@ io.on('connection', socket => {
   // -- End debate ------------------------------------------------
 
   socket.on('end-debate', ({ roomId }) => closeRoom(roomId, socket.id, 'ended'));
+
+  // -- Turn system -----------------------------------------------
+
+  socket.on('turn-pass', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.turnMode !== 'structured') return;
+    if (room.users[room.currentSpeakerIdx]?.socketId !== socket.id) return;
+    advanceTurn(roomId);
+  });
+
+  socket.on('request-free-debate', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const me = socketUsers.get(socket.id);
+    if (!me) return;
+    if (!roomFreeRequests.has(roomId)) roomFreeRequests.set(roomId, new Set());
+    roomFreeRequests.get(roomId).add(me.userId);
+    const other = room.users.find(u => u.socketId && u.socketId !== socket.id);
+    if (other) io.to(other.socketId).emit('free-debate-requested', { fromUsername: me.username });
+  });
+
+  socket.on('accept-free-debate', ({ roomId, accepted }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    if (!accepted) {
+      const other = room.users.find(u => u.socketId && u.socketId !== socket.id);
+      if (other) io.to(other.socketId).emit('free-debate-declined');
+      roomFreeRequests.delete(roomId);
+      return;
+    }
+    room.turnMode = 'free';
+    clearTimeout(roomTurnTimers.get(roomId));
+    roomTurnTimers.delete(roomId);
+    roomFreeRequests.delete(roomId);
+    io.to(roomId).emit('debate-mode-free');
+  });
 
   // -- Challenge system -----------------------------------------
 
@@ -1404,6 +1471,9 @@ function closeRoom(roomId, bySocketId, reason) {
   roomDeclines.delete(roomId);
   roomPendingSuggestion.delete(roomId);
   roomQuestionRequests.delete(roomId);
+  clearTimeout(roomTurnTimers.get(roomId));
+  roomTurnTimers.delete(roomId);
+  roomFreeRequests.delete(roomId);
   broadcastOnlineUsers();
 }
 

@@ -1035,6 +1035,67 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
 }
 .video-panel.self-panel { border-color: rgba(139,92,246,0.3); }
 .video-panel.opponent-panel { border-color: rgba(59,130,246,0.2); }
+.video-panel { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+
+/* VAD speaking glow */
+.video-panel.speaking-self {
+  border-color: rgba(59,130,246,0.85) !important;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.35), 0 0 18px rgba(59,130,246,0.2);
+}
+.video-panel.speaking-opponent {
+  border-color: rgba(239,68,68,0.85) !important;
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.35), 0 0 18px rgba(239,68,68,0.2);
+}
+
+/* Turn-assigned speaker — stronger pulsing glow */
+@keyframes glow-blue-pulse {
+  0%,100% { box-shadow: 0 0 0 2px rgba(59,130,246,0.5), 0 0 20px rgba(59,130,246,0.3); }
+  50%      { box-shadow: 0 0 0 3px rgba(59,130,246,0.85), 0 0 32px rgba(59,130,246,0.5); }
+}
+@keyframes glow-red-pulse {
+  0%,100% { box-shadow: 0 0 0 2px rgba(239,68,68,0.5), 0 0 20px rgba(239,68,68,0.3); }
+  50%      { box-shadow: 0 0 0 3px rgba(239,68,68,0.85), 0 0 32px rgba(239,68,68,0.5); }
+}
+.video-panel.current-speaker.self-panel {
+  border-color: rgba(59,130,246,0.95) !important;
+  animation: glow-blue-pulse 1.8s ease-in-out infinite;
+}
+.video-panel.current-speaker.opponent-panel {
+  border-color: rgba(239,68,68,0.95) !important;
+  animation: glow-red-pulse 1.8s ease-in-out infinite;
+}
+
+/* Turn banner (inside .video-area flex column) */
+.turn-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: rgba(12,12,28,0.88);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: 0.82rem;
+  color: var(--text-2);
+  flex-shrink: 0;
+  backdrop-filter: blur(8px);
+}
+.turn-indicator { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; overflow: hidden; }
+.turn-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #3b82f6;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+.turn-countdown {
+  font-family: 'Space Grotesk', monospace;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-1);
+  min-width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.turn-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
 .video-label {
   position: absolute;
