@@ -336,6 +336,12 @@ if (step1Form) {
     const confirm  = document.getElementById('confirm').value;
     const isGoogle = !!window._googlePending;
 
+    const tosAgree = document.getElementById('tosAgree');
+    if (tosAgree && !tosAgree.checked) {
+      showError('step1Error', 'step1ErrorText', 'You must agree to the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
+
     if (!name || !username || !email || (!isGoogle && !password)) {
       showError('step1Error', 'step1ErrorText', 'Please fill in all required fields.');
       return;
@@ -411,12 +417,6 @@ if (step2Form) {
   step2Form.addEventListener('submit', async e => {
     e.preventDefault();
     hideError('step2Error');
-
-    const tosAgree = document.getElementById('tosAgree');
-    if (tosAgree && !tosAgree.checked) {
-      showError('step2Error', 'step2ErrorText', 'You must agree to the Terms of Service and Privacy Policy to create an account.');
-      return;
-    }
 
     const age      = document.getElementById('age').value;
     const gender   = document.getElementById('gender').value;
