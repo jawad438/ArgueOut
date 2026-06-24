@@ -167,9 +167,10 @@ const RNNOISE_FRAME = 480;
 async function applyRNNoise(rawStream) {
   const factory = window.createRNNWasmModule;
   if (typeof factory !== 'function') throw new Error('RNNoise not loaded');
-  const mod = factory({ locateFile: f => '/js/' + f });
-  await mod.ready;
-  rnnoiseModule = mod;
+  const moduleConfig = { locateFile: f => '/js/' + f };
+  const readyPromise = factory(moduleConfig);  // factory() mutates moduleConfig and returns moduleConfig.ready (a Promise)
+  await readyPromise;                          // wait for WASM to compile and bind all _rnnoise_* functions
+  rnnoiseModule = moduleConfig;               // moduleConfig IS the module — _rnnoise_create etc are now attached
 
   rnnoiseState  = rnnoiseModule._rnnoise_create(0);
   rnnoiseInPtr  = rnnoiseModule._malloc(RNNOISE_FRAME * 4);
