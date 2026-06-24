@@ -137,14 +137,14 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:     ["'self'"],
-      scriptSrc:      ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", 'https://www.gstatic.com', 'https://cdn.socket.io', 'https://apis.google.com'],
+      scriptSrc:      ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", 'https://www.gstatic.com', 'https://cdn.socket.io', 'https://apis.google.com', 'https://challenges.cloudflare.com'],
       styleSrc:       ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc:        ["'self'", 'https://fonts.gstatic.com', 'data:'],
       imgSrc:         ["'self'", 'data:', 'https:', 'blob:'],
       mediaSrc:       ["'self'", 'blob:'],
-      connectSrc:     ["'self'", 'wss:', 'ws:', 'https://*.googleapis.com', 'https://*.firebaseapp.com', 'https://www.gstatic.com', 'https://openrouter.ai', 'https://ip-api.com'],
+      connectSrc:     ["'self'", 'wss:', 'ws:', 'https://*.googleapis.com', 'https://*.firebaseapp.com', 'https://www.gstatic.com', 'https://openrouter.ai', 'https://ip-api.com', 'https://challenges.cloudflare.com'],
       scriptSrcAttr:  ["'unsafe-inline'"],
-      frameSrc:       ["https://argueout.firebaseapp.com"],
+      frameSrc:       ["https://argueout.firebaseapp.com", 'https://challenges.cloudflare.com'],
       objectSrc:      ["'none'"],
       baseUri:        ["'self'"],
       formAction:     ["'self'"],
@@ -325,6 +325,27 @@ app.use((req, res, next) => {
 });
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
+
+// Cloudflare Turnstile server-side verification
+app.post('/api/verify-captcha', express.json(), async (req, res) => {
+  const token  = (req.body || {}).token;
+  if (!token) return res.json({ success: false, error: 'missing-token' });
+  const secret = process.env.TURNSTILE_SECRET;
+  if (!secret) return res.json({ success: true }); // skip in dev when secret not set
+  try {
+    const form = new URLSearchParams();
+    form.append('secret',   secret);
+    form.append('response', token);
+    form.append('remoteip', getClientIp(req) || '');
+    const r    = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST', body: form
+    });
+    const data = await r.json();
+    res.json({ success: data.success === true });
+  } catch {
+    res.json({ success: false, error: 'verification-failed' });
+  }
+});
 
 // Returns the visitor's detected country code using ip-api.com (free tier)
 app.get('/api/my-country', async (req, res) => {

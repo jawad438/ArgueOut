@@ -74,6 +74,31 @@ function compressAvatar(dataUrl) {
   });
 }
 
+// ── Cloudflare Turnstile ──────────────────────────────────────
+
+async function verifyCaptcha(widgetId) {
+  const widget = document.getElementById(widgetId);
+  if (!widget) return true; // not present on this page — skip
+  const input = widget.querySelector('[name="cf-turnstile-response"]');
+  const token = input?.value;
+  if (!token) return false;
+  try {
+    const r = await fetch('/api/verify-captcha', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const d = await r.json();
+    return d.success === true;
+  } catch {
+    return false;
+  }
+}
+
+function resetCaptcha() {
+  if (typeof turnstile !== 'undefined') turnstile.reset();
+}
+
 // ── Google Sign-In ────────────────────────────────────────────
 
 async function handleGoogleSignIn(btnId) {
@@ -219,6 +244,14 @@ if (loginForm) {
       return;
     }
 
+    setLoading(btn, true, 'Verifying...');
+    const captchaOk = await verifyCaptcha('loginTurnstile');
+    if (!captchaOk) {
+      resetCaptcha();
+      setLoading(btn, false);
+      showError('loginError', 'loginErrorText', 'Please complete the CAPTCHA verification.');
+      return;
+    }
     setLoading(btn, true, 'Signing in...');
     try {
       // Resolve the Firebase Auth email from the input (real email or username lookup)
@@ -251,6 +284,7 @@ if (loginForm) {
         window.location.href = next || (profile.compassSet ? '/lobby' : '/compass');
       }, 600);
     } catch (err) {
+      resetCaptcha();
       const count = _attempts() + 1;
       if (count >= LOGIN_MAX) {
         sessionStorage.setItem('ao-li-t', String(Date.now() + LOGIN_WAIT));
@@ -396,6 +430,14 @@ if (step2Form) {
     }
 
     const btn = document.getElementById('registerBtn');
+    setLoading(btn, true, 'Verifying...');
+    const captchaOk = await verifyCaptcha('registerTurnstile');
+    if (!captchaOk) {
+      resetCaptcha();
+      setLoading(btn, false);
+      showError('step2Error', 'step2ErrorText', 'Please complete the CAPTCHA verification.');
+      return;
+    }
     setLoading(btn, true, 'Creating account...');
     const isGoogle = !!window._googlePending;
 
@@ -463,6 +505,7 @@ if (step2Form) {
         window.location.href = next ? `/compass?next=${encodeURIComponent(next)}` : '/compass';
       }, 700);
     } catch (err) {
+      resetCaptcha();
       showError('step2Error', 'step2ErrorText', friendlyError(err.code || err.message));
     } finally {
       setLoading(btn, false);

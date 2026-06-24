@@ -72,6 +72,12 @@
         <span id="loginErrorText"></span>
       </div>
 
+      <div style="margin-bottom:16px">
+        <div class="cf-turnstile" id="loginTurnstile"
+             data-sitekey="0x4AAAAAADqYunZzHwnreyqI"
+             data-theme="auto"></div>
+      </div>
+
       <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
         Sign In
       </button>
@@ -95,6 +101,7 @@
 </div>
 
 <div id="toast-container"></div>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>

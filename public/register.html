@@ -196,6 +196,12 @@
           <span id="step2ErrorText"></span>
         </div>
 
+        <div style="margin-bottom:16px">
+          <div class="cf-turnstile" id="registerTurnstile"
+               data-sitekey="0x4AAAAAADqYunZzHwnreyqI"
+               data-theme="auto"></div>
+        </div>
+
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:16px">
           <input type="checkbox" id="tosAgree" style="margin-top:3px;flex-shrink:0;accent-color:var(--purple);width:15px;height:15px" />
           <span style="font-size:0.83rem;color:var(--text-2);line-height:1.5">
@@ -225,6 +231,7 @@
 </div>
 
 <div id="toast-container"></div>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
