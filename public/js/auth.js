@@ -378,6 +378,12 @@ if (step2Form) {
     e.preventDefault();
     hideError('step2Error');
 
+    const tosAgree = document.getElementById('tosAgree');
+    if (tosAgree && !tosAgree.checked) {
+      showError('step2Error', 'step2ErrorText', 'You must agree to the Terms of Service and Privacy Policy to create an account.');
+      return;
+    }
+
     const age      = document.getElementById('age').value;
     const gender   = document.getElementById('gender').value;
     const religion = document.getElementById('religion').value;
@@ -438,6 +444,7 @@ if (step2Form) {
         politicalY: 0,
         compassSet: false,
         avatarUrl,
+        agreedToTermsAt: firebase.firestore.FieldValue.serverTimestamp(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       batch.set(firestoreDb.collection('usernames').doc(regData.username), { uid, email: regData.email || '' });
