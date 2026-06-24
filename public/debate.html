@@ -98,6 +98,23 @@
     </div>
   </div>
 
+  <!-- Speak-request panel (shown to current speaker when listener asks to speak) -->
+  <div id="speakRequestPanel" class="challenge-notif" style="display:none;left:24px;right:auto">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="font-size:1.5rem;flex-shrink:0">✋</div>
+      <div style="flex:1">
+        <div id="speakRequestText" style="font-size:0.88rem;font-weight:600;margin-bottom:10px;line-height:1.4"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="passTurn();dismissSpeakRequest()">Yield Turn</button>
+          <button class="btn btn-ghost btn-sm" onclick="dismissSpeakRequest()">Keep Going</button>
+        </div>
+      </div>
+      <button onclick="dismissSpeakRequest()" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0" aria-label="Dismiss">
+        <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
   <!-- Free-debate request panel -->
   <div id="freeDebatePanel" class="challenge-notif" style="display:none;left:24px;right:auto">
     <div style="display:flex;align-items:flex-start;gap:12px">
@@ -127,6 +144,7 @@
       <span id="turnCountdown" class="turn-countdown">1:00</span>
       <div class="turn-actions">
         <button id="turnPassBtn" class="btn btn-sm btn-ghost" onclick="passTurn()" style="display:none">Pass Turn</button>
+        <button id="turnRequestBtn" class="btn btn-sm btn-ghost" onclick="requestToSpeak()" style="display:none">Request to Speak</button>
         <button id="freeDebateBtn" class="btn btn-sm btn-ghost" onclick="requestFreeDebate()">Free Debate</button>
       </div>
     </div>
@@ -194,12 +212,6 @@
         <span id="chatBadge" style="display:none;position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--red);border:2px solid var(--bg-0)"></span>
       </button>
       <div class="control-label">Chat</div>
-    </div>
-    <div class="control-wrap">
-      <button class="btn-icon" id="nsBtn" title="Noise suppression: ON" aria-label="Toggle noise suppression">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-      </button>
-      <div class="control-label" id="nsLabel">NS</div>
     </div>
     <div class="control-wrap">
       <button class="btn-icon" id="reportBtn" title="Report opponent" aria-label="Report opponent" onclick="openDebateReport()" style="color:rgba(239,68,68,0.7)">

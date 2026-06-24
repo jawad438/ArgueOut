@@ -161,14 +161,15 @@ let rnnoiseInPtr     = 0;
 let rnnoiseOutPtr    = 0;
 let rnnoiseAudioCtx  = null;
 let rnnoiseProcessor = null;
-let noiseEnabled     = true;
 
 const RNNOISE_FRAME = 480;
 
 async function applyRNNoise(rawStream) {
   const factory = window.createRNNWasmModule;
   if (typeof factory !== 'function') throw new Error('RNNoise not loaded');
-  rnnoiseModule = await factory({ locateFile: f => '/js/' + f });
+  const mod = factory({ locateFile: f => '/js/' + f });
+  await mod.ready;
+  rnnoiseModule = mod;
 
   rnnoiseState  = rnnoiseModule._rnnoise_create(0);
   rnnoiseInPtr  = rnnoiseModule._malloc(RNNOISE_FRAME * 4);
@@ -189,12 +190,6 @@ async function applyRNNoise(rawStream) {
   rnnoiseProcessor.onaudioprocess = (e) => {
     const input  = e.inputBuffer.getChannelData(0);
     const output = e.outputBuffer.getChannelData(0);
-
-    if (!noiseEnabled) {
-      output.set(input);
-      inFill = outFill = outRead = 0;
-      return;
-    }
 
     // Accumulate input
     const take = Math.min(input.length, IN_CAP - inFill);
@@ -239,19 +234,6 @@ async function applyRNNoise(rawStream) {
   ]);
 }
 
-function updateNSBtn() {
-  const btn = document.getElementById('nsBtn');
-  const lbl = document.getElementById('nsLabel');
-  if (!btn) return;
-  const available = !!rnnoiseModule;
-  btn.disabled = !available;
-  // .active (purple) = NS is currently OFF
-  btn.classList.toggle('active', available && !noiseEnabled);
-  btn.title = !available
-    ? 'Noise suppression unavailable'
-    : noiseEnabled ? 'Noise suppression: ON - click to disable' : 'Noise suppression: OFF - click to enable';
-  if (lbl) lbl.textContent = !available ? 'NS' : noiseEnabled ? 'NS: ON' : 'NS: OFF';
-}
 
 async function getLocalMedia() {
   try {
@@ -263,12 +245,9 @@ async function getLocalMedia() {
 
     try {
       localStream = await applyRNNoise(rawMicStream);
-      updateNSBtn();
     } catch (err) {
       console.warn('RNNoise unavailable:', err);
       localStream = rawMicStream;
-      noiseEnabled = false;
-      updateNSBtn();
     }
 
     if (selfVideo) selfVideo.srcObject = localStream;
@@ -714,15 +693,6 @@ if (muteBtn) {
   });
 }
 
-const nsBtn = document.getElementById('nsBtn');
-if (nsBtn) {
-  nsBtn.addEventListener('click', () => {
-    if (!rnnoiseModule) return;
-    noiseEnabled = !noiseEnabled;
-    updateNSBtn();
-    showToast(noiseEnabled ? 'Noise suppression enabled' : 'Noise suppression disabled', 'info');
-  });
-}
 
 if (camBtn) {
   camBtn.addEventListener('click', () => {
@@ -990,9 +960,12 @@ socket.on('turn-start', ({ speakerSocketId, speakerUsername, turnNumber, duratio
   const freeBtn = document.getElementById('freeDebateBtn');
   const dot     = document.getElementById('turnDot');
 
+  const reqBtn  = document.getElementById('turnRequestBtn');
+
   if (banner)  banner.style.display = 'flex';
   if (label)   label.textContent    = iAmSpeaker ? 'Your turn — speak now' : `${speakerUsername} is speaking`;
-  if (passBtn) passBtn.style.display = iAmSpeaker ? 'inline-flex' : 'none';
+  if (passBtn) passBtn.style.display  = iAmSpeaker ? 'inline-flex' : 'none';
+  if (reqBtn)  { reqBtn.style.display = iAmSpeaker ? 'none' : 'inline-flex'; reqBtn.textContent = 'Request to Speak'; reqBtn.disabled = false; }
   if (freeBtn && !freeDebateRequested) { freeBtn.textContent = 'Free Debate'; freeBtn.disabled = false; }
   if (dot)     dot.style.background = iAmSpeaker ? '#3b82f6' : '#ef4444';
 
@@ -1024,6 +997,8 @@ socket.on('debate-mode-free', () => {
   if (label)   label.textContent     = 'Free debate — speak freely';
   if (cntdown) cntdown.textContent   = '';
   if (passBtn) passBtn.style.display = 'none';
+  const reqBtn2 = document.getElementById('turnRequestBtn');
+  if (reqBtn2) reqBtn2.style.display = 'none';
   freeDebateRequested = false;
   showToast('Free debate! Both can speak freely now.', 'success');
   setTimeout(() => { const b = document.getElementById('turnBanner'); if (b) b.style.display = 'none'; }, 3000);
@@ -1063,5 +1038,28 @@ function requestFreeDebate() {
 function respondFreeDebate(accepted) {
   socket.emit('accept-free-debate', { roomId, accepted });
   const panel = document.getElementById('freeDebatePanel');
+  if (panel) panel.style.display = 'none';
+}
+
+socket.on('speak-requested', ({ fromUsername }) => {
+  const panel = document.getElementById('speakRequestPanel');
+  const text  = document.getElementById('speakRequestText');
+  if (text)  text.textContent = `${fromUsername} wants to speak`;
+  if (panel) { panel.style.display = 'block'; }
+  setTimeout(() => {
+    const p = document.getElementById('speakRequestPanel');
+    if (p && p.style.display !== 'none') p.style.display = 'none';
+  }, 15000);
+});
+
+function requestToSpeak() {
+  socket.emit('request-to-speak', { roomId });
+  const btn = document.getElementById('turnRequestBtn');
+  if (btn) { btn.textContent = 'Requested'; btn.disabled = true; }
+  showToast('Asked to speak — waiting for the other person to yield.', 'info');
+}
+
+function dismissSpeakRequest() {
+  const panel = document.getElementById('speakRequestPanel');
   if (panel) panel.style.display = 'none';
 }

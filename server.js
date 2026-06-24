@@ -367,6 +367,25 @@ const SUGGEST_MODEL    = 'meta-llama/llama-3.3-70b-instruct:free';
 const FALLBACK_MODEL   = 'meta-llama/llama-3.1-8b-instruct:free';
 const OR_RATE_LIMITED  = Symbol('rate-limited');
 
+const FALLBACK_QUESTIONS = [
+  'Should universal basic income replace welfare?',
+  'Is capitalism or socialism better for society?',
+  'Should abortion be legal in all circumstances?',
+  'Is religion doing more harm than good?',
+  'Should national borders be fully open?',
+  'Does affirmative action help or hurt equality?',
+  'Is the death penalty ever justified?',
+  'Should all drugs be fully legalised?',
+  'Is free speech ever right to limit?',
+  'Was colonialism the main cause of today\'s global inequality?',
+  'Should billionaires be allowed to exist?',
+  'Is democracy the best form of government?',
+  'Should social media companies censor hate speech?',
+  'Is animal farming morally defensible?',
+  'Should voting be mandatory?',
+];
+const pickFallback = () => FALLBACK_QUESTIONS[Math.floor(Math.random() * FALLBACK_QUESTIONS.length)];
+
 const SUGGEST_SYSTEM = `You are ArgueOut's debate igniter. Pick the most explosive opponent pairing and write a debate question.
 
 Selection: maximise political compass distance, then demographic contrast (age, religion, country).
@@ -947,6 +966,16 @@ io.on('connection', socket => {
     if (other) io.to(other.socketId).emit('free-debate-requested', { fromUsername: me.username });
   });
 
+  socket.on('request-to-speak', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.turnMode !== 'structured') return;
+    const me = socketUsers.get(socket.id);
+    if (!me) return;
+    if (room.users[room.currentSpeakerIdx]?.socketId === socket.id) return;
+    const speaker = room.users[room.currentSpeakerIdx];
+    if (speaker?.socketId) io.to(speaker.socketId).emit('speak-requested', { fromUsername: me.username });
+  });
+
   socket.on('accept-free-debate', ({ roomId, accepted }) => {
     const room = rooms.get(roomId);
     if (!room) return;
@@ -1092,7 +1121,7 @@ io.on('connection', socket => {
         return u;
       });
       generateDebateQuestionForPair(profiles[0], profiles[1]).then(question => {
-        if (question) io.to(roomId).emit('question-updated', { question });
+        io.to(roomId).emit('question-updated', { question: question || pickFallback() });
       });
     }
   });
@@ -1108,7 +1137,7 @@ io.on('connection', socket => {
       roomDeclines.delete(roomId);
       io.to(roomId).emit('question-generating');
       generateDebateQuestion(null).then(question => {
-        if (question) io.to(roomId).emit('question-updated', { question });
+        io.to(roomId).emit('question-updated', { question: question || pickFallback() });
       });
     }
   });
@@ -1138,7 +1167,7 @@ io.on('connection', socket => {
     }
     io.to(roomId).emit('question-generating');
     generateDebateQuestion(pending.suggestion).then(question => {
-      io.to(roomId).emit('question-updated', { question: question || pending.suggestion });
+      io.to(roomId).emit('question-updated', { question: question || pending.suggestion || pickFallback() });
     });
   });
 
