@@ -151,6 +151,7 @@ app.use(helmet({
     },
   },
   crossOriginEmbedderPolicy: false, // required for WebRTC getUserMedia
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }, // required for Firebase signInWithPopup (keeps window.opener for auth relay)
   hsts: process.env.NODE_ENV === 'production'
     ? { maxAge: 63072000, includeSubDomains: true, preload: true }
     : false,
