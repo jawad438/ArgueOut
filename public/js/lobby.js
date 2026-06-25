@@ -179,6 +179,182 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// -- Account management ----------------------------------------
+const ACCOUNTS_KEY = 'ao-accounts';
+
+function getAccounts() {
+  try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]'); } catch { return []; }
+}
+
+function saveToAccountList({ uid, username, email, avatarUrl, isGoogle }) {
+  const accounts = getAccounts();
+  const idx = accounts.findIndex(a => a.uid === uid);
+  const rec = { uid, username, email: email || '', avatarUrl: avatarUrl || '', isGoogle: !!isGoogle };
+  if (idx >= 0) accounts[idx] = rec; else accounts.push(rec);
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
+function renderAccountDropdown() {
+  const list    = document.getElementById('acctList');
+  const current = currentUserId;
+  const accounts = getAccounts();
+  if (!list) return;
+  list.innerHTML = '';
+  accounts.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'acct-item' + (a.uid === current ? ' active' : '');
+    const avatarHtml = a.avatarUrl
+      ? `<img src="${escapeHtml(a.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">`
+      : `<span>${escapeHtml((a.username || 'U')[0].toUpperCase())}</span>`;
+    const checkSvg = a.uid === current
+      ? `<svg style="width:13px;height:13px;fill:none;stroke:var(--purple);stroke-width:2.5;margin-left:auto;flex-shrink:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>` : '';
+    btn.innerHTML = `
+      <div class="acct-item-avatar">${avatarHtml}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@${escapeHtml(a.username)}</div>
+        ${a.uid === current ? '<div style="font-size:0.7rem;color:var(--text-3)">Current</div>' : ''}
+      </div>
+      ${checkSvg}
+    `;
+    if (a.uid !== current) btn.onclick = () => initiateSwitchAccount(a);
+    list.appendChild(btn);
+  });
+}
+
+let _acctDropdownOpen = false;
+
+function openAccountSwitcher() {
+  const dropdown = document.getElementById('acctDropdown');
+  if (!dropdown) return;
+  renderAccountDropdown();
+  if (_acctDropdownOpen) { dropdown.style.display = 'none'; _acctDropdownOpen = false; return; }
+  closeNotifDropdown();
+  dropdown.style.display = 'block';
+  _acctDropdownOpen = true;
+}
+
+function closeAccountSwitcher() {
+  const dropdown = document.getElementById('acctDropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  _acctDropdownOpen = false;
+}
+
+let _switchTarget = null;
+
+function openAddAccountModal() {
+  _switchTarget = null;
+  closeAccountSwitcher();
+  const userInput = document.getElementById('acctModalUser');
+  if (userInput) { userInput.readOnly = false; userInput.style.opacity = ''; userInput.value = ''; }
+  document.getElementById('acctModalPass').value = '';
+  document.getElementById('acctModalTitle').textContent = 'Add another account';
+  document.getElementById('acctModalSubmitBtn').textContent = 'Sign In';
+  document.getElementById('acctModalErr').style.display = 'none';
+  document.getElementById('acctModal').style.display = 'flex';
+}
+
+function initiateSwitchAccount(acct) {
+  _switchTarget = acct;
+  closeAccountSwitcher();
+  const userInput = document.getElementById('acctModalUser');
+  if (userInput) { userInput.value = acct.username; userInput.readOnly = true; userInput.style.opacity = '0.6'; }
+  document.getElementById('acctModalPass').value = '';
+  document.getElementById('acctModalTitle').textContent = `Switch to @${acct.username}`;
+  document.getElementById('acctModalSubmitBtn').textContent = `Switch to @${acct.username}`;
+  document.getElementById('acctModalErr').style.display = 'none';
+  document.getElementById('acctModal').style.display = 'flex';
+}
+
+function closeAcctModal() {
+  document.getElementById('acctModal').style.display = 'none';
+  _switchTarget = null;
+  const userInput = document.getElementById('acctModalUser');
+  if (userInput) { userInput.readOnly = false; userInput.style.opacity = ''; }
+}
+
+async function acctModalGoogleSignIn() {
+  const errEl = document.getElementById('acctModalErr');
+  const errTx = document.getElementById('acctModalErrText');
+  errEl.style.display = 'none';
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const result   = await auth.signInWithPopup(provider);
+    const user     = result.user;
+    const doc      = await firestoreDb.collection('users').doc(user.uid).get();
+    if (!doc.exists) {
+      sessionStorage.setItem('googleAuthPending', JSON.stringify({
+        uid: user.uid, displayName: user.displayName || '',
+        photoURL: user.photoURL || '', email: user.email || ''
+      }));
+      window.location.href = '/register?mode=google';
+      return;
+    }
+    const profile = doc.data();
+    saveToAccountList({ uid: user.uid, username: profile.username, email: user.email || '', avatarUrl: profile.avatarUrl || user.photoURL || '', isGoogle: true });
+    performAccountSwitch(user.uid, profile.username, profile.avatarUrl || user.photoURL || '');
+  } catch (err) {
+    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+    errTx.textContent = 'Google sign-in failed: ' + (err.message || err.code);
+    errEl.style.display = 'flex';
+  }
+}
+
+async function acctModalSubmit() {
+  const errEl  = document.getElementById('acctModalErr');
+  const errTx  = document.getElementById('acctModalErrText');
+  const btn    = document.getElementById('acctModalSubmitBtn');
+  const input  = (document.getElementById('acctModalUser').value || '').trim();
+  const pass   = document.getElementById('acctModalPass').value;
+  errEl.style.display = 'none';
+
+  if (!pass) { errTx.textContent = 'Please enter your password.'; errEl.style.display = 'flex'; return; }
+
+  const origText = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    let authEmail = _switchTarget?.email || '';
+    if (!authEmail) {
+      if (input.includes('@')) {
+        authEmail = input;
+      } else {
+        try {
+          const snap = await firestoreDb.collection('usernames').doc(input).get();
+          authEmail = (snap.exists && snap.data().email) ? snap.data().email : `${input.toLowerCase()}@argueout.app`;
+        } catch { authEmail = `${input.toLowerCase()}@argueout.app`; }
+      }
+    }
+
+    const cred    = await auth.signInWithEmailAndPassword(authEmail, pass);
+    const user    = cred.user;
+    const doc     = await firestoreDb.collection('users').doc(user.uid).get();
+    if (!doc.exists) throw new Error('Profile not found.');
+    const profile = doc.data();
+    saveToAccountList({ uid: user.uid, username: profile.username, email: authEmail, avatarUrl: profile.avatarUrl || '', isGoogle: false });
+    performAccountSwitch(user.uid, profile.username, profile.avatarUrl || '');
+  } catch (err) {
+    const map = {
+      'auth/wrong-password':       'Incorrect password.',
+      'auth/user-not-found':       'Account not found.',
+      'auth/invalid-credential':   'Incorrect username or password.',
+      'auth/too-many-requests':    'Too many attempts. Wait a moment.',
+    };
+    errTx.textContent = map[err.code] || (err.message || 'Sign-in failed.');
+    errEl.style.display = 'flex';
+  } finally {
+    btn.disabled = false; btn.textContent = origText;
+  }
+}
+
+function performAccountSwitch(uid, username, avatarUrl) {
+  localStorage.setItem('userId',   uid);
+  localStorage.setItem('username', username);
+  if (avatarUrl) localStorage.setItem('avatarDataUrl', avatarUrl);
+  else localStorage.removeItem('avatarDataUrl');
+  closeAcctModal();
+  window.location.reload();
+}
+
 // -- Socket.io (delayed connect until Firebase Auth ready) -----
 const socket = io({ autoConnect: false });
 let inQueue       = false;
@@ -653,6 +829,15 @@ auth.onAuthStateChanged(async (user) => {
     currentUserId = user.uid;
     updateProfileUI(profile);
 
+    // Keep the accounts list entry fresh with latest profile data
+    saveToAccountList({
+      uid:       user.uid,
+      username:  profile.username,
+      email:     user.email || '',
+      avatarUrl: profile.avatarUrl || localStorage.getItem('avatarDataUrl') || '',
+      isGoogle:  (user.providerData?.[0]?.providerId === 'google.com'),
+    });
+
     if (profile.isAdmin) {
       const adminBtn = document.getElementById('adminPanelBtn');
       if (adminBtn) adminBtn.style.display = 'flex';
@@ -931,6 +1116,13 @@ if (notifBtn) {
 }
 
 document.addEventListener('click', e => {
+  if (_acctDropdownOpen) {
+    const acctDd   = document.getElementById('acctDropdown');
+    const navUser  = document.querySelector('.nav-user');
+    if (acctDd && !acctDd.contains(e.target) && !navUser?.contains(e.target)) {
+      closeAccountSwitcher();
+    }
+  }
   if (!notifDropdownOpen) return;
   const dropdown = document.getElementById('notifDropdown');
   if (dropdown && !dropdown.contains(e.target) && !notifBtn?.contains(e.target)) {

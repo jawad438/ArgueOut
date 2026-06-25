@@ -23,9 +23,24 @@
 <nav class="navbar">
   <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
   <div class="nav-actions" style="position:relative">
-    <div class="nav-user">
+    <div class="nav-user" onclick="openAccountSwitcher()" style="cursor:pointer" title="Switch account">
       <div class="nav-avatar" id="navAvatar">?</div>
       <span id="navUsername" style="color:var(--text-2)">Loading...</span>
+      <svg style="width:11px;height:11px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.5;color:var(--text-3)" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div id="acctDropdown" class="acct-dropdown" style="display:none">
+      <div style="padding:10px 14px 8px;font-size:0.7rem;font-weight:700;color:var(--text-3);letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Switch account</div>
+      <div id="acctList"></div>
+      <div style="border-top:1px solid var(--border);padding:4px">
+        <button class="acct-action-btn" onclick="openAddAccountModal()">
+          <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Add another account
+        </button>
+        <button class="acct-action-btn" onclick="document.getElementById('logoutBtn').click()">
+          <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign out
+        </button>
+      </div>
     </div>
     <button class="notif-btn" id="notifBtn" title="Notifications" aria-label="Notifications">
       <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -422,6 +437,34 @@
     </div>
     <div id="reportModalError" style="display:none;color:var(--red);font-size:0.82rem;margin-bottom:10px"></div>
     <button class="btn btn-primary btn-full" id="submitReportBtn" onclick="submitReport()">Submit Report</button>
+  </div>
+</div>
+
+<!-- Account add/switch modal -->
+<div class="modal-overlay" id="acctModal" style="display:none" onclick="if(event.target===this)closeAcctModal()">
+  <div class="auth-card" style="max-width:380px;width:100%;position:relative">
+    <button onclick="closeAcctModal()" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center" aria-label="Close">
+      <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div style="margin-bottom:20px">
+      <div id="acctModalTitle" style="font-size:1.1rem;font-weight:700;font-family:'Space Grotesk',sans-serif">Add another account</div>
+    </div>
+    <button class="btn-google btn-full" style="width:100%;margin-bottom:14px" onclick="acctModalGoogleSignIn()">
+      <svg style="width:18px;height:18px;flex-shrink:0" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/><path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+      Continue with Google
+    </button>
+    <div class="auth-divider"><span>or sign in with password</span></div>
+    <div id="acctModalUserWrap" style="margin-bottom:10px">
+      <input id="acctModalUser" class="form-input" placeholder="Username or email" autocapitalize="none" autocomplete="username" style="margin-bottom:0" />
+    </div>
+    <div style="margin-bottom:14px">
+      <input id="acctModalPass" class="form-input" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')acctModalSubmit()" style="margin-bottom:0" />
+    </div>
+    <div id="acctModalErr" class="form-error" style="display:none;margin-bottom:12px">
+      <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="acctModalErrText"></span>
+    </div>
+    <button id="acctModalSubmitBtn" class="btn btn-primary btn-full" onclick="acctModalSubmit()">Sign In</button>
   </div>
 </div>
 

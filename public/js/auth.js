@@ -1,5 +1,16 @@
 ﻿/* auth.js — Firebase Auth for login.html and register.html */
 
+// ── Account list (shared with lobby.js) ───────────────────────
+function _saveAcctList({ uid, username, email, avatarUrl, isGoogle }) {
+  try {
+    const list = JSON.parse(localStorage.getItem('ao-accounts') || '[]');
+    const idx  = list.findIndex(a => a.uid === uid);
+    const rec  = { uid, username, email: email || '', avatarUrl: avatarUrl || '', isGoogle: !!isGoogle };
+    if (idx >= 0) list[idx] = rec; else list.push(rec);
+    localStorage.setItem('ao-accounts', JSON.stringify(list));
+  } catch {}
+}
+
 // ── Utilities ─────────────────────────────────────────────────
 
 function showToast(message, type = 'info') {
@@ -117,6 +128,7 @@ async function handleGoogleSignIn(btnId) {
       localStorage.setItem('username', profile.username);
       localStorage.setItem('userId',   user.uid);
       if (profile.avatarUrl) localStorage.setItem('avatarDataUrl', profile.avatarUrl);
+      _saveAcctList({ uid: user.uid, username: profile.username, email: user.email || '', avatarUrl: profile.avatarUrl || user.photoURL || '', isGoogle: true });
       showToast('Welcome back!', 'success');
       setTimeout(() => {
         const next = new URLSearchParams(location.search).get('next');
@@ -276,6 +288,7 @@ if (loginForm) {
       localStorage.setItem('username', profile.username);
       localStorage.setItem('userId',   user.uid);
       if (profile.avatarUrl) localStorage.setItem('avatarDataUrl', profile.avatarUrl);
+      _saveAcctList({ uid: user.uid, username: profile.username, email: authEmail, avatarUrl: profile.avatarUrl || '', isGoogle: false });
 
       _resetLimit(); // clear attempt counter on success
       showToast('Welcome back!', 'success');
@@ -515,6 +528,7 @@ if (step2Form) {
 
       localStorage.setItem('username', regData.username);
       localStorage.setItem('userId',   uid);
+      _saveAcctList({ uid, username: regData.username, email: regData.email || '', avatarUrl: avatarUrl || '', isGoogle: !!isGoogle });
       if (isGoogle) {
         sessionStorage.removeItem('googleAuthPending');
         window._googlePending = null;
