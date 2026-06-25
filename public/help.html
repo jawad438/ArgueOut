@@ -172,7 +172,8 @@
         <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
       </div>
     </div>
-    <a href="/login" class="btn btn-ghost btn-sm">Sign In</a>
+    <span id="nav-auth-help"></span>
+    <script>(function(){var el=document.getElementById('nav-auth-help');el.innerHTML=localStorage.getItem('userId')?'<a href="/lobby" class="btn btn-ghost btn-sm">Back to Lobby</a>':'<a href="/login" class="btn btn-ghost btn-sm">Sign In</a>';}());</script>
     <a href="/register" class="btn btn-primary btn-sm">Get Started</a>
   </div>
 </nav>

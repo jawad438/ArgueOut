@@ -55,7 +55,8 @@
         <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
       </div>
     </div>
-    <a href="/login" class="btn btn-ghost btn-sm">Sign In</a>
+    <span id="nav-auth-legal"></span>
+    <script>(function(){var el=document.getElementById('nav-auth-legal');el.innerHTML=localStorage.getItem('userId')?'<a href="/lobby" class="btn btn-ghost btn-sm">Back to Lobby</a>':'<a href="/login" class="btn btn-ghost btn-sm">Sign In</a>';}());</script>
   </div>
 </nav>
 
@@ -283,8 +284,10 @@
     document.getElementById('tab-' + name).classList.add('active');
     document.getElementById('panel-' + name).classList.add('active');
   }
-  // Allow /legal#privacy to open directly to the privacy tab
   if (location.hash === '#privacy') switchTab('privacy');
+  window.addEventListener('hashchange', function() {
+    switchTab(location.hash === '#privacy' ? 'privacy' : 'tos');
+  });
 </script>
 <script src="/js/legal-footer.js"></script>
 </body>
