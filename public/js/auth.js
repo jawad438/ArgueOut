@@ -560,6 +560,10 @@ function goToStep(n) {
     ind1.classList.remove('active'); ind1.classList.add('done');
     ind2.classList.add('active');
     if (line1) line1.classList.add('done');
+    // Re-render the Turnstile widget now that its container is visible
+    setTimeout(() => {
+      try { if (typeof turnstile !== 'undefined') turnstile.reset(); } catch {}
+    }, 50);
   } else {
     s1.style.display = 'block'; s2.style.display = 'none';
     ind1.classList.add('active'); ind1.classList.remove('done');
