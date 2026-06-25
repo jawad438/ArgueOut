@@ -649,6 +649,13 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   color: var(--text-3);
   font-size: 0.85rem;
 }
+.footer-link {
+  color: var(--text-3);
+  font-size: 0.82rem;
+  text-decoration: none;
+  transition: color 120ms;
+}
+.footer-link:hover { color: var(--text-1); }
 
 /* ══════════════════════════════════════════════════════════════
    AUTH PAGES (login / register)

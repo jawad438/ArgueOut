@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Help &amp; Guide — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <meta name="theme-color" content="#8b5cf6" />
+  <meta name="description" content="Full guide to ArgueOut — how to debate, use the political compass, manage your account, and more." />
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
+  <style>
+    /* ── Help page layout ── */
+    .help-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    .help-hero {
+      margin-bottom: 48px; padding-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+    }
+    .help-hero h1 {
+      font-size: 2.2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--text-1) 0%, var(--purple) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 10px;
+    }
+    .help-hero p { font-size: 1rem; color: var(--text-2); max-width: 540px; line-height: 1.65; }
+
+    .help-layout {
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      gap: 52px;
+      align-items: start;
+    }
+
+    /* Sidebar */
+    .help-sidebar { position: sticky; top: 76px; }
+    .help-nav-section { margin-bottom: 22px; }
+    .help-nav-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-3);
+      padding: 0 10px; margin-bottom: 6px;
+    }
+    .help-nav a {
+      display: block; padding: 6px 10px; border-radius: 7px;
+      font-size: 0.84rem; color: var(--text-2); text-decoration: none;
+      transition: background 120ms, color 120ms;
+    }
+    .help-nav a:hover { background: rgba(139,92,246,0.08); color: var(--text-1); }
+    .help-nav a.active { background: rgba(139,92,246,0.12); color: var(--purple); font-weight: 600; }
+
+    /* Content */
+    .help-section { margin-bottom: 60px; scroll-margin-top: 84px; }
+    .help-h2 {
+      font-size: 1.45rem; font-weight: 800; color: var(--text-1);
+      margin-bottom: 20px; padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .help-h3 { font-size: 1rem; font-weight: 700; color: var(--text-1); margin: 24px 0 10px; }
+    .help-p { font-size: 0.9rem; color: var(--text-2); line-height: 1.78; margin-bottom: 14px; }
+    .help-ul, .help-ol { padding-left: 22px; margin: 10px 0 14px; }
+    .help-ul li, .help-ol li {
+      font-size: 0.9rem; color: var(--text-2); line-height: 1.72; margin-bottom: 6px;
+    }
+    .help-ul li strong, .help-ol li strong { color: var(--text-1); }
+
+    .help-tip {
+      background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.22);
+      border-radius: 10px; padding: 14px 18px; margin: 18px 0;
+      font-size: 0.86rem; color: var(--text-2); line-height: 1.68;
+      display: flex; gap: 10px;
+    }
+    .help-tip-icon { flex-shrink: 0; margin-top: 1px; color: var(--purple); }
+    .help-tip strong { color: var(--purple); }
+
+    .help-warn {
+      background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.22);
+      border-radius: 10px; padding: 14px 18px; margin: 18px 0;
+      font-size: 0.86rem; color: var(--text-2); line-height: 1.68;
+      display: flex; gap: 10px;
+    }
+    .help-warn-icon { flex-shrink: 0; margin-top: 1px; color: var(--red); }
+    .help-warn strong { color: var(--red); }
+
+    /* Compass quadrant chips */
+    .quadrant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0 20px; }
+    .quadrant-chip {
+      padding: 12px 14px; border-radius: 10px; font-size: 0.84rem; line-height: 1.5;
+    }
+    .quadrant-chip strong { display: block; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .q-red   { background: rgba(239,68,68,0.09); border: 1px solid rgba(239,68,68,0.22); }
+    .q-red strong { color: #ef4444; }
+    .q-blue  { background: rgba(59,130,246,0.09); border: 1px solid rgba(59,130,246,0.22); }
+    .q-blue strong { color: #3b82f6; }
+    .q-green { background: rgba(34,197,94,0.09); border: 1px solid rgba(34,197,94,0.22); }
+    .q-green strong { color: #22c55e; }
+    .q-amber { background: rgba(245,158,11,0.09); border: 1px solid rgba(245,158,11,0.22); }
+    .q-amber strong { color: #f59e0b; }
+    .quadrant-chip p { font-size: 0.82rem; color: var(--text-2); margin: 0; }
+
+    /* Steps */
+    .step-list { display: flex; flex-direction: column; gap: 14px; margin: 16px 0; }
+    .step-item { display: flex; gap: 14px; align-items: flex-start; }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Space Grotesk', sans-serif; font-weight: 800;
+      color: var(--purple); font-size: 0.82rem;
+    }
+    .step-body { padding-top: 3px; font-size: 0.9rem; color: var(--text-2); line-height: 1.65; }
+    .step-body strong { color: var(--text-1); }
+
+    /* FAQ */
+    .faq-list { display: flex; flex-direction: column; gap: 6px; }
+    .faq-item {
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+      transition: border-color 150ms;
+    }
+    .faq-item:hover { border-color: rgba(139,92,246,0.3); }
+    .faq-item[open] { border-color: rgba(139,92,246,0.35); }
+    .faq-item summary {
+      padding: 14px 18px; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; color: var(--text-1); list-style: none;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      user-select: none;
+    }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-chevron {
+      flex-shrink: 0; width: 16px; height: 16px;
+      fill: none; stroke: var(--text-3); stroke-width: 2.5;
+      stroke-linecap: round; transition: transform 200ms;
+    }
+    .faq-item[open] .faq-chevron { transform: rotate(180deg); }
+    .faq-body { padding: 0 18px 16px; font-size: 0.88rem; color: var(--text-2); line-height: 1.72; }
+    .faq-body a { color: var(--purple); }
+
+    /* Mobile */
+    @media (max-width: 780px) {
+      .help-layout { grid-template-columns: 1fr; gap: 0; }
+      .help-sidebar {
+        position: static; border-bottom: 1px solid var(--border);
+        margin-bottom: 32px; padding-bottom: 20px;
+        display: flex; flex-wrap: wrap; gap: 6px;
+      }
+      .help-nav-section { margin-bottom: 0; }
+      .help-nav-label { display: none; }
+      .help-nav a { display: inline-flex; padding: 5px 10px; font-size: 0.8rem; }
+      .quadrant-grid { grid-template-columns: 1fr; }
+      .help-hero h1 { font-size: 1.7rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+
+<nav class="navbar">
+  <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+  <div class="nav-actions">
+    <div class="theme-switcher">
+      <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme" title="Switch theme">
+        <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
+      </button>
+      <div class="theme-menu" id="themeMenu" style="display:none">
+        <button class="theme-menu-item" data-t="system" onclick="applyTheme('system')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>System<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+        <button class="theme-menu-item" data-t="light" onclick="applyTheme('light')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>Light<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+        <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+    </div>
+    <a href="/login" class="btn btn-ghost btn-sm">Sign In</a>
+    <a href="/register" class="btn btn-primary btn-sm">Get Started</a>
+  </div>
+</nav>
+
+<div class="help-wrap">
+
+  <div class="help-hero">
+    <h1>Help &amp; Guide</h1>
+    <p>Everything you need to know about ArgueOut — from creating your account to mastering the debate room.</p>
+  </div>
+
+  <div class="help-layout">
+
+    <!-- ── Sidebar ── -->
+    <aside class="help-sidebar">
+      <nav class="help-nav" id="helpNav">
+
+        <div class="help-nav-section">
+          <div class="help-nav-label">Getting Started</div>
+          <a href="#what-is" class="help-nav-link">What is ArgueOut?</a>
+          <a href="#create-account" class="help-nav-link">Creating an Account</a>
+          <a href="#compass-setup" class="help-nav-link">Setting Your Compass</a>
+        </div>
+
+        <div class="help-nav-section">
+          <div class="help-nav-label">The Lobby</div>
+          <a href="#your-profile" class="help-nav-link">Your Profile</a>
+          <a href="#finding-partner" class="help-nav-link">Finding a Debate Partner</a>
+          <a href="#matching" class="help-nav-link">How Matching Works</a>
+        </div>
+
+        <div class="help-nav-section">
+          <div class="help-nav-label">Debate Room</div>
+          <a href="#video-audio" class="help-nav-link">Video &amp; Audio</a>
+          <a href="#turn-system" class="help-nav-link">The Turn System</a>
+          <a href="#chat" class="help-nav-link">Chat Panel</a>
+          <a href="#ending-debate" class="help-nav-link">Ending a Debate</a>
+        </div>
+
+        <div class="help-nav-section">
+          <div class="help-nav-label">Your Account</div>
+          <a href="#profile-edit" class="help-nav-link">Editing Your Profile</a>
+          <a href="#multi-account" class="help-nav-link">Multiple Accounts</a>
+          <a href="#update-compass" class="help-nav-link">Updating Your Compass</a>
+        </div>
+
+        <div class="help-nav-section">
+          <div class="help-nav-label">Moderation</div>
+          <a href="#rules" class="help-nav-link">Platform Rules</a>
+          <a href="#reporting" class="help-nav-link">Reporting a User</a>
+          <a href="#bans" class="help-nav-link">Bans &amp; Enforcement</a>
+        </div>
+
+        <div class="help-nav-section">
+          <div class="help-nav-label">Technical</div>
+          <a href="#camera-mic" class="help-nav-link">Camera &amp; Microphone</a>
+          <a href="#connection" class="help-nav-link">Connection Issues</a>
+          <a href="#cache" class="help-nav-link">Clearing the Cache</a>
+        </div>
+
+        <div class="help-nav-section">
+          <div class="help-nav-label">Reference</div>
+          <a href="#faq" class="help-nav-link">FAQ</a>
+        </div>
+
+      </nav>
+    </aside>
+
+    <!-- ── Main content ── -->
+    <main class="help-content">
+
+      <!-- ════ GETTING STARTED ════ -->
+      <section class="help-section" id="what-is">
+        <h2 class="help-h2">What is ArgueOut?</h2>
+        <p class="help-p">ArgueOut is a live video debate platform that pairs you with someone who holds opposing political views. You fill out a Political Compass to place yourself on a spectrum from left to right (economic) and authoritarian to libertarian (social). The platform then matches you with your political opposite and connects you for a face-to-face, real-time video debate.</p>
+        <p class="help-p">Every debate uses a topic generated by AI — tailored to the specific combination of people in the room. There are no pre-set scripts. You argue your real position against a real person who disagrees with you.</p>
+        <div class="help-tip">
+          <svg class="help-tip-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div><strong>Why debate?</strong> The best way to stress-test your beliefs is to defend them live, against someone who disagrees with everything you stand for. ArgueOut is built for that.</div>
+        </div>
+      </section>
+
+      <section class="help-section" id="create-account">
+        <h2 class="help-h2">Creating an Account</h2>
+        <p class="help-p">Registration takes about two minutes and is split into two steps.</p>
+
+        <h3 class="help-h3">Step 1 — Identity</h3>
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-body">Go to <a href="/register" style="color:var(--purple)">/register</a> or click <strong>Get Started</strong> on the homepage.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-body">Optionally click the avatar circle to upload a <strong>profile picture</strong> (JPG/PNG/GIF, max 5 MB).</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-body">Enter your <strong>full name</strong>, a unique <strong>username</strong> (3–20 characters, letters/numbers/underscore), <strong>email</strong>, and a <strong>password</strong> (at least 6 characters).</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">4</div>
+            <div class="step-body">Check the <strong>Terms of Service</strong> box and click <strong>Continue</strong>. You can also sign up instantly with your Google account.</div>
+          </div>
+        </div>
+
+        <h3 class="help-h3">Step 2 — Demographics</h3>
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">5</div>
+            <div class="step-body">Fill in optional context: <strong>date of birth</strong>, <strong>gender</strong>, <strong>religion / worldview</strong>, <strong>country</strong>, and a short <strong>bio</strong> (max 280 characters). None of this is required but it helps give your opponents meaningful context.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">6</div>
+            <div class="step-body">Complete the <strong>security check</strong> (Cloudflare Turnstile CAPTCHA) — this appears automatically in step 2.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">7</div>
+            <div class="step-body">Click <strong>Create Account &amp; Continue</strong>. You'll be taken straight to the Political Compass setup.</div>
+          </div>
+        </div>
+
+        <div class="help-warn">
+          <svg class="help-warn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div><strong>Age requirement:</strong> You must be 18 or older to use ArgueOut. If we discover you are under 18, your account will be terminated and your data deleted.</div>
+        </div>
+      </section>
+
+      <section class="help-section" id="compass-setup">
+        <h2 class="help-h2">Setting Your Political Compass</h2>
+        <p class="help-p">After registration you're taken to <strong>/compass</strong>. This is the most important step — your compass position determines who you debate.</p>
+        <p class="help-p">You'll be presented with a series of <strong>AI-generated questions</strong> tailored to your profile. Answer each one honestly on a scale from "Strongly Agree" to "Strongly Disagree". After completing all questions, your answers are scored and your position is placed on a 2D grid.</p>
+
+        <h3 class="help-h3">The Two Axes</h3>
+        <ul class="help-ul">
+          <li><strong>Left–Right (horizontal):</strong> Economic views. Left = collective / state-managed economics. Right = free market / private enterprise.</li>
+          <li><strong>Authoritarian–Libertarian (vertical):</strong> Social views. Authoritarian = strong government control. Libertarian = personal freedom and minimal state intervention.</li>
+        </ul>
+
+        <h3 class="help-h3">The Four Quadrants</h3>
+        <div class="quadrant-grid">
+          <div class="quadrant-chip q-red">
+            <strong>Auth-Left</strong>
+            <p>State-led economy, strong government control. Typical views: socialism, communism, strong welfare state.</p>
+          </div>
+          <div class="quadrant-chip q-blue">
+            <strong>Auth-Right</strong>
+            <p>Free-market economy, strong social order. Typical views: conservatism, nationalism, traditional values.</p>
+          </div>
+          <div class="quadrant-chip q-green">
+            <strong>Lib-Left</strong>
+            <p>Collective economics, personal freedom. Typical views: progressivism, social democracy, environmentalism.</p>
+          </div>
+          <div class="quadrant-chip q-amber">
+            <strong>Lib-Right</strong>
+            <p>Free-market economy, social freedom. Typical views: libertarianism, classical liberalism, voluntaryism.</p>
+          </div>
+        </div>
+
+        <p class="help-p">Once set, your compass position is visible to potential opponents in the queue and shown on your lobby profile card as a quadrant badge (e.g. "Auth-Left").</p>
+        <div class="help-tip">
+          <svg class="help-tip-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>You can redo your compass at any time from the lobby. See <a href="#update-compass" style="color:var(--purple)">Updating Your Compass</a> below.</div>
+        </div>
+      </section>
+
+      <!-- ════ THE LOBBY ════ -->
+      <section class="help-section" id="your-profile">
+        <h2 class="help-h2">Your Profile</h2>
+        <p class="help-p">The left panel of the lobby is your profile card. It shows your avatar, display name, username, quadrant badge, compass coordinates, and your optional demographics (age, gender, religion, country, bio).</p>
+
+        <h3 class="help-h3">Changing Your Profile Picture</h3>
+        <p class="help-p">Click your avatar circle in the profile panel. A file picker opens — choose a JPG, PNG, or GIF (max 5 MB). The image is automatically resized and saved to your account. The change appears immediately in the lobby and will be visible to your next debate opponent.</p>
+
+        <h3 class="help-h3">Editing Your Display Name</h3>
+        <p class="help-p">Click the pencil (edit) icon next to your display name in the profile card. Type your new name and press <strong>Enter</strong> or click the save button. Usernames cannot be changed after registration.</p>
+      </section>
+
+      <section class="help-section" id="finding-partner">
+        <h2 class="help-h2">Finding a Debate Partner</h2>
+        <p class="help-p">To start debating, click the large <strong>"Find Debate Partner"</strong> button in the centre of the lobby. This adds you to the matchmaking queue.</p>
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-body">Click <strong>Find Debate Partner</strong>. A spinner appears and the button changes to "Leave Queue".</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-body">When another user joins the queue, the algorithm instantly pairs you with the most politically opposite person available.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-body">A short countdown appears, then both users are redirected to the debate room automatically.</div>
+          </div>
+        </div>
+        <p class="help-p">Click <strong>Leave Queue</strong> at any time before matching to exit the queue without penalty.</p>
+      </section>
+
+      <section class="help-section" id="matching">
+        <h2 class="help-h2">How Matching Works</h2>
+        <p class="help-p">ArgueOut uses a simple but effective algorithm: it calculates the <strong>Euclidean distance</strong> between your compass position and every other person waiting in the queue. You're paired with whoever is <em>furthest away</em> from you — maximum political opposition.</p>
+        <p class="help-p">If you're an Auth-Left user (top-left quadrant), the algorithm looks for a Lib-Right user (bottom-right quadrant) and pairs you with the strongest match available.</p>
+        <div class="help-tip">
+          <svg class="help-tip-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>If the queue is small, you may be matched with someone who isn't perfectly opposite — they're simply the most opposite person <em>currently available</em>.</div>
+        </div>
+      </section>
+
+      <!-- ════ DEBATE ROOM ════ -->
+      <section class="help-section" id="video-audio">
+        <h2 class="help-h2">Video &amp; Audio</h2>
+        <p class="help-p">When the debate room loads, your browser will ask permission to access your <strong>camera and microphone</strong>. You must allow both to participate fully.</p>
+        <ul class="help-ul">
+          <li><strong>Your video</strong> appears in a small thumbnail in the bottom-right corner of the screen.</li>
+          <li><strong>Your opponent's video</strong> fills the main area of the screen.</li>
+          <li>Video is <strong>peer-to-peer</strong> (WebRTC) — it goes directly between your browsers, never through ArgueOut's servers.</li>
+          <li><strong>Noise suppression</strong> (RNNoise) is applied automatically to your microphone to filter background noise like fans, keyboards, and ambient sound.</li>
+        </ul>
+        <p class="help-p">Use the <strong>microphone button</strong> to mute / unmute yourself. Use the <strong>camera button</strong> to turn your video on or off.</p>
+        <div class="help-tip">
+          <svg class="help-tip-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>For the best experience, use headphones to prevent microphone echo. A quiet room and good lighting also help your opponent take you more seriously.</div>
+        </div>
+      </section>
+
+      <section class="help-section" id="turn-system">
+        <h2 class="help-h2">The Turn System</h2>
+        <p class="help-p">ArgueOut uses a structured <strong>turn-based speaking system</strong> to ensure both sides get a fair chance to make their case.</p>
+        <ul class="help-ul">
+          <li><strong>Your Turn (green glow):</strong> You have the floor. Make your argument. Your microphone is active and your video glows green to signal you're speaking.</li>
+          <li><strong>Opponent's Turn:</strong> Your opponent is speaking. Listen and prepare your counter-argument.</li>
+          <li><strong>Request to Speak:</strong> If you urgently need the floor while your opponent is talking, click the <em>"Request to Speak"</em> button. Your opponent will see the request and can pass the turn.</li>
+        </ul>
+        <p class="help-p">The <strong>debate topic</strong> is displayed at the top of the screen throughout the debate. It's generated fresh for each pairing by the AI using both participants' profile information.</p>
+        <div class="help-tip">
+          <svg class="help-tip-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>When it's your turn, get to the point quickly. Concise, well-reasoned arguments are far more effective than long rambling statements.</div>
+        </div>
+      </section>
+
+      <section class="help-section" id="chat">
+        <h2 class="help-h2">Chat Panel</h2>
+        <p class="help-p">The right side of the debate room has a live text chat. You can use it any time — even when it's not your speaking turn — to:</p>
+        <ul class="help-ul">
+          <li>Share a specific fact, statistic, or quote</li>
+          <li>Clarify a position quickly without interrupting the flow</li>
+          <li>Drop a link to a source or article</li>
+          <li>React to what your opponent just said</li>
+        </ul>
+        <div class="help-warn">
+          <svg class="help-warn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div><strong>Chat messages are not stored.</strong> They only exist for the duration of the debate session. Once either participant leaves, all chat messages are gone permanently.</div>
+        </div>
+      </section>
+
+      <section class="help-section" id="ending-debate">
+        <h2 class="help-h2">Ending a Debate</h2>
+        <p class="help-p">Click the <strong>"Leave Debate"</strong> button (top-right of the debate room, red) to exit at any time. There is no minimum debate duration — you can leave whenever you want.</p>
+        <p class="help-p">If <em>either</em> participant leaves, the debate ends for both. The remaining participant will see a notification and be returned to the lobby automatically.</p>
+        <p class="help-p">After a debate, you're taken back to the lobby where you can immediately queue for a new match.</p>
+      </section>
+
+      <!-- ════ YOUR ACCOUNT ════ -->
+      <section class="help-section" id="profile-edit">
+        <h2 class="help-h2">Editing Your Profile</h2>
+        <p class="help-p">Most profile fields set during registration can be updated from the lobby profile panel. Click the relevant field to edit it inline. Changes save automatically.</p>
+        <ul class="help-ul">
+          <li><strong>Display name</strong> — click the pencil icon next to your name</li>
+          <li><strong>Profile picture</strong> — click your avatar</li>
+          <li><strong>Bio</strong> — click the bio text to edit it</li>
+          <li><strong>Political compass</strong> — click "Update Compass" (see below)</li>
+        </ul>
+        <p class="help-p">Email address and username cannot be changed after registration.</p>
+      </section>
+
+      <section class="help-section" id="multi-account">
+        <h2 class="help-h2">Multiple Accounts</h2>
+        <p class="help-p">ArgueOut lets you sign in to multiple accounts and switch between them without logging out and back in. Accounts are stored locally on your device — no passwords are ever saved.</p>
+
+        <h3 class="help-h3">Adding an Account</h3>
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-body">In the lobby, click your <strong>username / avatar</strong> in the top navbar. The account switcher dropdown opens.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-body">Click <strong>"Add another account"</strong>.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-body">Sign in with Google or enter the username/email and password of the account you want to add.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">4</div>
+            <div class="step-body">The lobby reloads as the new account. All your accounts are now shown in the switcher.</div>
+          </div>
+        </div>
+
+        <h3 class="help-h3">Switching Accounts</h3>
+        <p class="help-p">Open the account switcher (click your username in the navbar) and click any account in the list. The active account has a checkmark. Switching prompts you to re-authenticate (enter the account's password or use Google) for security, then the page reloads.</p>
+
+        <h3 class="help-h3">Signing Out</h3>
+        <p class="help-p">Open the account switcher and click <strong>"Sign out"</strong>. This signs you out of the <em>current</em> account only. Other stored accounts remain in the switcher for next time.</p>
+      </section>
+
+      <section class="help-section" id="update-compass">
+        <h2 class="help-h2">Updating Your Political Compass</h2>
+        <p class="help-p">Your political views may evolve, or you might feel your initial answers didn't reflect you accurately. You can redo your compass at any time:</p>
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-body">In the lobby, find the <strong>"Update Compass"</strong> button in your profile panel (below your quadrant badge).</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-body">You'll go through a fresh AI-generated questionnaire based on your current profile.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-body">Your new position replaces the old one immediately and affects all future matchmaking.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ MODERATION ════ -->
+      <section class="help-section" id="rules">
+        <h2 class="help-h2">Platform Rules</h2>
+        <p class="help-p">ArgueOut is built for honest political discourse. Disagreement, even sharp disagreement, is welcome. The following are not:</p>
+        <ul class="help-ul">
+          <li>Harassment, threats, or personal abuse directed at your opponent</li>
+          <li>Hate speech targeting race, religion, gender, nationality, sexual orientation, or other protected characteristics</li>
+          <li>Deliberate misrepresentation or impersonation of another person or group</li>
+          <li>Deliberately spreading provably false information to deceive</li>
+          <li>Attempting to extract personal information from opponents under false pretences</li>
+          <li>Using bots, scripts, or automation to interact with the platform</li>
+          <li>Circumventing a ban by creating a new account</li>
+        </ul>
+        <p class="help-p">These rules exist to keep debate productive. Vigorous disagreement, including on sensitive political topics, is entirely fine. Abuse is not. See the full <a href="/legal" style="color:var(--purple)">Terms of Service</a> for the complete rules.</p>
+      </section>
+
+      <section class="help-section" id="reporting">
+        <h2 class="help-h2">Reporting a User</h2>
+        <p class="help-p">If your opponent is violating the platform rules during a debate, use the <strong>report button</strong> (flag icon) in the debate room controls.</p>
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-body">Click the <strong>flag icon</strong> in the debate room.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-body">Select the reason: <em>Hate speech</em>, <em>Harassment / threats</em>, <em>Impersonation</em>, or <em>Other</em>.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-body">Confirm the report. An admin will review it. You can continue or leave the debate after reporting.</div>
+          </div>
+        </div>
+        <div class="help-tip">
+          <svg class="help-tip-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>Don't report someone simply because they're winning the debate or hold views you find offensive. Report only genuine rule violations. False reports may result in action against your own account.</div>
+        </div>
+      </section>
+
+      <section class="help-section" id="bans">
+        <h2 class="help-h2">Bans &amp; Enforcement</h2>
+        <p class="help-p">If you violate the Terms of Service, an admin may suspend or permanently ban your account. Banned users see a <strong>ban screen</strong> when they try to log in, which explains the reason for the ban.</p>
+        <ul class="help-ul">
+          <li>Bans are reviewed on a case-by-case basis by admins.</li>
+          <li>ArgueOut does not have an appeals process at this time.</li>
+          <li>Bans are permanent unless reversed by an admin.</li>
+          <li>Creating a new account to evade a ban is a violation of the Terms and will result in both accounts being banned.</li>
+        </ul>
+        <div class="help-warn">
+          <svg class="help-warn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div><strong>IP bans:</strong> In severe cases, bans may be applied at the IP level, preventing access even from new accounts on the same network.</div>
+        </div>
+      </section>
+
+      <!-- ════ TECHNICAL ════ -->
+      <section class="help-section" id="camera-mic">
+        <h2 class="help-h2">Camera &amp; Microphone Problems</h2>
+        <p class="help-p">If your camera or microphone isn't working in the debate room, try these steps:</p>
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-body">Look for a <strong>camera / microphone permission prompt</strong> from your browser. If you accidentally denied it, click the <strong>padlock icon</strong> in the address bar and set Camera and Microphone to "Allow", then refresh.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-body">Close any other application that may be using your camera: Zoom, Teams, Skype, OBS, FaceTime, etc. Only one app can use the camera at a time on most devices.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-body">Check your <strong>system privacy settings</strong>. On Windows, go to Settings → Privacy → Camera / Microphone and make sure your browser is allowed. On Mac, go to System Settings → Privacy &amp; Security → Camera / Microphone.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">4</div>
+            <div class="step-body">Try a <strong>different browser</strong>. Chrome and Firefox have the best WebRTC support. Safari works on iOS 15.4+.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="help-section" id="connection">
+        <h2 class="help-h2">Connection Issues</h2>
+        <p class="help-p">ArgueOut uses <strong>peer-to-peer WebRTC</strong> for video. This means your video stream travels directly from your browser to your opponent's browser, without passing through any server. If you can't see or hear your opponent:</p>
+        <ul class="help-ul">
+          <li>Check your internet connection — try loading another website or video.</li>
+          <li><strong>Refresh the page</strong> — connection issues often self-resolve on reconnect.</li>
+          <li>If you're on a <strong>corporate or university network</strong>, it may block WebRTC traffic. Try a mobile hotspot or a different network.</li>
+          <li>If one side sees the other but not vice versa, the issue is on the side that can't see — usually a firewall or browser setting blocking incoming WebRTC.</li>
+          <li>Disable any <strong>VPN</strong> — some VPN configurations prevent direct peer connections.</li>
+        </ul>
+      </section>
+
+      <section class="help-section" id="cache">
+        <h2 class="help-h2">Clearing the Cache / Page Looks Outdated</h2>
+        <p class="help-p">ArgueOut uses a <strong>service worker</strong> to cache assets for fast loading. In rare cases the cache can serve a stale version of a page that's missing recent updates.</p>
+        <p class="help-p">To force a full refresh:</p>
+        <ul class="help-ul">
+          <li><strong>Windows/Linux:</strong> Press <kbd style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-family:monospace;font-size:0.85em">Ctrl + Shift + R</kbd></li>
+          <li><strong>Mac:</strong> Press <kbd style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-family:monospace;font-size:0.85em">⌘ + Shift + R</kbd></li>
+          <li>Or open <strong>DevTools</strong> (F12) → Application tab → Service Workers → click <em>Unregister</em> → refresh the page.</li>
+        </ul>
+        <p class="help-p">This tells the browser to bypass all cached files and fetch fresh versions from the server.</p>
+      </section>
+
+      <!-- ════ FAQ ════ -->
+      <section class="help-section" id="faq">
+        <h2 class="help-h2">Frequently Asked Questions</h2>
+
+        <div class="faq-list">
+
+          <details class="faq-item">
+            <summary>Is ArgueOut free to use?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">Yes, completely free. There are no paid tiers, no subscriptions, and no ads. ArgueOut may introduce optional features in the future with advance notice, but the core platform will remain free.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Are debates recorded or stored?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">No. Video and audio use peer-to-peer WebRTC and are never routed through ArgueOut's servers. Chat messages are not stored either — they exist only for the duration of the session. Once a debate ends, all of it is gone.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Can I choose my own debate topic?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">No. Topics are generated fresh by an AI for each specific pairing, using both participants' profile information and compass positions. This creates more personalised and relevant debates than a fixed topic list would.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Can I pick who I debate?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">No. The matching algorithm automatically selects your most politically opposite opponent from the queue. This ensures every debate is a genuine clash of ideas rather than a friendly discussion between people who already agree.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Why was I matched with someone who has similar views?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">The algorithm picks the most opposite person <em>currently in the queue</em>. If the queue is small (especially at off-peak times), your match may not be perfectly opposite — they're simply the best available option. Try queuing at different times for more varied matches.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Do I need to have my camera on?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">No, you can participate without a camera. Your video thumbnail will appear blank to your opponent. However, face-to-face video makes debates more engaging and harder to dismiss — having your camera on is strongly encouraged.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>What browsers does ArgueOut support?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">Any modern browser with WebRTC support: Google Chrome (recommended), Mozilla Firefox, Microsoft Edge, and Safari (iOS 15.4+ / macOS). Internet Explorer is not supported. For best results use the latest version of Chrome or Firefox on desktop.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Is there a mobile app?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">There is no native iOS or Android app. ArgueOut is a web app designed to work in mobile browsers. You can add it to your home screen from your browser menu for an app-like experience (it includes a web manifest for this).</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Can I delete my account?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">Account self-deletion is not currently available. If you want your account and data removed, please contact the platform owner via the website. Deletion requests are handled at the admin's discretion. See the <a href="/legal#privacy">Privacy Policy</a> for more detail.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Why is my compass result not what I expected?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">Compass positions are calculated from your answers. If your result feels inaccurate, try answering more carefully — "Agree" means you lean that way, "Strongly Agree" means it's a firm conviction. You can redo the questionnaire anytime via <strong>Update Compass</strong> in the lobby.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>What happens if my opponent leaves mid-debate?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">The debate ends immediately for both participants. You'll see a notification and be returned to the lobby automatically. There's no penalty for either party — you're free to queue again right away.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Is my email address visible to other users?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">No. Your email is used only for account management (authentication and recovery). It is never shown to other users and is not stored in your public profile. See the <a href="/legal#privacy">Privacy Policy</a> for a full list of what information is and isn't shared.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>I set my demographics (age, religion, etc.) — does my opponent see all of that?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">Yes — demographic information you provide (gender, religion, country, bio) is shown to your debate opponent as context. This is intentional: knowing who you're arguing against makes the debate more meaningful. Information you leave blank or set to "Prefer not to say" is not shown.</div>
+          </details>
+
+          <details class="faq-item">
+            <summary>How do I contact the ArgueOut team?<svg class="faq-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+            <div class="faq-body">ArgueOut is an independently run platform. There is no public support email at this time. For urgent issues (abuse, data requests, ban appeals), use the feedback or contact mechanism available within the platform, or reach out through any public channel the platform owner has listed.</div>
+          </details>
+
+        </div>
+      </section>
+
+    </main>
+  </div><!-- /help-layout -->
+</div><!-- /help-wrap -->
+
+<footer class="footer">
+  <div class="container" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px;position:relative;z-index:1">
+    <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+    <nav style="display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+      <a href="/help" class="footer-link" style="color:var(--purple)">Help</a>
+      <a href="/legal" class="footer-link">Terms of Service</a>
+      <a href="/legal#privacy" class="footer-link">Privacy Policy</a>
+    </nav>
+    <div style="color:var(--text-3);font-size:0.8rem">&copy; 2026 ArgueOut</div>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+<script src="/js/bg.js"></script>
+<script src="/js/theme.js"></script>
+<script>
+// Highlight active sidebar link on scroll
+(function() {
+  const sections = document.querySelectorAll('.help-section');
+  const links = document.querySelectorAll('.help-nav a');
+  if (!sections.length || !links.length) return;
+
+  function setActive(id) {
+    links.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+    });
+  }
+
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id); });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => obs.observe(s));
+  if (sections[0]) setActive(sections[0].id);
+})();
+</script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>
