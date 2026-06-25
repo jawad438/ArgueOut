@@ -55,6 +55,22 @@ function draw() {
   ctx.beginPath(); ctx.moveTo(SIZE/2, 0);    ctx.lineTo(SIZE/2, SIZE); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(0, SIZE/2);    ctx.lineTo(SIZE, SIZE/2); ctx.stroke();
 
+  // Centrist zone: dashed circle around the centre
+  const cr = CENTRIST_RADIUS * SIZE / 2;
+  ctx.beginPath(); ctx.arc(SIZE/2, SIZE/2, cr, 0, Math.PI * 2);
+  ctx.fillStyle   = 'rgba(139,92,246,0.05)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(139,92,246,0.3)';
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([4, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = '600 9px "Space Grotesk", sans-serif';
+  ctx.fillStyle = 'rgba(139,92,246,0.55)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CENTRIST', SIZE/2, SIZE/2);
+
   const ql = [
     { text: 'AUTH-LEFT',  cx: SIZE/4,   cy: 20,        color: 'rgba(239,68,68,0.65)'  },
     { text: 'AUTH-RIGHT', cx: 3*SIZE/4, cy: 20,        color: 'rgba(59,130,246,0.65)' },
@@ -101,7 +117,12 @@ function draw() {
 }
 
 // ── Labels ────────────────────────────────────────────────────
+const CENTRIST_RADIUS = 0.3; // within 30% of center on both axes
+
 function getQuadrantInfo(px, py) {
+  if (Math.sqrt(px * px + py * py) < CENTRIST_RADIUS) {
+    return { label: 'Centrist', color: '#8b5cf6' };
+  }
   const econ   = px >= 0 ? 'Right' : 'Left';
   const social = py >= 0 ? 'Authoritarian' : 'Libertarian';
   const colors = {
@@ -110,7 +131,7 @@ function getQuadrantInfo(px, py) {
     'Libertarian-Left':    { label: 'Libertarian Left',    color: '#22c55e' },
     'Libertarian-Right':   { label: 'Libertarian Right',   color: '#f59e0b' },
   };
-  return colors[`${social}-${econ}`] || { label: 'Centre', color: '#8b5cf6' };
+  return colors[`${social}-${econ}`] || { label: 'Centrist', color: '#8b5cf6' };
 }
 
 function updateLabels() {

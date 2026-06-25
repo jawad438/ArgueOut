@@ -33,6 +33,9 @@ function showToast(message, type = 'info') {
 
 // -- Compass helpers -------------------------------------------
 function getQuadrantInfo(px, py) {
+  if (Math.sqrt(px * px + py * py) < 0.3) {
+    return { label: 'Centrist', color: '#8b5cf6', badge: 'badge-purple' };
+  }
   const econ   = px >= 0 ? 'Right' : 'Left';
   const social = py >= 0 ? 'Authoritarian' : 'Libertarian';
   const map = {
@@ -41,7 +44,7 @@ function getQuadrantInfo(px, py) {
     'Libertarian-Left':    { label: 'Lib-Left',   color: '#22c55e', badge: 'badge-green' },
     'Libertarian-Right':   { label: 'Lib-Right',  color: '#f59e0b', badge: 'badge-amber' },
   };
-  return map[`${social}-${econ}`] || { label: 'Centre', color: '#8b5cf6', badge: 'badge-purple' };
+  return map[`${social}-${econ}`] || { label: 'Centrist', color: '#8b5cf6', badge: 'badge-purple' };
 }
 
 function drawMiniCompass(canvas, px, py) {
