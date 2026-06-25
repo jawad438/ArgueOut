@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://argueout.app/sitemap.xml
+Sitemap: https://argueout.onrender.com/sitemap.xml
