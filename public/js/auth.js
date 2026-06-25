@@ -394,6 +394,18 @@ if (step2Form) {
   const backBtn = document.getElementById('backBtn');
   if (backBtn) backBtn.addEventListener('click', () => goToStep(1));
 
+  // Cap the DOB picker: max = 18 years ago, min = 120 years ago
+  (function () {
+    const dobEl = document.getElementById('dob');
+    if (!dobEl) return;
+    const pad   = n => String(n).padStart(2, '0');
+    const fmt   = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const max18 = new Date(); max18.setFullYear(max18.getFullYear() - 18);
+    const min120 = new Date(); min120.setFullYear(min120.getFullYear() - 120);
+    dobEl.max = fmt(max18);
+    dobEl.min = fmt(min120);
+  })();
+
   // Auto-detect country from IP on page load
   (async () => {
     try {
@@ -418,15 +430,23 @@ if (step2Form) {
     e.preventDefault();
     hideError('step2Error');
 
-    const age      = document.getElementById('age').value;
+    const dob      = (document.getElementById('dob')?.value || '');
     const gender   = document.getElementById('gender').value;
     const religion = document.getElementById('religion').value;
     const bio      = (document.getElementById('bio')?.value || '').trim().slice(0, 280);
 
-    const ageNum = parseInt(age);
-    if (age && (isNaN(ageNum) || ageNum < 13 || ageNum > 120)) {
-      showError('step2Error', 'step2ErrorText', 'Please enter a valid age (13–120).');
-      return;
+    let ageNum = null;
+    if (dob) {
+      const birth   = new Date(dob);
+      const today   = new Date();
+      let computed  = today.getFullYear() - birth.getFullYear();
+      const m       = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) computed--;
+      if (computed < 18) {
+        showError('step2Error', 'step2ErrorText', 'You must be at least 18 years old to register.');
+        return;
+      }
+      ageNum = computed;
     }
 
     const btn = document.getElementById('registerBtn');
@@ -479,7 +499,8 @@ if (step2Form) {
         email:      regData.email || '',
         gender:     gender   || 'prefer_not_to_say',
         religion:   religion || 'prefer_not_to_say',
-        age:        ageNum || 18,
+        age:        ageNum,
+        dob:        dob || null,
         bio:        bio || '',
         country:    (countryEl && countryEl.value) || '',
         politicalX: 0,
