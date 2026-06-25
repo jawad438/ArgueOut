@@ -663,6 +663,7 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   background: var(--bg);
   position: relative;
   z-index: 1;
+  padding-bottom: 16px;
 }
 .lf-inner {
   max-width: 1200px;
@@ -673,12 +674,11 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 14px 0;
+  padding: 14px 0 10px;
 }
 .lf-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   padding: 7px 16px;
   background: none;
   border: 1px solid var(--border);
@@ -688,6 +688,7 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none;
   transition: background 120ms, color 120ms, border-color 120ms;
 }
 .lf-tab:hover {
@@ -695,59 +696,11 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   color: var(--text-1);
   border-color: rgba(139,92,246,0.3);
 }
-.lf-tab.active {
-  background: rgba(139,92,246,0.12);
-  color: var(--purple);
-  border-color: rgba(139,92,246,0.4);
+.lf-copy {
+  font-size: 0.78rem;
+  color: var(--text-3);
+  padding-top: 4px;
 }
-.lf-tab .lf-chev {
-  width: 12px; height: 12px;
-  fill: none; stroke: currentColor;
-  stroke-width: 2.5; stroke-linecap: round;
-  transition: transform 200ms; flex-shrink: 0;
-}
-.lf-tab.active .lf-chev { transform: rotate(180deg); }
-.lf-panel {
-  display: none;
-  border-top: 1px solid var(--border);
-  padding: 22px 0 28px;
-  max-height: 400px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(139,92,246,0.3) transparent;
-}
-.lf-panel::-webkit-scrollbar { width: 5px; }
-.lf-panel::-webkit-scrollbar-track { background: transparent; }
-.lf-panel::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 3px; }
-.lf-panel h1 {
-  font-size: 1.1rem; font-weight: 800; color: var(--text-1); margin-bottom: 4px;
-}
-.lf-updated {
-  font-size: 0.74rem; color: var(--text-3); margin-bottom: 14px; display: block;
-}
-.lf-notice {
-  background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.18);
-  border-radius: 8px; padding: 11px 15px; margin-bottom: 20px;
-  font-size: 0.82rem; color: var(--text-2); line-height: 1.62;
-}
-.lf-panel h2 {
-  font-size: 0.86rem; font-weight: 700; color: var(--text-1); margin: 16px 0 5px;
-}
-.lf-panel p { font-size: 0.82rem; color: var(--text-2); line-height: 1.72; margin-bottom: 6px; }
-.lf-panel ul { padding-left: 18px; margin: 5px 0 8px; }
-.lf-panel li { font-size: 0.82rem; color: var(--text-2); line-height: 1.68; margin-bottom: 3px; }
-.lf-panel strong { color: var(--text-1); }
-.lf-help-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 10px; margin: 16px 0 20px;
-}
-.lf-help-card {
-  background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.15);
-  border-radius: 8px; padding: 12px 14px;
-}
-.lf-help-card strong { display: block; font-size: 0.8rem; color: var(--text-1); margin-bottom: 4px; }
-.lf-help-card span { font-size: 0.77rem; color: var(--text-2); line-height: 1.5; }
 
 /* ══════════════════════════════════════════════════════════════
    AUTH PAGES (login / register)
