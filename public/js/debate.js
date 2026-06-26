@@ -695,6 +695,11 @@ let specUnread    = 0;
 
 function openSpecPanel() {
   if (!specPanel) return;
+  // On mobile, dismiss chat first so they don't stack
+  if (window.innerWidth <= 1024) {
+    const chatSidebar = document.getElementById('chatSidebar');
+    if (chatSidebar) chatSidebar.classList.remove('mobile-visible');
+  }
   specPanel.classList.add('open');
   specPanelOpen = true;
   specUnread = 0;

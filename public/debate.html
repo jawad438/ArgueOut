@@ -23,11 +23,37 @@
 
     /* ── Spectator panel ── */
     .spec-panel {
-      position: fixed; top: 0; right: 0; bottom: 0; width: 300px; z-index: 150;
-      background: var(--bg); border-left: 1px solid var(--border);
-      display: none; flex-direction: column;
+      position: fixed; top: 0; right: 0; bottom: 0; width: 320px; z-index: 150;
+      background: #05050f; border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 280ms cubic-bezier(0.16,1,0.3,1);
     }
-    .spec-panel.open { display: flex; }
+    .spec-panel.open { transform: translateX(0); }
+    html[data-theme="light"] .spec-panel { background: #e5e5f2; }
+
+    /* Mobile: full-width bottom sheet */
+    @media (max-width: 1024px) {
+      .spec-panel {
+        top: auto; left: 0; right: 0; bottom: 0; width: 100%;
+        height: 62dvh; max-height: 62dvh;
+        border-left: none; border-top: 1px solid var(--border);
+        transform: translateY(100%);
+        transition: transform 280ms cubic-bezier(0.16,1,0.3,1);
+        z-index: 160;
+      }
+      .spec-panel.open { transform: translateY(0); }
+      /* drag handle */
+      .spec-panel::before {
+        content: ''; display: block; width: 36px; height: 4px;
+        background: var(--border); border-radius: 2px;
+        margin: 10px auto 0; flex-shrink: 0;
+      }
+      .spec-panel-comment-actions { gap: 8px; margin-top: 10px; }
+      .spec-panel-hl-btn, .spec-panel-kick-btn, .spec-panel-ban-btn {
+        padding: 8px 14px; font-size: 0.8rem; min-height: 38px;
+      }
+    }
     .spec-panel-header {
       display: flex; align-items: center; gap: 8px; padding: 12px 16px;
       border-bottom: 1px solid var(--border); font-size: 0.82rem; font-weight: 700;
@@ -43,10 +69,11 @@
     .spec-panel-comments::-webkit-scrollbar { width: 4px; }
     .spec-panel-comments::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
     .spec-panel-comment {
-      background: var(--card); border: 1px solid var(--border); border-radius: 9px;
-      padding: 8px 11px; position: relative;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 9px;
+      padding: 10px 13px; position: relative;
       transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
     }
+    html[data-theme="light"] .spec-panel-comment { background: rgba(139,92,246,0.06); }
     .spec-panel-comment-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .spec-panel-comment-author { font-size: 0.75rem; font-weight: 700; color: var(--text-2); }
     .spec-panel-comment-time { font-size: 0.67rem; color: var(--text-3); margin-left: auto; }

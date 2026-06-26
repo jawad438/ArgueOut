@@ -1235,7 +1235,7 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border);
-  background: rgba(5,5,15,0.5);
+  background: var(--bg-0);
 }
 .chat-header {
   padding: 18px 20px;
@@ -2529,8 +2529,8 @@ html[data-theme="light"] .video-area      { background: #d8d8ea; }
 html[data-theme="light"] .video-panel     { background: #c8c8de; }
 html[data-theme="light"] .video-no-cam    { background: #cccce0; }
 html[data-theme="light"] .video-label     { background: rgba(240,240,255,0.92); }
-html[data-theme="light"] .chat-sidebar    { background: rgba(238,238,252,0.98); border-color: var(--border); }
-html[data-theme="light"] .chat-header     { background: rgba(235,235,248,0.98); border-color: var(--border); }
+html[data-theme="light"] .chat-sidebar    { background: var(--bg-0); border-color: var(--border); }
+html[data-theme="light"] .chat-header     { background: var(--bg-0); border-color: var(--border); }
 html[data-theme="light"] .chat-input      { background: var(--input-bg); color: var(--text-1); }
 html[data-theme="light"] .chat-msg.mine .chat-msg-bubble   { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.22); }
 html[data-theme="light"] .chat-msg.theirs .chat-msg-bubble { background: rgba(59,130,246,0.08);  border-color: rgba(59,130,246,0.18); }
@@ -2625,8 +2625,8 @@ html[data-theme="light"] .modal-overlay { background: rgba(200,200,220,0.62); }
   html:not([data-theme="dark"]) .video-panel     { background: #c8c8de; }
   html:not([data-theme="dark"]) .video-no-cam    { background: #cccce0; }
   html:not([data-theme="dark"]) .video-label     { background: rgba(240,240,255,0.92); }
-  html:not([data-theme="dark"]) .chat-sidebar    { background: rgba(238,238,252,0.98); border-color: var(--border); }
-  html:not([data-theme="dark"]) .chat-header     { background: rgba(235,235,248,0.98); border-color: var(--border); }
+  html:not([data-theme="dark"]) .chat-sidebar    { background: var(--bg-0); border-color: var(--border); }
+  html:not([data-theme="dark"]) .chat-header     { background: var(--bg-0); border-color: var(--border); }
   html:not([data-theme="dark"]) .chat-input      { background: var(--input-bg); color: var(--text-1); }
   html:not([data-theme="dark"]) .chat-msg.mine .chat-msg-bubble   { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.22); }
   html:not([data-theme="dark"]) .chat-msg.theirs .chat-msg-bubble { background: rgba(59,130,246,0.08);  border-color: rgba(59,130,246,0.18); }

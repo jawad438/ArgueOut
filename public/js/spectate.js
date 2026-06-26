@@ -80,6 +80,9 @@ function addSpectatorComment(payload) {
   list.scrollTop = list.scrollHeight;
   commentMap.set(payload.id, div);
 
+  // Mobile badge
+  if (typeof window._specSheetShowBadge === 'function') window._specSheetShowBadge();
+
   // Mention notification
   if (currentUsername && payload.username !== currentUsername) {
     const mentionPattern = new RegExp('@' + currentUsername.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
