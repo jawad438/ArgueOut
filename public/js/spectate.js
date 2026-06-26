@@ -29,6 +29,32 @@ function showToast(msg, type) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
 }
 
+// ── WebRTC: receive debater streams ─────────────────────────
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+];
+const debaterPeerConns = new Map(); // debaterSocketId → RTCPeerConnection
+const debaterSlots     = [null, null]; // socketId occupying slot 0 and 1
+
+function showDebaterStream(socketId, username, stream) {
+  let idx = debaterSlots.indexOf(socketId);
+  if (idx === -1) {
+    idx = debaterSlots.indexOf(null);
+    if (idx === -1) idx = 0;
+    debaterSlots[idx] = socketId;
+  }
+  const n = idx + 1;
+  const video       = document.getElementById(`specVideo${n}`);
+  const placeholder = document.getElementById(`specVideoPlaceholder${n}`);
+  const label       = document.getElementById(`specVideoLabel${n}`);
+  const initials    = document.getElementById(`specVideoInitials${n}`);
+  if (video) { video.srcObject = stream; video.style.display = 'block'; video.play().catch(() => {}); }
+  if (placeholder) placeholder.style.display = 'none';
+  if (label)    label.textContent    = `@${username}`;
+  if (initials) initials.textContent = username ? username[0].toUpperCase() : '?';
+}
+
 // ── Current user ─────────────────────────────────────────────
 let currentUsername = null;
 let currentSpecId   = null;
@@ -259,6 +285,18 @@ function showDebateUI(data) {
     `;
   }
 
+  if (data.users?.length === 2) {
+    const [u1, u2] = data.users;
+    const l1 = document.getElementById('specVideoLabel1');
+    const l2 = document.getElementById('specVideoLabel2');
+    const i1 = document.getElementById('specVideoInitials1');
+    const i2 = document.getElementById('specVideoInitials2');
+    if (l1) l1.textContent = `@${u1.username}`;
+    if (l2) l2.textContent = `@${u2.username}`;
+    if (i1) i1.textContent = u1.username ? u1.username[0].toUpperCase() : '?';
+    if (i2) i2.textContent = u2.username ? u2.username[0].toUpperCase() : '?';
+  }
+
   updateSpectatorCount(data.spectatorCount || 0);
   if (currentUsername) spectatorNames.add(currentUsername);
 }
@@ -417,6 +455,49 @@ socket.on('spectator-comment', payload => {
 
 socket.on('comment-highlighted', ({ commentId, username, message, highlightedBy }) => {
   highlightComment(commentId, username, message, highlightedBy);
+});
+
+socket.on('comment-unhighlighted', ({ commentId }) => {
+  const el = commentMap.get(commentId);
+  if (!el) return;
+  el.classList.remove('highlighted', 'highlighted-persist');
+  const tag = el.querySelector('.spec-comment-highlight-tag');
+  if (tag) tag.remove();
+});
+
+// ── WebRTC: receive debater video/audio ─────────────────────
+socket.on('spec-stream-offer', async ({ debaterSocketId, username, offer }) => {
+  const existing = debaterPeerConns.get(debaterSocketId);
+  if (existing) { try { existing.close(); } catch {} }
+
+  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  debaterPeerConns.set(debaterSocketId, pc);
+
+  pc.ontrack = ({ streams }) => {
+    if (streams[0]) showDebaterStream(debaterSocketId, username, streams[0]);
+  };
+
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate) socket.emit('spec-stream-ice', { targetSocketId: debaterSocketId, candidate });
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      debaterPeerConns.delete(debaterSocketId);
+    }
+  };
+
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('spec-stream-answer', { debaterSocketId, answer });
+  } catch {}
+});
+
+socket.on('spec-stream-ice', async ({ fromSocketId, candidate }) => {
+  const pc = debaterPeerConns.get(fromSocketId);
+  if (pc) try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
 });
 
 socket.on('question-updated', ({ question }) => {

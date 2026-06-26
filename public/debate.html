@@ -118,39 +118,50 @@
       margin-left: 5px;
     }
 
-    /* Highlighted comment overlay (visible to debaters, on video side) */
+    /* Highlighted comment overlay — centered on screen */
     #debateHlOverlay {
-      position: fixed; right: 20px; bottom: 100px; z-index: 160;
-      pointer-events: none; max-width: 280px;
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 160; pointer-events: none; width: 340px; max-width: calc(100vw - 32px);
     }
     .debate-hl-toast {
+      position: relative;
       background: linear-gradient(135deg, rgba(30,20,0,0.97) 0%, rgba(50,35,0,0.97) 100%);
-      border: 1.5px solid rgba(255,196,0,0.7); border-radius: 14px;
-      padding: 14px 18px; box-shadow: 0 0 28px 6px rgba(255,196,0,0.25);
+      border: 1.5px solid rgba(255,196,0,0.7); border-radius: 16px;
+      padding: 20px 20px 16px; box-shadow: 0 0 48px 12px rgba(255,196,0,0.28), 0 8px 32px rgba(0,0,0,0.6);
+      pointer-events: auto;
       animation: ao-debate-hl-in 0.45s cubic-bezier(0.22,1,0.36,1) forwards;
     }
     @keyframes ao-debate-hl-in {
-      from { opacity:0; transform: translateX(50px) scale(0.9); }
-      to   { opacity:1; transform: translateX(0) scale(1); }
+      from { opacity:0; transform: scale(0.88) translateY(16px); }
+      to   { opacity:1; transform: scale(1) translateY(0); }
     }
     .ao-hl-fade-out {
-      animation: ao-debate-hl-out 0.4s ease-in forwards !important;
+      animation: ao-debate-hl-out 0.35s ease-in forwards !important;
     }
     @keyframes ao-debate-hl-out {
-      from { opacity:1; transform: translateX(0) scale(1); }
-      to   { opacity:0; transform: translateX(50px) scale(0.9); }
+      from { opacity:1; transform: scale(1) translateY(0); }
+      to   { opacity:0; transform: scale(0.88) translateY(12px); }
     }
+    .debate-hl-dismiss {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(255,255,255,0.1); border: none; border-radius: 50%;
+      width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: rgba(255,196,0,0.6); font-size: 0.7rem; line-height: 1;
+      transition: background 120ms; padding: 0;
+    }
+    .debate-hl-dismiss:hover { background: rgba(255,255,255,0.2); color: #ffc400; }
     .debate-hl-label {
       font-size: 0.66rem; font-weight: 800; color: #ffc400; text-transform: uppercase;
-      letter-spacing: 0.1em; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;
+      letter-spacing: 0.1em; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;
     }
     .debate-hl-star { display: inline-block; animation: ao-star-pop 0.7s ease-out; }
     @keyframes ao-star-pop {
       from { transform: rotate(-90deg) scale(0); opacity:0; }
       to   { transform: rotate(0deg) scale(1); opacity:1; }
     }
-    .debate-hl-author { font-size: 0.78rem; font-weight: 700; color: rgba(255,196,0,0.85); margin-bottom: 4px; }
-    .debate-hl-message { font-size: 0.88rem; color: #fff; line-height: 1.5; font-weight: 500; }
+    .debate-hl-author { font-size: 0.85rem; font-weight: 700; color: rgba(255,196,0,0.9); margin-bottom: 6px; }
+    .debate-hl-message { font-size: 0.97rem; color: #fff; line-height: 1.55; font-weight: 500; }
+    .debate-hl-by { font-size: 0.7rem; color: rgba(255,196,0,0.5); margin-top: 10px; }
 
     /* Spectator count chip in controls */
     .spec-count-chip {

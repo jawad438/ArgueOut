@@ -665,6 +665,8 @@ const roomQuestionRequests = new Map();
 const roomTurnTimers = new Map();
 // roomId -> Set<userId> — who has requested free-debate mode
 const roomFreeRequests = new Map();
+// "roomId:userId" -> Timeout — grace period before closing room on disconnect
+const roomDisconnectTimers = new Map();
 
 function addSuggested(userId, targetUserId) {
   if (!suggestedMap.has(userId)) suggestedMap.set(userId, new Set());
@@ -870,6 +872,11 @@ io.on('connection', socket => {
 
     const slot = room.users.find(u => u.userId === decoded.uid);
     if (!slot) { socket.emit('room-not-found'); return; }
+
+    // Cancel any pending disconnect grace-period timer for this user
+    const timerKey = `${roomId}:${decoded.uid}`;
+    const pendingTimer = roomDisconnectTimers.get(timerKey);
+    if (pendingTimer) { clearTimeout(pendingTimer); roomDisconnectTimers.delete(timerKey); }
 
     // Register this debate-page socket in the slot and Socket.io room
     slot.socketId = socket.id;
@@ -1500,7 +1507,11 @@ io.on('connection', socket => {
     });
 
     room.users.forEach(u => {
-      if (u.socketId) io.to(u.socketId).emit('spectator-count', { count: room.spectators.length });
+      if (u.socketId) {
+        io.to(u.socketId).emit('spectator-count', { count: room.spectators.length });
+        // Ask each debater to open a WebRTC stream connection to this spectator
+        io.to(u.socketId).emit('spectator-joined-stream', { specSocketId: socket.id });
+      }
     });
   });
 
@@ -1534,6 +1545,39 @@ io.on('connection', socket => {
       username:      safeStr(username, 50),
       message:       safeStr(message, 300),
       highlightedBy: me?.username || 'Debater'
+    });
+  });
+
+  // Debater removes the golden highlight from a comment
+  socket.on('unhighlight-comment', ({ roomId, commentId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    if (!room.users.some(u => u.socketId === socket.id)) return;
+    io.to(roomId).emit('comment-unhighlighted', { commentId });
+  });
+
+  // ── Spectator video stream WebRTC signaling ──────────────────
+  // Debater → spectator (offer/ICE) and spectator → debater (answer/ICE)
+  socket.on('spec-stream-offer', ({ specSocketId, offer }) => {
+    const me = socketUsers.get(socket.id);
+    io.to(specSocketId).emit('spec-stream-offer', {
+      debaterSocketId: socket.id,
+      username: me?.username || 'Debater',
+      offer
+    });
+  });
+
+  socket.on('spec-stream-answer', ({ debaterSocketId, answer }) => {
+    io.to(debaterSocketId).emit('spec-stream-answer', {
+      specSocketId: socket.id,
+      answer
+    });
+  });
+
+  socket.on('spec-stream-ice', ({ targetSocketId, candidate }) => {
+    io.to(targetSocketId).emit('spec-stream-ice', {
+      fromSocketId: socket.id,
+      candidate
     });
   });
 
@@ -1659,8 +1703,26 @@ io.on('connection', socket => {
     }
 
     for (const [roomId, room] of rooms) {
-      if (room.users.some(u => u.socketId === socket.id)) {
-        closeRoom(roomId, socket.id, 'disconnect');
+      const slot = room.users.find(u => u.socketId === socket.id);
+      if (slot) {
+        // Don't close immediately — give the debater 30 s to reconnect (handles page refreshes,
+        // brief mobile network hiccups, etc.)
+        slot.socketId = null;
+        socket.leave(roomId);
+        // Notify the other debater so they can show a "reconnecting" indicator
+        const other = room.users.find(u => u.socketId);
+        if (other) io.to(other.socketId).emit('opponent-reconnecting', {});
+
+        const timerKey = `${roomId}:${slot.userId}`;
+        clearTimeout(roomDisconnectTimers.get(timerKey));
+        roomDisconnectTimers.set(timerKey, setTimeout(() => {
+          roomDisconnectTimers.delete(timerKey);
+          const r = rooms.get(roomId);
+          if (r) {
+            const s = r.users.find(u => u.userId === slot.userId);
+            if (!s?.socketId) closeRoom(roomId, null, 'disconnect');
+          }
+        }, 30000));
         break;
       }
     }
@@ -1750,6 +1812,13 @@ function closeRoom(roomId, bySocketId, reason) {
   clearTimeout(roomTurnTimers.get(roomId));
   roomTurnTimers.delete(roomId);
   roomFreeRequests.delete(roomId);
+  // Cancel any pending disconnect grace-period timers for this room
+  for (const key of roomDisconnectTimers.keys()) {
+    if (key.startsWith(roomId + ':')) {
+      clearTimeout(roomDisconnectTimers.get(key));
+      roomDisconnectTimers.delete(key);
+    }
+  }
   broadcastOnlineUsers();
 }
 

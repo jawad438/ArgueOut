@@ -271,11 +271,43 @@
     }
     .spec-branch-start-btn:hover { background: rgba(139,92,246,0.08); color: var(--purple); border-color: rgba(139,92,246,0.3); }
 
-    /* ── Highlighted comment overlay (slides in from right of main area) ── */
-    #specHighlightOverlay {
-      position: fixed; right: 340px; bottom: 80px; z-index: 200;
-      pointer-events: none;
+    /* ── Debater video grid ── */
+    .spec-video-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      padding: 12px 14px 8px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0; background: #000;
     }
+    .spec-video-slot {
+      position: relative; aspect-ratio: 16/9; background: #0a0a14;
+      border-radius: 10px; overflow: hidden;
+    }
+    .spec-video-slot video {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .spec-video-placeholder {
+      position: absolute; inset: 0; display: flex;
+      align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0a0a1e 0%, #12122a 100%);
+    }
+    .spec-video-initials {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(139,92,246,0.15); border: 1.5px solid rgba(139,92,246,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 800; color: var(--purple);
+    }
+    .spec-video-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 5px 9px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.72));
+      font-size: 0.7rem; font-weight: 700; color: #fff;
+    }
+
+    /* ── Highlighted comment overlay — centered on screen ── */
+    #specHighlightOverlay {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 200; pointer-events: none; width: 320px; max-width: calc(100vw - 32px);
+    }
+    .spec-hl-toast { pointer-events: auto; }
     .spec-hl-toast {
       background: linear-gradient(135deg, rgba(30,20,0,0.97) 0%, rgba(50,35,0,0.97) 100%);
       border: 1.5px solid rgba(255,196,0,0.7); border-radius: 14px;
@@ -370,8 +402,6 @@
       .spec-input { font-size: 0.9rem; padding: 10px 13px; }
       .spec-send-btn, .spec-branch-start-btn { padding: 10px 14px; }
 
-      #specHighlightOverlay { right: 12px; bottom: 76px; }
-
       /* Mention dropdown positioned relative to viewport bottom */
       .spec-mention-dropdown { bottom: auto; top: auto; }
     }
@@ -416,6 +446,25 @@
     <!-- left: debate chat -->
     <div class="spec-main" id="specMain" style="display:none">
       <div class="spec-debaters" id="specDebaters"></div>
+
+      <!-- Debater video streams -->
+      <div class="spec-video-grid" id="specVideoGrid">
+        <div class="spec-video-slot">
+          <div class="spec-video-placeholder" id="specVideoPlaceholder1">
+            <div class="spec-video-initials" id="specVideoInitials1">?</div>
+          </div>
+          <video id="specVideo1" autoplay playsinline style="display:none"></video>
+          <div class="spec-video-label" id="specVideoLabel1"></div>
+        </div>
+        <div class="spec-video-slot">
+          <div class="spec-video-placeholder" id="specVideoPlaceholder2">
+            <div class="spec-video-initials" id="specVideoInitials2">?</div>
+          </div>
+          <video id="specVideo2" autoplay playsinline style="display:none"></video>
+          <div class="spec-video-label" id="specVideoLabel2"></div>
+        </div>
+      </div>
+
       <div class="spec-debate-chat" id="specDebateChat">
         <div class="spec-chat-label">Debate Chat</div>
       </div>

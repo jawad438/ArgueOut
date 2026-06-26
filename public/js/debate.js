@@ -765,16 +765,31 @@ function banSpectator(specId, username, btn) {
   if (row) row.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.opacity = '0.4'; });
 }
 
+let _activeHlCommentId = null;
+let _activeHlBtn       = null;
+
 function highlightSpecComment(commentId, username, btn) {
   const el = specCommentMap.get(commentId);
   const body = el?.querySelector('.spec-panel-comment-body');
   const message = body?.textContent || '';
+
+  // Clicking the same comment again → unhighlight it
+  if (_activeHlCommentId === commentId) {
+    socket.emit('unhighlight-comment', { roomId, commentId });
+    return;
+  }
+
+  // Revert previous highlight button
+  if (_activeHlBtn) { _activeHlBtn.textContent = '⭐ Highlight'; _activeHlBtn.disabled = false; _activeHlBtn.style.opacity = ''; }
+
   socket.emit('highlight-comment', { roomId, commentId, username, message });
-  if (btn) { btn.textContent = '✓ Highlighted'; btn.disabled = true; btn.style.opacity = '0.5'; }
+  if (btn) { btn.textContent = '✓ Unhighlight'; btn.disabled = false; btn.style.opacity = ''; }
+  _activeHlCommentId = commentId;
+  _activeHlBtn       = btn;
 }
 
 let hlOverlayTimer = null;
-function showDebateHlToast(username, message) {
+function showDebateHlToast(username, message, highlightedBy) {
   const overlay = document.getElementById('debateHlOverlay');
   if (!overlay) return;
   if (hlOverlayTimer) { clearTimeout(hlOverlayTimer); hlOverlayTimer = null; }
@@ -784,17 +799,25 @@ function showDebateHlToast(username, message) {
   const toast = document.createElement('div');
   toast.className = 'debate-hl-toast';
   toast.innerHTML = `
+    <button class="debate-hl-dismiss" onclick="dismissHlToast()" title="Dismiss">✕</button>
     <div class="debate-hl-label"><span class="debate-hl-star">⭐</span> Spectator Question</div>
     <div class="debate-hl-author">@${escapeHtml(username)}</div>
     <div class="debate-hl-message">${escapeHtml(message)}</div>
+    ${highlightedBy ? `<div class="debate-hl-by">Highlighted by @${escapeHtml(highlightedBy)}</div>` : ''}
   `;
   overlay.appendChild(toast);
 
-  hlOverlayTimer = setTimeout(() => {
+  hlOverlayTimer = setTimeout(() => dismissHlToast(), 10000);
+}
+
+function dismissHlToast() {
+  if (hlOverlayTimer) { clearTimeout(hlOverlayTimer); hlOverlayTimer = null; }
+  const overlay = document.getElementById('debateHlOverlay');
+  const toast = overlay?.querySelector('.debate-hl-toast');
+  if (toast) {
     toast.classList.add('ao-hl-fade-out');
     setTimeout(() => toast.remove(), 420);
-    hlOverlayTimer = null;
-  }, 6000);
+  }
 }
 
 socket.on('spectator-count', ({ count }) => {
@@ -808,8 +831,7 @@ socket.on('spectator-comment', payload => {
   addSpecComment(payload);
 });
 
-socket.on('comment-highlighted', ({ commentId, username, message }) => {
-  // Animate the comment in the panel
+socket.on('comment-highlighted', ({ commentId, username, message, highlightedBy }) => {
   const el = specCommentMap.get(commentId);
   if (el) {
     el.classList.remove('highlighted', 'highlighted-persist');
@@ -822,15 +844,24 @@ socket.on('comment-highlighted', ({ commentId, username, message }) => {
       tag.textContent = '⭐ Highlighted';
       header.appendChild(tag);
     }
-    setTimeout(() => {
-      el.classList.remove('highlighted');
-      el.classList.add('highlighted-persist');
-    }, 1500);
-    // Scroll to the highlighted comment
+    setTimeout(() => { el.classList.remove('highlighted'); el.classList.add('highlighted-persist'); }, 1500);
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
-  // Show floating toast overlay on the debate side
-  showDebateHlToast(username, message);
+  showDebateHlToast(username, message, highlightedBy);
+});
+
+socket.on('comment-unhighlighted', ({ commentId }) => {
+  const el = specCommentMap.get(commentId);
+  if (el) {
+    el.classList.remove('highlighted', 'highlighted-persist');
+    el.querySelector('.hl-tag')?.remove();
+  }
+  dismissHlToast();
+  if (_activeHlCommentId === commentId) {
+    if (_activeHlBtn) { _activeHlBtn.textContent = '⭐ Highlight'; _activeHlBtn.disabled = false; _activeHlBtn.style.opacity = ''; }
+    _activeHlCommentId = null;
+    _activeHlBtn = null;
+  }
 });
 
 // -- Controls --------------------------------------------------
@@ -878,16 +909,9 @@ if (endBtn) {
 }
 
 window.addEventListener('beforeunload', () => {
-  const uid = localStorage.getItem('userId');
-  if (roomId) {
-    socket.volatile.emit('end-debate', { roomId });
-    if (uid && navigator.sendBeacon) {
-      navigator.sendBeacon('/api/leave', new Blob(
-        [JSON.stringify({ roomId, userId: uid })],
-        { type: 'application/json' }
-      ));
-    }
-  }
+  // volatile emit only — the 30-second server grace period handles brief disconnects
+  // (sendBeacon was removed because it caused premature debate termination on mobile)
+  if (roomId) socket.volatile.emit('end-debate', { roomId });
 });
 
 // -- Chat sidebar ----------------------------------------------
@@ -1226,3 +1250,54 @@ function dismissSpeakRequest() {
   const panel = document.getElementById('speakRequestPanel');
   if (panel) panel.style.display = 'none';
 }
+
+// -- Opponent reconnecting (grace period) ----------------------
+socket.on('opponent-reconnecting', () => {
+  showToast('Opponent briefly disconnected — waiting up to 30 s for them to return…', 'info');
+});
+
+// -- Spectator video stream (WebRTC fan-out) -------------------
+const specPeerConns = new Map(); // specSocketId -> RTCPeerConnection
+
+async function createSpecStreamPeerConn(specSocketId) {
+  const existing = specPeerConns.get(specSocketId);
+  if (existing) { try { existing.close(); } catch {} specPeerConns.delete(specSocketId); }
+
+  const stream = localStream || rawMicStream;
+  if (!stream || !stream.getTracks().length) return;
+
+  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  specPeerConns.set(specSocketId, pc);
+
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate) socket.emit('spec-stream-ice', { targetSocketId: specSocketId, candidate });
+  };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') specPeerConns.delete(specSocketId);
+  };
+
+  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('spec-stream-offer', { specSocketId, offer });
+  } catch {}
+}
+
+socket.on('spectator-joined-stream', async ({ specSocketId }) => {
+  // Ensure we have local media before trying to stream
+  const stream = localStream || rawMicStream || await ensureLocalMedia().catch(() => null);
+  if (!stream) return;
+  createSpecStreamPeerConn(specSocketId);
+});
+
+socket.on('spec-stream-answer', async ({ specSocketId, answer }) => {
+  const pc = specPeerConns.get(specSocketId);
+  if (pc) try { await pc.setRemoteDescription(new RTCSessionDescription(answer)); } catch {}
+});
+
+socket.on('spec-stream-ice', async ({ fromSocketId, candidate }) => {
+  const pc = specPeerConns.get(fromSocketId);
+  if (pc) try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+});
