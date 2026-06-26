@@ -388,7 +388,7 @@ socket.on('spectate-error', ({ error }) => {
 socket.on('spectator-kicked', ({ reason }) => {
   socket.disconnect();
   document.body.innerHTML = `
-    <div style="min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;background:var(--bg)">
+    <div style="min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;background:var(--bg-0)">
       <svg style="width:52px;height:52px;fill:none;stroke:${reason==='ban'?'#ef4444':'#f97316'};stroke-width:1.5;opacity:0.7" viewBox="0 0 24 24">
         ${reason === 'ban'
           ? '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>'

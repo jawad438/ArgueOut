@@ -660,7 +660,7 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 /* ── Legal footer bar ── */
 .lf-bar {
   border-top: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--bg-0);
   position: relative;
   z-index: 1;
   padding-bottom: 16px;
@@ -733,6 +733,10 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 .auth-footer-text { text-align: center; color: var(--text-2); font-size: 0.87rem; margin-top: 20px; }
 .auth-footer-text a { color: var(--purple); text-decoration: none; font-weight: 500; }
 .auth-footer-text a:hover { text-decoration: underline; }
+
+/* Two-column form row — collapses to single column on narrow screens */
+.form-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 480px) { .form-two-col { grid-template-columns: 1fr; } }
 
 /* Step progress */
 .step-progress { display: flex; align-items: center; gap: 0; margin-bottom: 32px; }
@@ -922,6 +926,10 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 .how-title { font-size: 0.85rem; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 18px; font-family: 'Space Grotesk', sans-serif; }
 .how-step { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
 .how-step:last-child { margin-bottom: 0; }
+.how-works-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+  align-items: center; position: relative; z-index: 1;
+}
 .how-num {
   width: 22px; height: 22px;
   border-radius: 50%;
@@ -1698,6 +1706,7 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   .match-card { padding: 28px 20px; }
   .modal-card { padding: 24px 18px; }
   .nav-user span { display: none; }
+  .how-works-grid { grid-template-columns: 1fr; gap: 36px; }
 }
 
 @media (max-width: 640px) {
@@ -1713,6 +1722,16 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   .how-card { padding: 20px 18px; }
   .cta-card { padding: 44px 24px; }
   .profile-card { padding: 22px 18px; }
+  /* Lobby navbar: hide verbose labels on small screens */
+  .lobby-watch-label { display: none; }
+  .lobby-signout-btn { display: none; }
+  .nav-actions { gap: 6px; }
+  /* Compass: scale canvas to fit narrow phones */
+  .compass-page { padding: 80px 12px 40px; }
+  .compass-canvas-wrap { max-width: calc(100vw - 80px); margin: 0 auto; }
+  #compassCanvas { width: 100% !important; height: auto !important; }
+  .compass-title { font-size: 1.5rem; }
+  .compass-sub { font-size: 0.88rem; margin-bottom: 20px; }
 }
 
 /* ── Profile picture upload ─────────────────────────────────── */
