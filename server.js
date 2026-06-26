@@ -152,6 +152,7 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false, // required for WebRTC getUserMedia
   crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }, // required for Firebase signInWithPopup (keeps window.opener for auth relay)
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }, // less restrictive than no-referrer; lets crawlers/analytics see referral chains
   hsts: process.env.NODE_ENV === 'production'
     ? { maxAge: 63072000, includeSubDomains: true, preload: true }
     : false,
@@ -161,6 +162,11 @@ app.use(helmet({
 app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Permissions-Policy', 'camera=*, microphone=*, geolocation=()');
+  // Explicitly allow public-page indexing — overrides any host-level noindex header
+  // (e.g. Render.com free tier may inject X-Robots-Tag: noindex on .onrender.com subdomains)
+  if (!req.path.startsWith('/api') && !req.path.startsWith('/admin')) {
+    res.setHeader('X-Robots-Tag', 'index, follow');
+  }
   next();
 });
 
