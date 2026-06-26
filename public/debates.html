@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Debates — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <meta name="theme-color" content="#8b5cf6" />
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
+  <style>
+    .debates-wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+    .debates-hero { margin-bottom: 36px; }
+    .debates-hero h1 {
+      font-size: 2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--text-1) 0%, var(--purple) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 8px;
+    }
+    .debates-hero p { font-size: 0.95rem; color: var(--text-2); }
+    .debates-live-dot {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: #ef4444; margin-right: 7px; vertical-align: middle;
+      animation: live-pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes live-pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+      50%       { opacity: 0.7; box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+    }
+    .debates-grid { display: grid; gap: 16px; }
+    .debate-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;
+      transition: border-color 160ms, box-shadow 160ms;
+    }
+    .debate-card:hover { border-color: rgba(139,92,246,0.4); box-shadow: 0 0 0 3px rgba(139,92,246,0.06); }
+    .dc-top { display: flex; align-items: flex-start; gap: 14px; }
+    .dc-question {
+      flex: 1; font-size: 1rem; font-weight: 700; color: var(--text-1); line-height: 1.45;
+    }
+    .dc-no-question { font-size: 0.88rem; color: var(--text-3); font-style: italic; }
+    .dc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .dc-debaters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .dc-debater {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.8rem; font-weight: 600; color: var(--text-2);
+      background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.15);
+      border-radius: 20px; padding: 3px 10px;
+    }
+    .dc-debater-pos {
+      font-size: 0.68rem; font-weight: 700; color: var(--purple);
+      background: rgba(139,92,246,0.12); border-radius: 10px; padding: 1px 6px;
+    }
+    .dc-vs { font-size: 0.72rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; }
+    .dc-stats { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+    .dc-stat { font-size: 0.78rem; color: var(--text-3); display: flex; align-items: center; gap: 4px; }
+    .dc-stat svg { opacity: 0.6; }
+    .dc-actions { display: flex; justify-content: flex-end; }
+    .dc-watch-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 20px; background: var(--purple); color: #fff;
+      border: none; border-radius: 10px; font-size: 0.85rem; font-weight: 700;
+      cursor: pointer; text-decoration: none; transition: opacity 120ms, transform 120ms;
+    }
+    .dc-watch-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .debates-empty {
+      text-align: center; padding: 72px 24px; color: var(--text-3);
+    }
+    .debates-empty svg { opacity: 0.3; margin-bottom: 16px; }
+    .debates-empty h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-2); margin-bottom: 8px; }
+    .debates-empty p { font-size: 0.88rem; }
+    .debates-refresh { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+    .debates-count { font-size: 0.82rem; color: var(--text-3); }
+    .debates-refresh-btn {
+      display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px;
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 0.78rem; font-weight: 600; color: var(--text-2); cursor: pointer;
+      transition: background 120ms;
+    }
+    .debates-refresh-btn:hover { background: rgba(139,92,246,0.07); }
+    .debates-refresh-btn.spinning svg { animation: spin 0.6s linear; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+  <div class="nav-actions">
+    <div class="theme-switcher">
+      <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme">
+        <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
+      </button>
+      <div class="theme-menu" id="themeMenu" style="display:none">
+        <button class="theme-menu-item" data-t="system" onclick="applyTheme('system')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>System</button>
+        <button class="theme-menu-item" data-t="light" onclick="applyTheme('light')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>Light</button>
+        <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark</button>
+      </div>
+    </div>
+    <span id="nav-auth-debates"></span>
+    <script>(function(){var el=document.getElementById('nav-auth-debates');el.innerHTML=localStorage.getItem('userId')?'<a href="/lobby" class="btn btn-ghost btn-sm">Lobby</a>':'<a href="/login" class="btn btn-ghost btn-sm">Sign In</a>';}());</script>
+  </div>
+</nav>
+
+<div class="debates-wrap">
+  <div class="debates-hero">
+    <h1><span class="debates-live-dot"></span>Live Debates</h1>
+    <p>Watch real people debate live — and join the conversation as a spectator.</p>
+  </div>
+
+  <div class="debates-refresh">
+    <span class="debates-count" id="debatesCount">Loading...</span>
+    <button class="debates-refresh-btn" id="refreshBtn" onclick="loadDebates()">
+      <svg id="refreshIcon" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Refresh
+    </button>
+  </div>
+
+  <div class="debates-grid" id="debatesGrid"></div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/bg.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/debates.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+<script src="/js/legal-footer.js"></script>
+</body>
+</html>

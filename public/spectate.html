@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Watching — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <meta name="theme-color" content="#8b5cf6" />
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
+  <style>
+    body { overflow: hidden; }
+
+    /* ── Layout ── */
+    .spec-layout {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    .spec-header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 10px 20px; border-bottom: 1px solid var(--border);
+      background: var(--bg); position: relative; z-index: 10; flex-shrink: 0;
+    }
+    .spec-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.82rem; font-weight: 600; color: var(--text-2);
+      text-decoration: none; padding: 5px 10px; border-radius: 8px;
+      border: 1px solid var(--border); transition: background 120ms;
+    }
+    .spec-back:hover { background: rgba(139,92,246,0.07); }
+    .spec-topic {
+      flex: 1; text-align: center; font-size: 0.9rem; font-weight: 700;
+      color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 420px;
+    }
+    .spec-topic-placeholder { color: var(--text-3); font-weight: 400; font-style: italic; }
+    .spec-live-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.72rem; font-weight: 700; color: #ef4444;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 20px; padding: 3px 10px; letter-spacing: 0.05em;
+      text-transform: uppercase; margin-left: auto;
+    }
+    .spec-live-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
+      animation: live-pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes live-pulse {
+      0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(239,68,68,0.4); }
+      50%      { opacity:0.7; box-shadow:0 0 0 5px rgba(239,68,68,0); }
+    }
+    .spec-theme-btn-wrap { flex-shrink: 0; }
+
+    /* ── Body ── */
+    .spec-body {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    /* ── Left: debate info + debate chat ── */
+    .spec-main {
+      display: flex; flex-direction: column; overflow: hidden;
+      border-right: 1px solid var(--border);
+    }
+    .spec-debaters {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      padding: 16px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .spec-debater {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .spec-debater-name {
+      font-size: 0.88rem; font-weight: 700; color: var(--text-1);
+    }
+    .spec-debater-pos {
+      font-size: 0.7rem; font-weight: 700; color: var(--purple);
+      background: rgba(139,92,246,0.1); border-radius: 10px; padding: 2px 8px;
+    }
+    .spec-vs {
+      font-size: 0.78rem; font-weight: 800; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .spec-debate-chat {
+      flex: 1; overflow-y: auto; padding: 16px 20px; display: flex;
+      flex-direction: column; gap: 10px;
+    }
+    .spec-debate-chat::-webkit-scrollbar { width: 4px; }
+    .spec-debate-chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .spec-chat-label {
+      font-size: 0.68rem; font-weight: 700; color: var(--text-3); text-transform: uppercase;
+      letter-spacing: 0.1em; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+      margin-bottom: 4px; flex-shrink: 0;
+    }
+    .spec-msg {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 13px;
+    }
+    .spec-msg-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .spec-msg-author { font-size: 0.78rem; font-weight: 700; color: var(--purple); }
+    .spec-msg-time { font-size: 0.7rem; color: var(--text-3); margin-left: auto; }
+    .spec-msg-body { font-size: 0.88rem; color: var(--text-2); line-height: 1.55; }
+
+    .spec-ended-notice {
+      padding: 20px; text-align: center; color: var(--text-3);
+      font-size: 0.88rem;
+    }
+
+    /* ── Right: spectator chat ── */
+    .spec-side {
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .spec-side-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      font-size: 0.78rem; font-weight: 700; color: var(--text-2);
+      display: flex; align-items: center; gap: 7px; flex-shrink: 0;
+    }
+    .spec-side-count {
+      font-size: 0.72rem; color: var(--text-3); margin-left: auto;
+    }
+    .spec-comments {
+      flex: 1; overflow-y: auto; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .spec-comments::-webkit-scrollbar { width: 4px; }
+    .spec-comments::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .spec-comment {
+      background: var(--card); border: 1px solid var(--border); border-radius: 9px;
+      padding: 8px 11px; transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+      position: relative;
+    }
+    .spec-comment-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .spec-comment-author { font-size: 0.75rem; font-weight: 700; color: var(--text-2); }
+    .spec-comment-time { font-size: 0.67rem; color: var(--text-3); margin-left: auto; }
+    .spec-comment-body { font-size: 0.83rem; color: var(--text-2); line-height: 1.5; }
+
+    /* ── Golden highlight animation ── */
+    @keyframes ao-gold-burst {
+      0%   { box-shadow: 0 0 0 0 rgba(255,196,0,0); border-color: var(--border); }
+      18%  { box-shadow: 0 0 28px 10px rgba(255,196,0,0.55), 0 0 56px 22px rgba(255,196,0,0.2); border-color: #ffc400; }
+      45%  { box-shadow: 0 0 18px 6px rgba(255,196,0,0.35); border-color: rgba(255,196,0,0.8); }
+      100% { box-shadow: 0 0 8px 2px rgba(255,196,0,0.18); border-color: rgba(255,196,0,0.55); }
+    }
+    @keyframes ao-gold-shimmer {
+      0%,100% { box-shadow: 0 0 8px 2px rgba(255,196,0,0.18); }
+      50%     { box-shadow: 0 0 14px 4px rgba(255,196,0,0.3); }
+    }
+    .spec-comment.highlighted {
+      border-color: rgba(255,196,0,0.55) !important;
+      background: rgba(255,196,0,0.05) !important;
+      animation: ao-gold-burst 1.5s cubic-bezier(0.22,1,0.36,1) forwards;
+    }
+    .spec-comment.highlighted-persist {
+      border-color: rgba(255,196,0,0.55);
+      background: rgba(255,196,0,0.05);
+      animation: ao-gold-shimmer 2.8s ease-in-out infinite;
+    }
+    .spec-comment-highlight-tag {
+      font-size: 0.66rem; font-weight: 700; color: #b8860b;
+      background: rgba(255,196,0,0.15); border-radius: 6px; padding: 1px 6px;
+      margin-left: 5px;
+    }
+
+    /* ── Spectator comment input ── */
+    .spec-input-wrap {
+      padding: 10px 12px; border-top: 1px solid var(--border); flex-shrink: 0;
+      display: flex; gap: 8px; align-items: flex-end;
+    }
+    .spec-input {
+      flex: 1; resize: none; min-height: 38px; max-height: 100px;
+      padding: 9px 12px; font-size: 0.85rem; font-family: inherit;
+      background: var(--input-bg, var(--card)); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text-1); outline: none;
+      transition: border-color 120ms;
+      overflow-y: auto;
+    }
+    .spec-input:focus { border-color: var(--purple); }
+    .spec-input::placeholder { color: var(--text-3); }
+    .spec-send-btn {
+      padding: 9px 14px; background: var(--purple); color: #fff; border: none;
+      border-radius: 10px; cursor: pointer; display: flex; align-items: center;
+      transition: opacity 120ms;
+    }
+    .spec-send-btn:hover { opacity: 0.85; }
+
+    /* ── Highlighted comment overlay (slides in from right of main area) ── */
+    #specHighlightOverlay {
+      position: fixed; right: 340px; bottom: 80px; z-index: 200;
+      pointer-events: none;
+    }
+    .spec-hl-toast {
+      background: linear-gradient(135deg, rgba(30,20,0,0.97) 0%, rgba(50,35,0,0.97) 100%);
+      border: 1.5px solid rgba(255,196,0,0.7); border-radius: 14px;
+      padding: 14px 18px; max-width: 300px; box-shadow: 0 0 28px 6px rgba(255,196,0,0.25);
+      animation: ao-toast-slide-in 0.45s cubic-bezier(0.22,1,0.36,1) forwards;
+    }
+    @keyframes ao-toast-slide-in {
+      from { opacity: 0; transform: translateX(40px) scale(0.92); }
+      to   { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    .ao-toast-fade-out {
+      animation: ao-toast-slide-out 0.4s ease-in forwards !important;
+    }
+    @keyframes ao-toast-slide-out {
+      from { opacity: 1; transform: translateX(0) scale(1); }
+      to   { opacity: 0; transform: translateX(40px) scale(0.92); }
+    }
+    .spec-hl-label {
+      font-size: 0.66rem; font-weight: 800; color: #ffc400; text-transform: uppercase;
+      letter-spacing: 0.1em; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .spec-hl-star {
+      display: inline-block;
+      animation: ao-star-spin 0.8s ease-out;
+    }
+    @keyframes ao-star-spin {
+      from { transform: rotate(-90deg) scale(0); opacity: 0; }
+      to   { transform: rotate(0deg) scale(1); opacity: 1; }
+    }
+    .spec-hl-author { font-size: 0.78rem; font-weight: 700; color: rgba(255,196,0,0.85); margin-bottom: 4px; }
+    .spec-hl-message { font-size: 0.9rem; color: #fff; line-height: 1.5; font-weight: 500; }
+    .spec-hl-by { font-size: 0.7rem; color: rgba(255,196,0,0.5); margin-top: 8px; }
+
+    /* ── Connecting state ── */
+    .spec-connecting {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 14px; color: var(--text-3); font-size: 0.9rem;
+    }
+    .spec-spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--purple); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .spec-body { grid-template-columns: 1fr; grid-template-rows: 1fr 280px; }
+      .spec-main { border-right: none; border-bottom: 1px solid var(--border); }
+      #specHighlightOverlay { right: 16px; bottom: 310px; }
+    }
+  </style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+
+<div class="spec-layout">
+  <header class="spec-header">
+    <a href="/debates" class="spec-back">
+      <svg style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Live Debates
+    </a>
+    <div class="spec-topic" id="specTopic"><span class="spec-topic-placeholder">Connecting…</span></div>
+    <div class="spec-live-badge"><span class="spec-live-dot"></span>Live</div>
+    <div class="spec-theme-btn-wrap">
+      <div class="theme-switcher">
+        <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme">
+          <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
+        </button>
+        <div class="theme-menu" id="themeMenu" style="display:none">
+          <button class="theme-menu-item" data-t="system" onclick="applyTheme('system')">System</button>
+          <button class="theme-menu-item" data-t="light" onclick="applyTheme('light')">Light</button>
+          <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')">Dark</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="spec-body" id="specBody">
+    <!-- connecting state -->
+    <div class="spec-connecting" id="specConnecting" style="grid-column:1/-1">
+      <div class="spec-spinner"></div>
+      <span>Joining debate…</span>
+    </div>
+
+    <!-- left: debate chat -->
+    <div class="spec-main" id="specMain" style="display:none">
+      <div class="spec-debaters" id="specDebaters"></div>
+      <div class="spec-debate-chat" id="specDebateChat">
+        <div class="spec-chat-label">Debate Chat</div>
+      </div>
+    </div>
+
+    <!-- right: spectator chat -->
+    <div class="spec-side" id="specSide" style="display:none">
+      <div class="spec-side-header">
+        <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Spectators
+        <span class="spec-side-count" id="specCount">0 watching</span>
+      </div>
+      <div class="spec-comments" id="specComments"></div>
+      <div class="spec-input-wrap">
+        <textarea class="spec-input" id="specInput" rows="1" placeholder="Ask a question or comment…" maxlength="300"></textarea>
+        <button class="spec-send-btn" id="specSendBtn">
+          <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Highlight overlay -->
+<div id="specHighlightOverlay"></div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/bg.js"></script>
+<script src="/js/theme.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/js/spectate.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

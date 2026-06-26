@@ -681,6 +681,135 @@ socket.on('debate-ended', ({ reason }) => {
   }
 });
 
+// -- Spectator panel -------------------------------------------
+const specPanel      = document.getElementById('specPanel');
+const specToggleBtn  = document.getElementById('specToggleBtn');
+const closeSpecPanel = document.getElementById('closeSpecPanel');
+const specPanelComments = document.getElementById('specPanelComments');
+const specPanelCount = document.getElementById('specPanelCount');
+const specCountLabel = document.getElementById('specCountLabel');
+const specBadge      = document.getElementById('specBadge');
+
+let specPanelOpen = false;
+let specUnread    = 0;
+
+function openSpecPanel() {
+  if (!specPanel) return;
+  specPanel.classList.add('open');
+  specPanelOpen = true;
+  specUnread = 0;
+  if (specBadge) specBadge.style.display = 'none';
+  if (specToggleBtn) specToggleBtn.classList.add('active');
+}
+function closeSpecPanel_() {
+  if (!specPanel) return;
+  specPanel.classList.remove('open');
+  specPanelOpen = false;
+  if (specToggleBtn) specToggleBtn.classList.remove('active');
+}
+if (specToggleBtn) specToggleBtn.addEventListener('click', () => specPanelOpen ? closeSpecPanel_() : openSpecPanel());
+if (closeSpecPanel) closeSpecPanel.addEventListener('click', closeSpecPanel_);
+
+const specCommentMap = new Map(); // commentId -> element
+
+function addSpecComment(payload) {
+  const empty = document.getElementById('specPanelEmpty');
+  if (empty) empty.style.display = 'none';
+
+  const div = document.createElement('div');
+  div.className = 'spec-panel-comment';
+  div.dataset.id = payload.id;
+  const time = new Date(payload.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  div.innerHTML = `
+    <div class="spec-panel-comment-header">
+      <span class="spec-panel-comment-author">@${escapeHtml(payload.username)}</span>
+      <span class="spec-panel-comment-time">${time}</span>
+    </div>
+    <div class="spec-panel-comment-body">${escapeHtml(payload.message)}</div>
+    <button class="spec-panel-hl-btn" onclick="highlightSpecComment('${escapeHtml(payload.id)}','${escapeHtml(payload.username)}',this)">
+      ⭐ Highlight
+    </button>
+  `;
+  if (specPanelComments) {
+    specPanelComments.appendChild(div);
+    specPanelComments.scrollTop = specPanelComments.scrollHeight;
+  }
+  specCommentMap.set(payload.id, div);
+
+  if (!specPanelOpen) {
+    specUnread++;
+    if (specBadge) specBadge.style.display = 'block';
+  }
+}
+
+function highlightSpecComment(commentId, username, btn) {
+  const el = specCommentMap.get(commentId);
+  const body = el?.querySelector('.spec-panel-comment-body');
+  const message = body?.textContent || '';
+  socket.emit('highlight-comment', { roomId, commentId, username, message });
+  if (btn) { btn.textContent = '✓ Highlighted'; btn.disabled = true; btn.style.opacity = '0.5'; }
+}
+
+let hlOverlayTimer = null;
+function showDebateHlToast(username, message) {
+  const overlay = document.getElementById('debateHlOverlay');
+  if (!overlay) return;
+  if (hlOverlayTimer) { clearTimeout(hlOverlayTimer); hlOverlayTimer = null; }
+  const prev = overlay.querySelector('.debate-hl-toast');
+  if (prev) prev.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'debate-hl-toast';
+  toast.innerHTML = `
+    <div class="debate-hl-label"><span class="debate-hl-star">⭐</span> Spectator Question</div>
+    <div class="debate-hl-author">@${escapeHtml(username)}</div>
+    <div class="debate-hl-message">${escapeHtml(message)}</div>
+  `;
+  overlay.appendChild(toast);
+
+  hlOverlayTimer = setTimeout(() => {
+    toast.classList.add('ao-hl-fade-out');
+    setTimeout(() => toast.remove(), 420);
+    hlOverlayTimer = null;
+  }, 6000);
+}
+
+socket.on('spectator-count', ({ count }) => {
+  const label = count > 0 ? count + ' watching' : 'Spectators';
+  if (specCountLabel) specCountLabel.textContent = label;
+  if (specPanelCount) specPanelCount.textContent = count + ' watching';
+  if (specBadge && !specPanelOpen && count > 0) specBadge.style.display = 'block';
+});
+
+socket.on('spectator-comment', payload => {
+  addSpecComment(payload);
+});
+
+socket.on('comment-highlighted', ({ commentId, username, message }) => {
+  // Animate the comment in the panel
+  const el = specCommentMap.get(commentId);
+  if (el) {
+    el.classList.remove('highlighted', 'highlighted-persist');
+    void el.offsetWidth;
+    el.classList.add('highlighted');
+    const header = el.querySelector('.spec-panel-comment-header');
+    if (header && !header.querySelector('.hl-tag')) {
+      const tag = document.createElement('span');
+      tag.className = 'hl-tag';
+      tag.textContent = '⭐ Highlighted';
+      header.appendChild(tag);
+    }
+    setTimeout(() => {
+      el.classList.remove('highlighted');
+      el.classList.add('highlighted-persist');
+    }, 1500);
+    // Scroll to the highlighted comment
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  // Show floating toast overlay on the debate side
+  showDebateHlToast(username, message);
+});
+
 // -- Controls --------------------------------------------------
 const muteBtn = document.getElementById('muteBtn');
 const camBtn  = document.getElementById('camBtn');

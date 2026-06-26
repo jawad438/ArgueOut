@@ -326,6 +326,21 @@ app.use((req, res, next) => {
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
+app.get('/api/debates', (req, res) => {
+  const list = [];
+  for (const [roomId, room] of rooms) {
+    if (!room.startedAt) continue; // only list debates that have started
+    list.push({
+      roomId,
+      question:       room.question || null,
+      users:          room.users.map(u => ({ username: u.username, politicalX: u.politicalX || 0, politicalY: u.politicalY || 0 })),
+      spectatorCount: (room.spectators || []).length,
+      startedAt:      room.startedAt
+    });
+  }
+  res.json(list);
+});
+
 // Cloudflare Turnstile server-side verification
 app.post('/api/verify-captcha', express.json(), async (req, res) => {
   const token  = (req.body || {}).token;
@@ -871,6 +886,7 @@ io.on('connection', socket => {
         isInitiator: false,
         opponent: { username: u1.username, politicalX: u1.politicalX, politicalY: u1.politicalY }
       });
+      room.startedAt = Date.now();
       // Start structured turn system after a brief setup window
       room.turnMode         = 'structured';
       room.currentSpeakerIdx = Math.random() < 0.5 ? 0 : 1;
@@ -1034,7 +1050,10 @@ io.on('connection', socket => {
       users: [
         { userId: challenger.userId, username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY, socketId: null },
         { userId: me.userId,         username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY,         socketId: null }
-      ]
+      ],
+      spectators: [],
+      question:   null,
+      startedAt:  null
     });
 
     addDebated(challenger.userId, me.userId);
@@ -1085,7 +1104,10 @@ io.on('connection', socket => {
         { userId: hostUser.userId, username: hostUser.username, politicalX: hostUser.politicalX, politicalY: hostUser.politicalY, socketId: null },
         { userId: me.userId,       username: me.username,       politicalX: me.politicalX,       politicalY: me.politicalY,       socketId: null }
       ],
-      guestInviteSocketId: socket.id
+      guestInviteSocketId: socket.id,
+      spectators: [],
+      question:   null,
+      startedAt:  null
     });
     const hostSock = io.sockets.sockets.get(hostSocketId);
     if (hostSock) hostSock.emit('invite-accepted', { roomId, opponent: { username: me.username, politicalX: me.politicalX, politicalY: me.politicalY } });
@@ -1125,6 +1147,7 @@ io.on('connection', socket => {
         return u;
       });
       generateDebateQuestionForPair(profiles[0], profiles[1]).then(question => {
+        if (question && rooms.get(roomId)) rooms.get(roomId).question = question;
         io.to(roomId).emit('question-updated', question ? { question } : { error: TOPIC_AI_ERROR });
       });
     }
@@ -1141,6 +1164,7 @@ io.on('connection', socket => {
       roomDeclines.delete(roomId);
       io.to(roomId).emit('question-generating');
       generateDebateQuestion(null).then(question => {
+        if (question && rooms.get(roomId)) rooms.get(roomId).question = question;
         io.to(roomId).emit('question-updated', question ? { question } : { error: TOPIC_AI_ERROR });
       });
     }
@@ -1171,6 +1195,7 @@ io.on('connection', socket => {
     }
     io.to(roomId).emit('question-generating');
     generateDebateQuestion(pending.suggestion).then(question => {
+      if (question && rooms.get(roomId)) rooms.get(roomId).question = question;
       io.to(roomId).emit('question-updated', question ? { question } : { error: TOPIC_AI_ERROR });
     });
   });
@@ -1415,9 +1440,97 @@ io.on('connection', socket => {
     } catch (err) { console.error('[admin-send-notification] error:', err.message); }
   });
 
+  // -- Spectate system ------------------------------------------
+
+  socket.on('join-spectate', async ({ roomId, idToken }) => {
+    if (!socketAllow(socket.id, 'join-spectate', 3)) return;
+    const room = rooms.get(roomId);
+    if (!room) { socket.emit('spectate-error', { error: 'This debate has ended or does not exist.' }); return; }
+    if (!room.startedAt) { socket.emit('spectate-error', { error: 'This debate has not started yet.' }); return; }
+
+    let userId = null, username = 'Spectator';
+    if (idToken) {
+      const decoded = await verifyFirebaseToken(idToken);
+      if (decoded) {
+        userId = decoded.uid;
+        try {
+          const doc = await fstore.collection('users').doc(decoded.uid).get();
+          if (doc.exists) username = doc.data().username || username;
+        } catch {}
+      }
+    }
+
+    if (userId && room.users.some(u => u.userId === userId)) {
+      socket.emit('spectate-error', { error: 'You are a participant in this debate.' });
+      return;
+    }
+
+    if (!room.spectators) room.spectators = [];
+    // Don't add duplicate (e.g. reconnect)
+    if (!room.spectators.some(s => s.socketId === socket.id)) {
+      room.spectators.push({ socketId: socket.id, userId, username });
+    }
+    socket.join(roomId);
+    socket.data.spectatingRoom = roomId;
+
+    socket.emit('spectate-joined', {
+      roomId,
+      question:       room.question || null,
+      users:          room.users.map(u => ({ username: u.username, politicalX: u.politicalX || 0, politicalY: u.politicalY || 0 })),
+      spectatorCount: room.spectators.length
+    });
+
+    room.users.forEach(u => {
+      if (u.socketId) io.to(u.socketId).emit('spectator-count', { count: room.spectators.length });
+    });
+  });
+
+  socket.on('spectator-comment', ({ roomId, message }) => {
+    if (!socketAllow(socket.id, 'spectator-comment', 20)) return;
+    const room = rooms.get(roomId);
+    if (!room || !room.spectators) return;
+    const spec = room.spectators.find(s => s.socketId === socket.id);
+    if (!spec) return;
+    const clean = safeStr(message, 300);
+    if (!clean) return;
+    const payload = {
+      id:        uuidv4(),
+      username:  spec.username,
+      message:   clean,
+      timestamp: new Date().toISOString()
+    };
+    // Broadcast to all sockets in the room (debaters + spectators)
+    io.to(roomId).emit('spectator-comment', payload);
+  });
+
+  socket.on('highlight-comment', ({ roomId, commentId, username, message }) => {
+    if (!socketAllow(socket.id, 'highlight-comment', 5)) return;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    if (!room.users.some(u => u.socketId === socket.id)) return;
+    const me = socketUsers.get(socket.id);
+    io.to(roomId).emit('comment-highlighted', {
+      commentId,
+      username:      safeStr(username, 50),
+      message:       safeStr(message, 300),
+      highlightedBy: me?.username || 'Debater'
+    });
+  });
+
   socket.on('disconnect', () => {
     queue.delete(socket.id);
     io.emit('queue-size', { size: queue.size });
+
+    // Remove from spectator list if spectating
+    if (socket.data.spectatingRoom) {
+      const specRoom = rooms.get(socket.data.spectatingRoom);
+      if (specRoom && specRoom.spectators) {
+        specRoom.spectators = specRoom.spectators.filter(s => s.socketId !== socket.id);
+        specRoom.users.forEach(u => {
+          if (u.socketId) io.to(u.socketId).emit('spectator-count', { count: specRoom.spectators.length });
+        });
+      }
+    }
 
     for (const [roomId, room] of rooms) {
       if (room.users.some(u => u.socketId === socket.id)) {
@@ -1472,7 +1585,10 @@ function attemptMatch(newSocketId) {
     users: [
       { ...newUser,   socketId: null },
       { ...matchUser, socketId: null }
-    ]
+    ],
+    spectators: [],
+    question:   null,
+    startedAt:  null
   });
 
   addDebated(newUser.userId, matchUser.userId);

@@ -702,6 +702,11 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   padding-top: 4px;
 }
 
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50%       { opacity: 0.7; box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+}
+
 /* ══════════════════════════════════════════════════════════════
    AUTH PAGES (login / register)
    ══════════════════════════════════════════════════════════════ */

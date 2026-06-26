@@ -20,6 +20,121 @@
       body { overflow-y: auto; }
       .debate-layout { height: auto; }
     }
+
+    /* ── Spectator panel ── */
+    .spec-panel {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 300px; z-index: 150;
+      background: var(--bg); border-left: 1px solid var(--border);
+      display: none; flex-direction: column;
+    }
+    .spec-panel.open { display: flex; }
+    .spec-panel-header {
+      display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+      border-bottom: 1px solid var(--border); font-size: 0.82rem; font-weight: 700;
+      color: var(--text-2); flex-shrink: 0;
+    }
+    .spec-panel-count {
+      font-size: 0.72rem; color: var(--text-3); margin-left: auto;
+    }
+    .spec-panel-comments {
+      flex: 1; overflow-y: auto; padding: 10px 12px; display: flex;
+      flex-direction: column; gap: 6px;
+    }
+    .spec-panel-comments::-webkit-scrollbar { width: 4px; }
+    .spec-panel-comments::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .spec-panel-comment {
+      background: var(--card); border: 1px solid var(--border); border-radius: 9px;
+      padding: 8px 11px; position: relative;
+      transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+    }
+    .spec-panel-comment-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .spec-panel-comment-author { font-size: 0.75rem; font-weight: 700; color: var(--text-2); }
+    .spec-panel-comment-time { font-size: 0.67rem; color: var(--text-3); margin-left: auto; }
+    .spec-panel-comment-body { font-size: 0.83rem; color: var(--text-2); line-height: 1.5; }
+    .spec-panel-hl-btn {
+      margin-top: 7px; padding: 4px 10px; font-size: 0.72rem; font-weight: 700;
+      background: none; border: 1px solid var(--border); border-radius: 7px;
+      color: var(--text-3); cursor: pointer; transition: background 120ms, color 120ms, border-color 120ms;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .spec-panel-hl-btn:hover { background: rgba(255,196,0,0.1); border-color: rgba(255,196,0,0.4); color: #b8860b; }
+
+    /* Golden highlight inside the panel */
+    @keyframes ao-gold-burst-panel {
+      0%   { box-shadow: 0 0 0 0 rgba(255,196,0,0); border-color: var(--border); }
+      18%  { box-shadow: 0 0 22px 8px rgba(255,196,0,0.55), 0 0 44px 16px rgba(255,196,0,0.2); border-color: #ffc400; }
+      45%  { box-shadow: 0 0 14px 4px rgba(255,196,0,0.35); }
+      100% { box-shadow: 0 0 6px 2px rgba(255,196,0,0.18); border-color: rgba(255,196,0,0.55); }
+    }
+    @keyframes ao-gold-shimmer-panel {
+      0%,100% { box-shadow: 0 0 6px 2px rgba(255,196,0,0.18); }
+      50%     { box-shadow: 0 0 12px 4px rgba(255,196,0,0.32); }
+    }
+    .spec-panel-comment.highlighted {
+      border-color: rgba(255,196,0,0.55) !important;
+      background: rgba(255,196,0,0.05) !important;
+      animation: ao-gold-burst-panel 1.5s cubic-bezier(0.22,1,0.36,1) forwards;
+    }
+    .spec-panel-comment.highlighted-persist {
+      border-color: rgba(255,196,0,0.55);
+      background: rgba(255,196,0,0.05);
+      animation: ao-gold-shimmer-panel 2.8s ease-in-out infinite;
+    }
+    .spec-panel-comment .hl-tag {
+      font-size: 0.66rem; font-weight: 700; color: #b8860b;
+      background: rgba(255,196,0,0.15); border-radius: 6px; padding: 1px 6px;
+      margin-left: 5px;
+    }
+
+    /* Highlighted comment overlay (visible to debaters, on video side) */
+    #debateHlOverlay {
+      position: fixed; right: 20px; bottom: 100px; z-index: 160;
+      pointer-events: none; max-width: 280px;
+    }
+    .debate-hl-toast {
+      background: linear-gradient(135deg, rgba(30,20,0,0.97) 0%, rgba(50,35,0,0.97) 100%);
+      border: 1.5px solid rgba(255,196,0,0.7); border-radius: 14px;
+      padding: 14px 18px; box-shadow: 0 0 28px 6px rgba(255,196,0,0.25);
+      animation: ao-debate-hl-in 0.45s cubic-bezier(0.22,1,0.36,1) forwards;
+    }
+    @keyframes ao-debate-hl-in {
+      from { opacity:0; transform: translateX(50px) scale(0.9); }
+      to   { opacity:1; transform: translateX(0) scale(1); }
+    }
+    .ao-hl-fade-out {
+      animation: ao-debate-hl-out 0.4s ease-in forwards !important;
+    }
+    @keyframes ao-debate-hl-out {
+      from { opacity:1; transform: translateX(0) scale(1); }
+      to   { opacity:0; transform: translateX(50px) scale(0.9); }
+    }
+    .debate-hl-label {
+      font-size: 0.66rem; font-weight: 800; color: #ffc400; text-transform: uppercase;
+      letter-spacing: 0.1em; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;
+    }
+    .debate-hl-star { display: inline-block; animation: ao-star-pop 0.7s ease-out; }
+    @keyframes ao-star-pop {
+      from { transform: rotate(-90deg) scale(0); opacity:0; }
+      to   { transform: rotate(0deg) scale(1); opacity:1; }
+    }
+    .debate-hl-author { font-size: 0.78rem; font-weight: 700; color: rgba(255,196,0,0.85); margin-bottom: 4px; }
+    .debate-hl-message { font-size: 0.88rem; color: #fff; line-height: 1.5; font-weight: 500; }
+
+    /* Spectator count chip in controls */
+    .spec-count-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.7rem; font-weight: 700; color: var(--text-3);
+      position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
+      white-space: nowrap;
+    }
+    .spec-count-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
+      animation: live-pulse 1.8s ease-in-out infinite; flex-shrink: 0;
+    }
+    @keyframes live-pulse {
+      0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(239,68,68,0.4); }
+      50%      { opacity:0.7; box-shadow:0 0 0 5px rgba(239,68,68,0); }
+    }
   </style>
 </head>
 <body>
@@ -213,6 +328,13 @@
       </button>
       <div class="control-label">Chat</div>
     </div>
+    <div class="control-wrap" style="position:relative">
+      <button class="btn-icon" id="specToggleBtn" title="Spectators" aria-label="Toggle spectators panel" style="position:relative">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span id="specBadge" style="display:none;position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#ef4444;border:2px solid var(--bg-0)"></span>
+      </button>
+      <div class="control-label" id="specCountLabel">Spectators</div>
+    </div>
     <div class="control-wrap">
       <button class="btn-icon" id="reportBtn" title="Report opponent" aria-label="Report opponent" onclick="openDebateReport()" style="color:rgba(239,68,68,0.7)">
         <svg class="icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -256,6 +378,24 @@
   </aside>
 
 </div>
+
+<!-- Spectator panel -->
+<div class="spec-panel" id="specPanel">
+  <div class="spec-panel-header">
+    <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    Spectators
+    <span class="spec-panel-count" id="specPanelCount">0 watching</span>
+    <button id="closeSpecPanel" style="margin-left:8px;background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center" aria-label="Close">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="spec-panel-comments" id="specPanelComments">
+    <div style="text-align:center;padding:28px 12px;font-size:0.82rem;color:var(--text-3)" id="specPanelEmpty">No spectator comments yet.</div>
+  </div>
+</div>
+
+<!-- Highlighted comment overlay (debater view) -->
+<div id="debateHlOverlay"></div>
 
 <!-- Room not found overlay -->
 <div class="debate-ended-overlay" id="roomNotFoundOverlay">
