@@ -51,13 +51,18 @@
     .spec-panel-comment-author { font-size: 0.75rem; font-weight: 700; color: var(--text-2); }
     .spec-panel-comment-time { font-size: 0.67rem; color: var(--text-3); margin-left: auto; }
     .spec-panel-comment-body { font-size: 0.83rem; color: var(--text-2); line-height: 1.5; }
-    .spec-panel-hl-btn {
-      margin-top: 7px; padding: 4px 10px; font-size: 0.72rem; font-weight: 700;
+    .spec-panel-comment-actions {
+      display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap;
+    }
+    .spec-panel-hl-btn, .spec-panel-kick-btn, .spec-panel-ban-btn {
+      padding: 3px 9px; font-size: 0.7rem; font-weight: 700;
       background: none; border: 1px solid var(--border); border-radius: 7px;
       color: var(--text-3); cursor: pointer; transition: background 120ms, color 120ms, border-color 120ms;
-      display: inline-flex; align-items: center; gap: 4px;
+      display: inline-flex; align-items: center; gap: 3px;
     }
-    .spec-panel-hl-btn:hover { background: rgba(255,196,0,0.1); border-color: rgba(255,196,0,0.4); color: #b8860b; }
+    .spec-panel-hl-btn:hover  { background: rgba(255,196,0,0.1); border-color: rgba(255,196,0,0.4); color: #b8860b; }
+    .spec-panel-kick-btn:hover { background: rgba(249,115,22,0.1); border-color: rgba(249,115,22,0.4); color: #ea6a0a; }
+    .spec-panel-ban-btn:hover  { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.4); color: #dc2626; }
 
     /* Golden highlight inside the panel */
     @keyframes ao-gold-burst-panel {

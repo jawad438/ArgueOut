@@ -29,6 +29,10 @@ function showToast(msg, type) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
 }
 
+// ── Current user ─────────────────────────────────────────────
+let currentUsername = null;
+let currentSpecId   = null;
+
 // ── Debate chat (read-only) ──────────────────────────────────
 function addDebateMessage(username, message, timestamp) {
   const feed = document.getElementById('specDebateChat');
@@ -47,11 +51,21 @@ function addDebateMessage(username, message, timestamp) {
 }
 
 // ── Spectator comments ───────────────────────────────────────
-const commentMap = new Map(); // commentId -> element
+const commentMap     = new Map(); // commentId -> element
+const spectatorNames = new Set(); // for @mention autocomplete
+
+function renderWithMentions(text) {
+  return esc(text).replace(/@([\w][\w-]*)/g, (_, name) => {
+    const isSelf = currentUsername && name.toLowerCase() === currentUsername.toLowerCase();
+    return `<span class="spec-mention${isSelf ? ' spec-mention-self' : ''}">@${name}</span>`;
+  });
+}
 
 function addSpectatorComment(payload) {
   const list = document.getElementById('specComments');
   if (!list) return;
+  spectatorNames.add(payload.username);
+
   const div = document.createElement('div');
   div.className = 'spec-comment';
   div.dataset.id = payload.id;
@@ -60,26 +74,31 @@ function addSpectatorComment(payload) {
       <span class="spec-comment-author">@${esc(payload.username)}</span>
       <span class="spec-comment-time">${fmtTime(payload.timestamp)}</span>
     </div>
-    <div class="spec-comment-body">${esc(payload.message)}</div>
+    <div class="spec-comment-body">${renderWithMentions(payload.message)}</div>
   `;
   list.appendChild(div);
   list.scrollTop = list.scrollHeight;
   commentMap.set(payload.id, div);
+
+  // Mention notification
+  if (currentUsername && payload.username !== currentUsername) {
+    const mentionPattern = new RegExp('@' + currentUsername.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
+    if (mentionPattern.test(payload.message)) {
+      showToast(`@${payload.username} mentioned you`, 'info');
+      div.classList.add('spec-comment-mentioned');
+    }
+  }
 }
 
 // ── Golden highlight animation ───────────────────────────────
 let hlToastTimer = null;
 
 function highlightComment(commentId, username, message, highlightedBy) {
-  // 1. Animate the comment in the list
   const el = commentMap.get(commentId);
   if (el) {
     el.classList.remove('highlighted', 'highlighted-persist');
-    // Force reflow to restart animation
     void el.offsetWidth;
     el.classList.add('highlighted');
-
-    // Add "Highlighted" tag to header if not already there
     const header = el.querySelector('.spec-comment-header');
     if (header && !header.querySelector('.spec-comment-highlight-tag')) {
       const tag = document.createElement('span');
@@ -87,39 +106,29 @@ function highlightComment(commentId, username, message, highlightedBy) {
       tag.textContent = '⭐ Highlighted';
       header.appendChild(tag);
     }
-
-    // After burst animation ends, switch to slow shimmer
     setTimeout(() => {
       el.classList.remove('highlighted');
       el.classList.add('highlighted-persist');
     }, 1500);
   }
-
-  // 2. Show floating toast overlay
   showHighlightToast(username, message, highlightedBy);
 }
 
 function showHighlightToast(username, message, highlightedBy) {
   const overlay = document.getElementById('specHighlightOverlay');
   if (!overlay) return;
-
   if (hlToastTimer) { clearTimeout(hlToastTimer); hlToastTimer = null; }
-
   const existing = overlay.querySelector('.spec-hl-toast');
   if (existing) existing.remove();
-
   const toast = document.createElement('div');
   toast.className = 'spec-hl-toast';
   toast.innerHTML = `
-    <div class="spec-hl-label">
-      <span class="spec-hl-star">⭐</span> Highlighted Question
-    </div>
+    <div class="spec-hl-label"><span class="spec-hl-star">⭐</span> Highlighted Question</div>
     <div class="spec-hl-author">@${esc(username)}</div>
     <div class="spec-hl-message">${esc(message)}</div>
     <div class="spec-hl-by">Highlighted by @${esc(highlightedBy)}</div>
   `;
   overlay.appendChild(toast);
-
   hlToastTimer = setTimeout(() => {
     toast.classList.add('ao-toast-fade-out');
     setTimeout(() => toast.remove(), 420);
@@ -127,27 +136,93 @@ function showHighlightToast(username, message, highlightedBy) {
   }, 6000);
 }
 
-// ── Spectator comment input ──────────────────────────────────
+// ── @Mention autocomplete ────────────────────────────────────
 const specInput   = document.getElementById('specInput');
 const specSendBtn = document.getElementById('specSendBtn');
 
+let mentionStart = -1;
+
+function checkMentionTrigger() {
+  if (!specInput) return;
+  const val    = specInput.value;
+  const cursor = specInput.selectionStart;
+  const before = val.slice(0, cursor);
+  const atIdx  = before.lastIndexOf('@');
+  if (atIdx === -1 || (atIdx > 0 && /\w/.test(before[atIdx - 1]))) {
+    closeMentionDropdown(); return;
+  }
+  const query = before.slice(atIdx + 1);
+  if (/\s/.test(query)) { closeMentionDropdown(); return; }
+  mentionStart = atIdx;
+  const matches = [...spectatorNames].filter(
+    n => n.toLowerCase().startsWith(query.toLowerCase()) && n !== currentUsername
+  );
+  if (matches.length) showMentionDropdown(matches);
+  else closeMentionDropdown();
+}
+
+function showMentionDropdown(names) {
+  let dd = document.getElementById('specMentionDropdown');
+  if (!dd) {
+    dd = document.createElement('div');
+    dd.id = 'specMentionDropdown';
+    dd.className = 'spec-mention-dropdown';
+    document.getElementById('specSide')?.appendChild(dd);
+  }
+  dd.innerHTML = names.slice(0, 5).map(n =>
+    `<button class="spec-mention-item" data-name="${esc(n)}">@${esc(n)}</button>`
+  ).join('');
+  dd.style.display = 'block';
+  dd.querySelectorAll('.spec-mention-item').forEach(btn =>
+    btn.addEventListener('mousedown', e => { e.preventDefault(); insertMention(btn.dataset.name); })
+  );
+}
+
+function closeMentionDropdown() {
+  const dd = document.getElementById('specMentionDropdown');
+  if (dd) dd.style.display = 'none';
+  mentionStart = -1;
+}
+
+function insertMention(name) {
+  if (!specInput) return;
+  const val    = specInput.value;
+  const before = val.slice(0, mentionStart);
+  const after  = val.slice(specInput.selectionStart);
+  specInput.value = before + '@' + name + ' ' + after;
+  specInput.focus();
+  const pos = mentionStart + name.length + 2;
+  specInput.setSelectionRange(pos, pos);
+  closeMentionDropdown();
+}
+
+// ── Comment input ────────────────────────────────────────────
 function sendComment() {
   const msg = specInput?.value.trim();
   if (!msg) return;
   socket.emit('spectator-comment', { roomId, message: msg });
   specInput.value = '';
   specInput.style.height = 'auto';
+  closeMentionDropdown();
 }
 
 if (specSendBtn) specSendBtn.addEventListener('click', sendComment);
 if (specInput) {
   specInput.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeMentionDropdown(); return; }
+    const dd = document.getElementById('specMentionDropdown');
+    if (dd && dd.style.display !== 'none') {
+      const items = [...dd.querySelectorAll('.spec-mention-item')];
+      if (e.key === 'ArrowDown') { e.preventDefault(); items[0]?.focus(); return; }
+    }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendComment(); }
   });
   specInput.addEventListener('input', () => {
     specInput.style.height = 'auto';
     specInput.style.height = Math.min(specInput.scrollHeight, 100) + 'px';
+    checkMentionTrigger();
   });
+  specInput.addEventListener('blur', () => setTimeout(closeMentionDropdown, 150));
 }
 
 // ── Show debate UI once joined ───────────────────────────────
@@ -156,16 +231,15 @@ function showDebateUI(data) {
   document.getElementById('specMain').style.display = 'flex';
   document.getElementById('specSide').style.display = 'flex';
 
-  // Topic
+  currentUsername = data.currentUsername || null;
+  currentSpecId   = data.currentSpecId   || null;
+
   const topicEl = document.getElementById('specTopic');
   if (topicEl) {
     topicEl.textContent = data.question || '';
-    if (!data.question) {
-      topicEl.innerHTML = '<span class="spec-topic-placeholder">No topic set yet</span>';
-    }
+    if (!data.question) topicEl.innerHTML = '<span class="spec-topic-placeholder">No topic set yet</span>';
   }
 
-  // Debaters
   const debatersEl = document.getElementById('specDebaters');
   if (debatersEl && data.users?.length === 2) {
     const [u1, u2] = data.users;
@@ -183,11 +257,117 @@ function showDebateUI(data) {
   }
 
   updateSpectatorCount(data.spectatorCount || 0);
+  if (currentUsername) spectatorNames.add(currentUsername);
 }
 
 function updateSpectatorCount(n) {
   const el = document.getElementById('specCount');
-  if (el) el.textContent = n + ' watching';
+  if (el) el.textContent = n > 0 ? n : '';
+}
+
+// ── Branch (side) debate ─────────────────────────────────────
+let currentBranchId = null;
+
+function startBranch() {
+  if (currentBranchId) { switchToTab('branch'); return; }
+  socket.emit('start-branch', { roomId });
+}
+
+function joinBranch(branchId) {
+  socket.emit('join-branch', { branchId });
+  hideBranchInvite();
+}
+
+function hideBranchInvite() {
+  const inv = document.getElementById('specBranchInvite');
+  if (inv) inv.remove();
+}
+
+function switchToTab(tab) {
+  const specTab   = document.getElementById('tabSpectators');
+  const branchTab = document.getElementById('tabBranch');
+  const specPane  = document.getElementById('specComments');
+  const branchPane = document.getElementById('specBranchPane');
+  const inputWrap = document.getElementById('specInputWrap');
+  const branchInputWrap = document.getElementById('specBranchInputWrap');
+
+  if (tab === 'branch') {
+    if (specTab)   specTab.classList.remove('active');
+    if (branchTab) branchTab.classList.add('active');
+    if (specPane)  specPane.style.display = 'none';
+    if (branchPane) branchPane.style.display = 'flex';
+    if (inputWrap) inputWrap.style.display = 'none';
+    if (branchInputWrap) branchInputWrap.style.display = 'flex';
+  } else {
+    if (specTab)   specTab.classList.add('active');
+    if (branchTab) branchTab.classList.remove('active');
+    if (specPane)  specPane.style.display = 'flex';
+    if (branchPane) branchPane.style.display = 'none';
+    if (inputWrap) inputWrap.style.display = 'flex';
+    if (branchInputWrap) branchInputWrap.style.display = 'none';
+  }
+}
+
+function openBranchPanel(data) {
+  currentBranchId = data.branchId;
+  const branchTab = document.getElementById('tabBranch');
+  if (branchTab) branchTab.style.display = 'inline-flex';
+
+  const topicEl = document.getElementById('specBranchTopic');
+  if (topicEl) topicEl.textContent = data.question || 'Side Discussion';
+
+  const membersEl = document.getElementById('specBranchMembers');
+  if (membersEl) membersEl.textContent = (data.members || []).map(n => '@' + n).join(', ');
+
+  switchToTab('branch');
+}
+
+function addBranchMessage(payload) {
+  const list = document.getElementById('specBranchMessages');
+  if (!list) return;
+  const div = document.createElement('div');
+  div.className = 'spec-comment';
+  div.innerHTML = `
+    <div class="spec-comment-header">
+      <span class="spec-comment-author" style="color:var(--purple)">@${esc(payload.username)}</span>
+      <span class="spec-comment-time">${fmtTime(payload.timestamp)}</span>
+    </div>
+    <div class="spec-comment-body">${renderWithMentions(payload.message)}</div>
+  `;
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
+}
+
+function addBranchSystem(text) {
+  const list = document.getElementById('specBranchMessages');
+  if (!list) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'text-align:center;font-size:0.72rem;color:var(--text-3);padding:4px 0';
+  div.textContent = text;
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
+}
+
+function sendBranchMessage() {
+  const inp = document.getElementById('specBranchInput');
+  const msg = inp?.value.trim();
+  if (!msg || !currentBranchId) return;
+  socket.emit('branch-message', { branchId: currentBranchId, message: msg });
+  inp.value = '';
+  inp.style.height = 'auto';
+}
+
+const branchInput = document.getElementById('specBranchInput');
+const branchSendBtn = document.getElementById('specBranchSendBtn');
+if (branchSendBtn) branchSendBtn.addEventListener('click', sendBranchMessage);
+if (branchInput) {
+  branchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBranchMessage(); }
+  });
+  branchInput.addEventListener('input', () => {
+    branchInput.style.height = 'auto';
+    branchInput.style.height = Math.min(branchInput.scrollHeight, 100) + 'px';
+  });
 }
 
 // ── Socket events ────────────────────────────────────────────
@@ -202,12 +382,33 @@ socket.on('spectate-error', ({ error }) => {
      <a href="/debates" style="color:var(--purple);font-size:0.85rem">← Back to Live Debates</a>`;
 });
 
+socket.on('spectator-kicked', ({ reason }) => {
+  socket.disconnect();
+  document.body.innerHTML = `
+    <div style="min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;background:var(--bg)">
+      <svg style="width:52px;height:52px;fill:none;stroke:${reason==='ban'?'#ef4444':'#f97316'};stroke-width:1.5;opacity:0.7" viewBox="0 0 24 24">
+        ${reason === 'ban'
+          ? '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>'
+          : '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'}
+      </svg>
+      <h2 style="font-size:1.25rem;font-weight:800;color:var(--text-1);margin:0">
+        ${reason === 'ban' ? 'Removed from this debate' : 'You were kicked'}
+      </h2>
+      <p style="font-size:0.9rem;color:var(--text-3);margin:0;max-width:300px">
+        ${reason === 'ban'
+          ? 'A debater has removed you and you cannot rejoin this debate.'
+          : 'A debater has removed you from watching this debate.'}
+      </p>
+      <a href="/debates" style="margin-top:8px;padding:10px 22px;background:var(--purple);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:0.9rem">Browse Other Debates</a>
+    </div>`;
+});
+
 socket.on('chat-message', ({ username, message, timestamp }) => {
-  // Debate chat from debaters (read-only for spectators)
   addDebateMessage(username, message, timestamp);
 });
 
 socket.on('spectator-comment', payload => {
+  spectatorNames.add(payload.username);
   addSpectatorComment(payload);
 });
 
@@ -237,6 +438,62 @@ socket.on('debate-ended', () => {
   if (specInput) specInput.disabled = true;
   if (specSendBtn) specSendBtn.disabled = true;
   showToast('This debate has ended.', 'info');
+});
+
+// Branch events
+socket.on('branch-started', ({ branchId, question, members }) => {
+  openBranchPanel({ branchId, question, members });
+  addBranchSystem('Side discussion started');
+});
+
+socket.on('branch-invite', ({ branchId, initiator, question }) => {
+  // Show invite banner in spectator chat
+  const list = document.getElementById('specComments');
+  if (!list) return;
+  const inv = document.createElement('div');
+  inv.id = 'specBranchInvite';
+  inv.className = 'spec-branch-invite';
+  inv.innerHTML = `
+    <div class="spec-branch-invite-text">
+      <strong>@${esc(initiator)}</strong> started a side discussion
+      ${question ? `<span style="color:var(--text-3);font-size:0.78rem"> · ${esc(question.slice(0,60))}${question.length>60?'…':''}</span>` : ''}
+    </div>
+    <button class="spec-branch-join-btn" onclick="joinBranch('${esc(branchId)}')">Join</button>
+  `;
+  list.insertBefore(inv, list.firstChild);
+});
+
+socket.on('branch-joined', ({ branchId, question, members }) => {
+  openBranchPanel({ branchId, question, members });
+  addBranchSystem('You joined the side discussion');
+});
+
+socket.on('branch-message', payload => {
+  addBranchMessage(payload);
+  // Badge on tab if not currently viewing
+  const branchTab = document.getElementById('tabBranch');
+  const branchPane = document.getElementById('specBranchPane');
+  if (branchPane && branchPane.style.display === 'none') {
+    const badge = branchTab?.querySelector('.tab-badge');
+    if (badge) { badge.style.display = 'inline-flex'; badge.textContent = '•'; }
+  }
+});
+
+socket.on('branch-member-joined', ({ username }) => {
+  addBranchSystem(`@${username} joined`);
+  const membersEl = document.getElementById('specBranchMembers');
+  if (membersEl) {
+    const cur = membersEl.textContent;
+    membersEl.textContent = cur ? cur + ', @' + username : '@' + username;
+  }
+});
+
+socket.on('branch-member-left', ({ username }) => {
+  addBranchSystem(`@${username} left`);
+});
+
+socket.on('branch-error', ({ error }) => {
+  showToast(error, 'error');
 });
 
 // ── Auth → connect ───────────────────────────────────────────

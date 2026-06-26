@@ -720,15 +720,19 @@ function addSpecComment(payload) {
   div.className = 'spec-panel-comment';
   div.dataset.id = payload.id;
   const time = new Date(payload.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const sid  = escapeHtml(payload.specId || '');
+  const uname = escapeHtml(payload.username);
   div.innerHTML = `
     <div class="spec-panel-comment-header">
-      <span class="spec-panel-comment-author">@${escapeHtml(payload.username)}</span>
+      <span class="spec-panel-comment-author">@${uname}</span>
       <span class="spec-panel-comment-time">${time}</span>
     </div>
     <div class="spec-panel-comment-body">${escapeHtml(payload.message)}</div>
-    <button class="spec-panel-hl-btn" onclick="highlightSpecComment('${escapeHtml(payload.id)}','${escapeHtml(payload.username)}',this)">
-      ⭐ Highlight
-    </button>
+    <div class="spec-panel-comment-actions">
+      <button class="spec-panel-hl-btn" onclick="highlightSpecComment('${escapeHtml(payload.id)}','${uname}',this)">⭐ Highlight</button>
+      <button class="spec-panel-kick-btn" onclick="kickSpectator('${sid}','${uname}',this)">⚡ Kick</button>
+      <button class="spec-panel-ban-btn" onclick="banSpectator('${sid}','${uname}',this)">🚫 Ban</button>
+    </div>
   `;
   if (specPanelComments) {
     specPanelComments.appendChild(div);
@@ -740,6 +744,20 @@ function addSpecComment(payload) {
     specUnread++;
     if (specBadge) specBadge.style.display = 'block';
   }
+}
+
+function kickSpectator(specId, username, btn) {
+  if (!specId || !confirm(`Remove @${username} from watching this debate?`)) return;
+  socket.emit('kick-spectator', { roomId, specId });
+  const row = btn?.closest('.spec-panel-comment-actions');
+  if (row) row.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.opacity = '0.4'; });
+}
+
+function banSpectator(specId, username, btn) {
+  if (!specId || !confirm(`Ban @${username} from watching this debate?\nThey won't be able to rejoin.`)) return;
+  socket.emit('ban-spectator', { roomId, specId });
+  const row = btn?.closest('.spec-panel-comment-actions');
+  if (row) row.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.opacity = '0.4'; });
 }
 
 function highlightSpecComment(commentId, username, btn) {

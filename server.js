@@ -631,6 +631,9 @@ const queue = new Map();
 // roomId -> { users: [ { userId, username, politicalX, politicalY, socketId } ] }
 const rooms = new Map();
 
+// branchId -> { parentRoomId, question, members: [{socketId, username}] }
+const branches = new Map();
+
 // socketId -> user info (minimal, for matchmaking/chat)
 const socketUsers = new Map();
 
@@ -1051,9 +1054,10 @@ io.on('connection', socket => {
         { userId: challenger.userId, username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY, socketId: null },
         { userId: me.userId,         username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY,         socketId: null }
       ],
-      spectators: [],
-      question:   null,
-      startedAt:  null
+      spectators:        [],
+      bannedSpectators:  new Set(),
+      question:          null,
+      startedAt:         null
     });
 
     addDebated(challenger.userId, me.userId);
@@ -1105,9 +1109,10 @@ io.on('connection', socket => {
         { userId: me.userId,       username: me.username,       politicalX: me.politicalX,       politicalY: me.politicalY,       socketId: null }
       ],
       guestInviteSocketId: socket.id,
-      spectators: [],
-      question:   null,
-      startedAt:  null
+      spectators:          [],
+      bannedSpectators:    new Set(),
+      question:            null,
+      startedAt:           null
     });
     const hostSock = io.sockets.sockets.get(hostSocketId);
     if (hostSock) hostSock.emit('invite-accepted', { roomId, opponent: { username: me.username, politicalX: me.politicalX, politicalY: me.politicalY } });
@@ -1464,20 +1469,28 @@ io.on('connection', socket => {
       socket.emit('spectate-error', { error: 'You are a participant in this debate.' });
       return;
     }
+    if (userId && room.bannedSpectators?.has(userId)) {
+      socket.emit('spectate-error', { error: 'You have been removed from this debate.' });
+      return;
+    }
 
     if (!room.spectators) room.spectators = [];
+    const specId = uuidv4().slice(0, 8);
     // Don't add duplicate (e.g. reconnect)
     if (!room.spectators.some(s => s.socketId === socket.id)) {
-      room.spectators.push({ socketId: socket.id, userId, username });
+      room.spectators.push({ socketId: socket.id, userId, username, specId });
     }
     socket.join(roomId);
     socket.data.spectatingRoom = roomId;
+    socket.data.specUsername = username;
 
     socket.emit('spectate-joined', {
       roomId,
-      question:       room.question || null,
-      users:          room.users.map(u => ({ username: u.username, politicalX: u.politicalX || 0, politicalY: u.politicalY || 0 })),
-      spectatorCount: room.spectators.length
+      question:        room.question || null,
+      users:           room.users.map(u => ({ username: u.username, politicalX: u.politicalX || 0, politicalY: u.politicalY || 0 })),
+      spectatorCount:  room.spectators.length,
+      currentUsername: username,
+      currentSpecId:   specId
     });
 
     room.users.forEach(u => {
@@ -1495,6 +1508,7 @@ io.on('connection', socket => {
     if (!clean) return;
     const payload = {
       id:        uuidv4(),
+      specId:    spec.specId,
       username:  spec.username,
       message:   clean,
       timestamp: new Date().toISOString()
@@ -1517,9 +1531,115 @@ io.on('connection', socket => {
     });
   });
 
+  socket.on('kick-spectator', ({ roomId, specId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    if (!room.users.some(u => u.socketId === socket.id)) return; // debaters only
+    if (!room.spectators) return;
+    const spec = room.spectators.find(s => s.specId === specId);
+    if (!spec) return;
+    io.to(spec.socketId).emit('spectator-kicked', { reason: 'kick' });
+    room.spectators = room.spectators.filter(s => s.specId !== specId);
+    const targetSock = io.sockets.sockets.get(spec.socketId);
+    if (targetSock) { targetSock.leave(roomId); targetSock.data.spectatingRoom = null; }
+    room.users.forEach(u => {
+      if (u.socketId) io.to(u.socketId).emit('spectator-count', { count: room.spectators.length });
+    });
+  });
+
+  socket.on('ban-spectator', ({ roomId, specId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    if (!room.users.some(u => u.socketId === socket.id)) return; // debaters only
+    if (!room.spectators) return;
+    const spec = room.spectators.find(s => s.specId === specId);
+    if (!spec) return;
+    if (spec.userId) {
+      if (!room.bannedSpectators) room.bannedSpectators = new Set();
+      room.bannedSpectators.add(spec.userId);
+    }
+    io.to(spec.socketId).emit('spectator-kicked', { reason: 'ban' });
+    room.spectators = room.spectators.filter(s => s.specId !== specId);
+    const targetSock = io.sockets.sockets.get(spec.socketId);
+    if (targetSock) { targetSock.leave(roomId); targetSock.data.spectatingRoom = null; }
+    room.users.forEach(u => {
+      if (u.socketId) io.to(u.socketId).emit('spectator-count', { count: room.spectators.length });
+    });
+  });
+
+  // -- Branch (side) debates ------------------------------------
+
+  socket.on('start-branch', ({ roomId }) => {
+    if (!socketAllow(socket.id, 'start-branch', 2)) return;
+    const room = rooms.get(roomId);
+    if (!room?.spectators) return;
+    const spec = room.spectators.find(s => s.socketId === socket.id);
+    if (!spec) return;
+    const branchId = uuidv4();
+    branches.set(branchId, {
+      parentRoomId: roomId,
+      question:     room.question || null,
+      members:      [{ socketId: socket.id, username: spec.username }]
+    });
+    socket.join('branch:' + branchId);
+    socket.data.branchId = branchId;
+    socket.emit('branch-started', { branchId, question: room.question || null, members: [spec.username] });
+    socket.to(roomId).emit('branch-invite', { branchId, initiator: spec.username, question: room.question || null });
+  });
+
+  socket.on('join-branch', ({ branchId }) => {
+    if (!socketAllow(socket.id, 'join-branch', 3)) return;
+    const branch = branches.get(branchId);
+    if (!branch) { socket.emit('branch-error', { error: 'Side discussion not found.' }); return; }
+    const parentRoom = rooms.get(branch.parentRoomId);
+    const spec = parentRoom?.spectators?.find(s => s.socketId === socket.id);
+    if (!spec) { socket.emit('branch-error', { error: 'You must be watching the debate to join a side discussion.' }); return; }
+    if (!branch.members.some(m => m.socketId === socket.id)) {
+      branch.members.push({ socketId: socket.id, username: spec.username });
+    }
+    socket.join('branch:' + branchId);
+    socket.data.branchId = branchId;
+    socket.emit('branch-joined', {
+      branchId,
+      question: branch.question,
+      members:  branch.members.map(m => m.username)
+    });
+    socket.to('branch:' + branchId).emit('branch-member-joined', { username: spec.username });
+  });
+
+  socket.on('branch-message', ({ branchId, message }) => {
+    if (!socketAllow(socket.id, 'branch-message', 20)) return;
+    const branch = branches.get(branchId);
+    if (!branch) return;
+    const member = branch.members.find(m => m.socketId === socket.id);
+    if (!member) return;
+    const clean = safeStr(message, 300);
+    if (!clean) return;
+    io.to('branch:' + branchId).emit('branch-message', {
+      id:        uuidv4(),
+      username:  member.username,
+      message:   clean,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   socket.on('disconnect', () => {
     queue.delete(socket.id);
     io.emit('queue-size', { size: queue.size });
+
+    // Remove from branch if in one
+    if (socket.data.branchId) {
+      const branch = branches.get(socket.data.branchId);
+      if (branch) {
+        const leaving = branch.members.find(m => m.socketId === socket.id);
+        branch.members = branch.members.filter(m => m.socketId !== socket.id);
+        if (branch.members.length === 0) {
+          branches.delete(socket.data.branchId);
+        } else if (leaving) {
+          io.to('branch:' + socket.data.branchId).emit('branch-member-left', { username: leaving.username });
+        }
+      }
+    }
 
     // Remove from spectator list if spectating
     if (socket.data.spectatingRoom) {
@@ -1586,9 +1706,10 @@ function attemptMatch(newSocketId) {
       { ...newUser,   socketId: null },
       { ...matchUser, socketId: null }
     ],
-    spectators: [],
-    question:   null,
-    startedAt:  null
+    spectators:       [],
+    bannedSpectators: new Set(),
+    question:         null,
+    startedAt:        null
   });
 
   addDebated(newUser.userId, matchUser.userId);
