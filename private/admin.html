@@ -84,6 +84,7 @@
       <button class="admin-tab active" onclick="switchTab('reports')">Reports</button>
       <button class="admin-tab" onclick="switchTab('users')">Users</button>
       <button class="admin-tab" onclick="switchTab('notify')">Notify</button>
+      <button class="admin-tab" onclick="switchTab('whitelist')">Whitelist</button>
     </div>
 
     <!-- Reports tab -->
@@ -103,6 +104,28 @@
         <button class="btn btn-primary btn-sm" onclick="searchUsers()">Search</button>
       </div>
       <div id="usersList"><div class="admin-empty">Search for a user above</div></div>
+    </div>
+
+    <!-- Whitelist tab -->
+    <div class="admin-pane" id="pane-whitelist">
+      <div class="admin-card">
+        <div style="font-size:0.95rem;font-weight:700;margin-bottom:16px">Create Whitelist Link</div>
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <input class="form-input" id="wlUsernameInput" type="text" placeholder="username (3–20 chars)" maxlength="20" autocomplete="off"
+              onkeydown="if(event.key==='Enter')createWl()" />
+            <div id="wlCreateStatus" style="font-size:0.78rem;margin-top:6px;min-height:18px"></div>
+          </div>
+          <button class="btn btn-primary" onclick="createWl()">Generate Link</button>
+        </div>
+      </div>
+      <div class="admin-card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:0.88rem;font-weight:700">Active Links</span>
+          <button class="btn btn-ghost btn-sm" onclick="loadWhitelist()">&#8635; Refresh</button>
+        </div>
+        <div id="wlList" style="padding:12px 16px"><div class="admin-empty">Loading…</div></div>
+      </div>
     </div>
 
     <!-- Notify tab -->

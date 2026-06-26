@@ -114,13 +114,111 @@ function switchTab(name) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   const pane = document.getElementById(`pane-${name}`);
   const tabs = document.querySelectorAll('.admin-tab');
-  const tabNames = ['reports','users','notify'];
+  const tabNames = ['reports','users','notify','whitelist'];
   if (pane) pane.classList.add('active');
   const idx = tabNames.indexOf(name);
   if (tabs[idx]) tabs[idx].classList.add('active');
 
-  if (name === 'users') {
-    loadAllUsers();
+  if (name === 'users') loadAllUsers();
+  if (name === 'whitelist') loadWhitelist();
+}
+
+// ── Whitelist ──────────────────────────────────────────────────
+async function adminToken() {
+  return auth.currentUser ? auth.currentUser.getIdToken() : null;
+}
+
+async function loadWhitelist() {
+  document.getElementById('wlList').innerHTML = '<div class="admin-empty">Loading…</div>';
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/admin/whitelist', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    renderWhitelist(data.entries || []);
+  } catch {
+    document.getElementById('wlList').innerHTML = '<div class="admin-empty">Error loading whitelist.</div>';
+  }
+}
+
+function renderWhitelist(entries) {
+  const list = document.getElementById('wlList');
+  if (!entries.length) {
+    list.innerHTML = '<div class="admin-empty">No whitelist links yet. Create one above.</div>';
+    return;
+  }
+  const origin = location.origin;
+  list.innerHTML = entries.map(e => `
+    <div class="user-row" id="wl-row-${escapeHtml(e.username)}">
+      <div class="user-row-info">
+        <div class="user-row-name" style="display:flex;align-items:center;gap:8px">
+          @${escapeHtml(e.username)}
+          <span style="font-size:0.68rem;font-weight:700;background:rgba(139,92,246,0.12);color:var(--purple);border-radius:99px;padding:1px 8px;border:1px solid rgba(139,92,246,0.25)">WHITELIST</span>
+        </div>
+        <div class="user-row-sub" style="margin-top:4px">
+          Created ${relTime(e.createdAt)}
+          &nbsp;·&nbsp;
+          <span style="font-family:monospace;font-size:0.78rem;color:var(--purple)">${origin}/whitelist/${escapeHtml(e.username)}</span>
+        </div>
+      </div>
+      <div class="user-row-actions">
+        <button class="btn btn-ghost btn-sm" onclick="copyWlLink('${escapeHtml(e.username)}')">Copy Link</button>
+        <button class="btn btn-sm" style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2)" onclick="revokeWl('${escapeHtml(e.username)}')">Revoke</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function copyWlLink(username) {
+  navigator.clipboard.writeText(location.origin + '/whitelist/' + username)
+    .then(() => showToast('Link copied!', 'success'))
+    .catch(() => showToast('Copy failed — try manually.', 'error'));
+}
+
+async function createWl() {
+  const input = document.getElementById('wlUsernameInput');
+  const username = (input?.value || '').trim();
+  if (!username) return;
+  const statusEl = document.getElementById('wlCreateStatus');
+  statusEl.textContent = 'Creating…';
+  statusEl.style.color = 'var(--text-3)';
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/admin/whitelist', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      statusEl.textContent = data.error || 'Error creating link.';
+      statusEl.style.color = 'var(--red)';
+      return;
+    }
+    input.value = '';
+    statusEl.textContent = '';
+    loadWhitelist();
+    showToast('Whitelist link created!', 'success');
+    // Copy the link automatically after creation
+    navigator.clipboard.writeText(location.origin + '/whitelist/' + username).catch(() => {});
+  } catch {
+    statusEl.textContent = 'Error creating link.';
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+async function revokeWl(username) {
+  if (!confirm(`Revoke whitelist link for @${username}?\n\nThis will remove their account and the link will stop working.`)) return;
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/admin/whitelist/' + encodeURIComponent(username), {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error', 'error'); return; }
+    showToast('@' + username + ' revoked.', 'success');
+    loadWhitelist();
+  } catch {
+    showToast('Error revoking link.', 'error');
   }
 }
 

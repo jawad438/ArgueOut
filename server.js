@@ -234,6 +234,135 @@ app.get('/api/admin-me', async (req, res) => {
   }
 });
 
+// -- Whitelist: sign-in-less temp accounts --------------------------------------
+const WL_FILE = path.join(__dirname, 'data', 'whitelist.json');
+function loadWhitelist() {
+  try { if (fs.existsSync(WL_FILE)) return JSON.parse(fs.readFileSync(WL_FILE, 'utf8')); } catch {}
+  return {};
+}
+function saveWhitelist(d) {
+  fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+  fs.writeFileSync(WL_FILE, JSON.stringify(d, null, 2));
+}
+async function verifyAdminBearer(req) {
+  const h = req.headers.authorization || '';
+  const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!t) return null;
+  try {
+    const decoded = await admin.auth().verifyIdToken(t);
+    const doc = await fstore.collection('users').doc(decoded.uid).get();
+    return (doc.exists && doc.data().isAdmin) ? decoded : null;
+  } catch { return null; }
+}
+
+app.get('/api/admin/whitelist', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  res.json({ entries: Object.values(loadWhitelist()) });
+});
+
+app.post('/api/admin/whitelist', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  const { username } = req.body || {};
+  if (!username || !/^[a-zA-Z0-9_]{3,20}$/.test(username))
+    return res.status(400).json({ error: 'Invalid username (3–20 chars, letters/numbers/underscore)' });
+  const existing = await fstore.collection('usernames').doc(username).get().catch(() => null);
+  if (existing?.exists) return res.status(409).json({ error: 'Username already taken by a real account' });
+  const wl = loadWhitelist();
+  if (wl[username]) return res.status(409).json({ error: 'Whitelist entry already exists' });
+  const uid = 'wl_' + username;
+  wl[username] = { username, uid, createdAt: new Date().toISOString() };
+  try {
+    await fstore.collection('users').doc(uid).set({
+      username, name: username, email: null, isGuest: true, isWhitelist: true,
+      politicalX: 0, politicalY: 0, compassSet: false, avatarUrl: null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await fstore.collection('usernames').doc(username).set({ uid });
+  } catch (e) { console.error('[wl create]', e.message); }
+  saveWhitelist(wl);
+  res.json({ ok: true, entry: wl[username] });
+});
+
+app.delete('/api/admin/whitelist/:username', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  const { username } = req.params;
+  const wl = loadWhitelist();
+  if (!wl[username]) return res.status(404).json({ error: 'Not found' });
+  const { uid } = wl[username];
+  delete wl[username];
+  saveWhitelist(wl);
+  try { await fstore.collection('usernames').doc(username).delete(); } catch {}
+  try { await fstore.collection('users').doc(uid).delete(); } catch {}
+  res.json({ ok: true });
+});
+
+// Auto-signin page for whitelist links
+app.get('/whitelist/:username', async (req, res) => {
+  const { username } = req.params;
+  const entry = loadWhitelist()[username];
+  if (!entry) return res.status(404).send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invalid Link — ArgueOut</title><link rel="icon" href="/favicon.png" type="image/png"><link rel="stylesheet" href="/css/style.css"></head><body><div style="min-height:100dvh;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px"><div><div style="font-size:3rem;margin-bottom:16px">🔗</div><h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text-1);margin:0 0 10px">Invalid Link</h2><p style="color:var(--text-3);margin:0 0 24px">This whitelist link doesn't exist or has been revoked.</p><a href="/" class="btn btn-primary">Go to ArgueOut</a></div></div></body></html>`);
+  try {
+    const token = await admin.auth().createCustomToken(entry.uid, { whitelist: true, username });
+    // Ensure Firestore user doc still exists (may have been deleted externally)
+    const doc = await fstore.collection('users').doc(entry.uid).get().catch(() => null);
+    if (!doc?.exists) {
+      await fstore.collection('users').doc(entry.uid).set({
+        username, name: username, email: null, isGuest: true, isWhitelist: true,
+        politicalX: 0, politicalY: 0, compassSet: false, avatarUrl: null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      await fstore.collection('usernames').doc(username).set({ uid: entry.uid });
+    }
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Joining ArgueOut…</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/css/style.css">
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
+  <style>
+    .wl-spinner{width:44px;height:44px;border:3px solid rgba(139,92,246,0.18);border-top-color:#8b5cf6;border-radius:50%;animation:wl-spin .75s linear infinite;margin:0 auto 24px}
+    @keyframes wl-spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div><div class="bg-orb bg-orb-3"></div>
+</div>
+<div style="min-height:100dvh;display:flex;align-items:center;justify-content:center">
+  <div style="text-align:center;padding:48px 32px;max-width:380px">
+    <div class="wl-spinner"></div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text-1);margin:0 0 8px">Signing you in…</h1>
+    <p style="color:var(--text-3);margin:0">Welcome, <strong style="color:var(--purple)">@${username}</strong></p>
+    <div id="wlErr" style="display:none;margin-top:16px;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;color:#ef4444;font-size:0.85rem"></div>
+  </div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/bg.js"></script>
+<script>
+(async function() {
+  try {
+    await firebase.auth().signInWithCustomToken(${JSON.stringify(token)});
+    window.location.href = '/lobby';
+  } catch(e) {
+    document.querySelector('.wl-spinner').style.display = 'none';
+    const el = document.getElementById('wlErr');
+    el.style.display = 'block';
+    el.textContent = 'Sign-in failed: ' + (e.message || String(e));
+  }
+})();
+</script>
+</body>
+</html>`);
+  } catch(e) {
+    console.error('[wl signin]', e.message);
+    res.status(500).send('Error generating sign-in token.');
+  }
+});
+
 // -- Profile update endpoints (Admin SDK — bypasses Firestore security rules) ----------
 async function getAuthUser(req) {
   const h = req.headers.authorization || '';
