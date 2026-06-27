@@ -898,7 +898,7 @@ function showSuggestCard(data) {
     ? `You should debate ${_name} - ${_reason}. ${data.question}`
     : `You should debate ${_name} - ${_reason}.`;
   addToNotifHistory({
-    icon: ‘\u{1F4A1}’, text: _notifText, type: ‘suggest’,
+    icon: '\u{1F4A1}', text: _notifText, type: 'suggest',
     userId: data.userId, username: data.username, question: data.question || null
   });
 
