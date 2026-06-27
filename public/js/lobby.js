@@ -235,12 +235,18 @@ function renderAccountDropdown() {
 
 let _acctDropdownOpen = false;
 
+function closeThemeMenu() {
+  const menu = document.getElementById('themeMenu');
+  if (menu) menu.style.display = 'none';
+}
+
 function openAccountSwitcher() {
   const dropdown = document.getElementById('acctDropdown');
   if (!dropdown) return;
   renderAccountDropdown();
   if (_acctDropdownOpen) { dropdown.style.display = 'none'; _acctDropdownOpen = false; return; }
   closeNotifDropdown();
+  closeThemeMenu();
   dropdown.style.display = 'block';
   _acctDropdownOpen = true;
 }
@@ -1090,6 +1096,8 @@ function notifDeclineChallenge(e) {
 function openNotifDropdown() {
   const dropdown = document.getElementById('notifDropdown');
   if (!dropdown) return;
+  closeAccountSwitcher();
+  closeThemeMenu();
   notifDropdownOpen = true;
   notifHistory.forEach(n => { n.read = true; });
   refreshNotifBadge();
@@ -1448,20 +1456,28 @@ function openReportModal(userId, username, location) {
   _reportTargetName = username;
   _reportLocation   = location || 'lobby';
   const modal = document.getElementById('reportModal');
+  const card  = document.getElementById('reportCard');
   const nameEl = document.getElementById('reportTargetName');
   const errEl  = document.getElementById('reportModalError');
   const otherWrap = document.getElementById('reportOtherWrap');
   if (nameEl)    nameEl.textContent    = `@${username}`;
   if (errEl)     errEl.style.display   = 'none';
   if (otherWrap) otherWrap.style.display = 'none';
-  // Deselect all radios
   document.querySelectorAll('input[name="reportReason"]').forEach(r => { r.checked = false; });
+  if (card) { card.classList.remove('entering', 'closing'); void card.offsetWidth; card.classList.add('entering'); }
   if (modal) modal.style.display = 'flex';
 }
 
 function closeReportModal() {
   const modal = document.getElementById('reportModal');
-  if (modal) modal.style.display = 'none';
+  const card  = document.getElementById('reportCard');
+  if (card && modal) {
+    card.classList.remove('entering');
+    card.classList.add('closing');
+    setTimeout(() => { modal.style.display = 'none'; card.classList.remove('closing'); }, 210);
+  } else if (modal) {
+    modal.style.display = 'none';
+  }
   _reportTargetId   = null;
   _reportTargetName = null;
 }

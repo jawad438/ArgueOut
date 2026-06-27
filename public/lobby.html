@@ -22,30 +22,43 @@
 </div>
 <nav class="navbar">
   <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
-  <div class="nav-actions" style="position:relative">
-    <div class="nav-user" onclick="openAccountSwitcher()" style="cursor:pointer" title="Switch account">
-      <div class="nav-avatar skel" id="navAvatar" style="border-radius:50%"></div>
-      <span id="navUsername" class="skel" style="display:inline-block;width:72px;height:13px;border-radius:6px"></span>
-      <svg style="width:11px;height:11px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.5;color:var(--text-3)" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-    </div>
-    <div id="acctDropdown" class="acct-dropdown" style="display:none">
-      <div style="padding:10px 14px 8px;font-size:0.7rem;font-weight:700;color:var(--text-3);letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Switch account</div>
-      <div id="acctList"></div>
-      <div style="border-top:1px solid var(--border);padding:4px">
-        <button class="acct-action-btn" onclick="openAddAccountModal()">
-          <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-          Add another account
-        </button>
-        <button class="acct-action-btn" onclick="document.getElementById('logoutBtn').click()">
-          <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Sign out
-        </button>
+  <div class="nav-actions">
+    <div style="position:relative">
+      <div class="nav-user" onclick="openAccountSwitcher()" style="cursor:pointer" title="Switch account">
+        <div class="nav-avatar skel" id="navAvatar" style="border-radius:50%"></div>
+        <span id="navUsername" class="skel" style="display:inline-block;width:72px;height:13px;border-radius:6px"></span>
+        <svg style="width:11px;height:11px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.5;color:var(--text-3)" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div id="acctDropdown" class="acct-dropdown" style="display:none">
+        <div style="padding:10px 14px 8px;font-size:0.7rem;font-weight:700;color:var(--text-3);letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Switch account</div>
+        <div id="acctList"></div>
+        <div style="border-top:1px solid var(--border);padding:4px">
+          <button class="acct-action-btn" onclick="openAddAccountModal()">
+            <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Add another account
+          </button>
+          <button class="acct-action-btn" onclick="document.getElementById('logoutBtn').click()">
+            <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
-    <button class="notif-btn" id="notifBtn" title="Notifications" aria-label="Notifications">
-      <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span class="notif-badge" id="notifBadge" style="display:none">0</span>
-    </button>
+    <div style="position:relative">
+      <button class="notif-btn" id="notifBtn" title="Notifications" aria-label="Notifications">
+        <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+      </button>
+      <div id="notifDropdown" class="notif-dropdown" style="display:none">
+        <div class="notif-dropdown-header">
+          <span>Notifications</span>
+          <button onclick="clearNotifications()" class="notif-clear-btn" aria-label="Clear all">Clear all</button>
+        </div>
+        <div id="notifList" class="notif-list">
+          <div class="notif-empty">No notifications yet</div>
+        </div>
+      </div>
+    </div>
     <div class="theme-switcher">
       <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme" title="Switch theme">
         <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
@@ -62,15 +75,6 @@
       <span class="lobby-watch-label">Watch Live</span>
     </a>
     <button class="btn btn-ghost btn-sm lobby-signout-btn" id="logoutBtn">Sign Out</button>
-    <div id="notifDropdown" class="notif-dropdown" style="display:none">
-      <div class="notif-dropdown-header">
-        <span>Notifications</span>
-        <button onclick="clearNotifications()" class="notif-clear-btn" aria-label="Clear all">Clear all</button>
-      </div>
-      <div id="notifList" class="notif-list">
-        <div class="notif-empty">No notifications yet</div>
-      </div>
-    </div>
   </div>
 </nav>
 
@@ -429,7 +433,7 @@
 
 <!-- Report modal -->
 <div class="modal-overlay" id="reportModal" style="display:none" onclick="if(event.target===this)closeReportModal()">
-  <div class="auth-card" style="max-width:420px;width:100%;position:relative">
+  <div class="auth-card report-card" id="reportCard" style="max-width:420px;width:100%;position:relative">
     <button onclick="closeReportModal()" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center" aria-label="Close">
       <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>

@@ -1441,7 +1441,7 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
 .acct-dropdown {
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
+  left: 0;
   width: 240px;
   background: var(--notif-dd-bg);
   border: 1px solid var(--border-bright);
@@ -2663,6 +2663,9 @@ html[data-theme="light"] .modal-overlay { background: rgba(200,200,220,0.62); }
 }
 
 /* ── Report modal ─────────────────────────────────────────── */
+.report-card.entering { animation: upCardEnter 360ms var(--ease-spring) both; }
+.report-card.closing  { animation: upCardExit  200ms ease-in both; }
+
 .report-reason-opt {
   display: flex;
   align-items: center;

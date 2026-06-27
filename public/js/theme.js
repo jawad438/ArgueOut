@@ -38,7 +38,12 @@
     e.stopPropagation();
     var menu = document.getElementById('themeMenu');
     if (!menu) return;
-    menu.style.display = (menu.style.display === 'flex') ? 'none' : 'flex';
+    var opening = menu.style.display !== 'flex';
+    if (opening) {
+      if (typeof closeAccountSwitcher === 'function') closeAccountSwitcher();
+      if (typeof closeNotifDropdown   === 'function') closeNotifDropdown();
+    }
+    menu.style.display = opening ? 'flex' : 'none';
   };
 
   document.addEventListener('click', function (e) {
