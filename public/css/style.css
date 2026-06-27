@@ -2108,6 +2108,47 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   .how-text  { font-size: 0.82rem; }
 }
 
+/* ── 16. HERO TITLE: reduce minimum size on phones ──────────────── */
+@media (max-width: 640px) {
+  .display { font-size: clamp(1.9rem, 8vw, 2.4rem); }
+}
+
+/* ── 17. LANDING HERO: natural height + tighter spacing on phones ─ */
+@media (max-width: 640px) {
+  .landing-hero { min-height: unset; padding: 76px 0 48px; }
+  .hero-stats   { margin-top: 32px; padding-top: 24px; }
+  .hero-sub     { font-size: 1rem; margin-bottom: 28px; }
+}
+
+/* ── 18. SECTIONS: reduce vertical whitespace on phones ─────────── */
+@media (max-width: 640px) {
+  .features     { padding: 52px 0; }
+  .cta-section  { padding: 52px 0; }
+  .feature-card { padding: 24px 20px; }
+}
+
+/* ── 19. TOAST: keep within screen bounds on narrow phones ────────  */
+@media (max-width: 480px) {
+  #toast-container { left: 16px; right: 16px; bottom: 20px; }
+  .toast           { min-width: 0; width: 100%; max-width: 100%; }
+}
+
+/* ── 20. CLOUDFLARE TURNSTILE: center widget, scale on tiny screens */
+.cf-turnstile { display: flex; justify-content: center; }
+@media (max-width: 380px) {
+  .cf-turnstile {
+    transform: scale(0.88);
+    transform-origin: center top;
+    margin-bottom: -8px;
+  }
+}
+
+/* ── 21. AUTH CARD: reduce padding on very narrow phones ─────────── */
+@media (max-width: 480px) {
+  .auth-card   { padding: 28px 20px; }
+  .page-center { padding-left: 16px; padding-right: 16px; }
+}
+
 /* ══════════════════════════════════════════════════════════════
    USER PROFILE SHEET  (.up-*)
    ══════════════════════════════════════════════════════════════ */
@@ -2681,6 +2722,17 @@ html[data-theme="light"] .modal-overlay { background: rgba(200,200,220,0.62); }
 }
 .report-reason-opt:hover { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.3); color: var(--text-1); }
 .report-reason-opt input[type="radio"] { accent-color: var(--purple); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+
+/* ── Emoji icon images ────────────────────────────────────────── */
+.emoji-icon {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.2em;
+  user-select: none;
+  pointer-events: none;
+  flex-shrink: 0;
+}
 
 /* ── Skeleton loading ─────────────────────────────────────────── */
 .skel {
