@@ -240,13 +240,18 @@ function closeThemeMenu() {
   if (menu) menu.style.display = 'none';
 }
 
+window.closeAllNavDropdowns = function () {
+  closeAccountSwitcher();
+  closeNotifDropdown();
+  closeThemeMenu();
+};
+
 function openAccountSwitcher() {
   const dropdown = document.getElementById('acctDropdown');
   if (!dropdown) return;
   renderAccountDropdown();
   if (_acctDropdownOpen) { dropdown.style.display = 'none'; _acctDropdownOpen = false; return; }
-  closeNotifDropdown();
-  closeThemeMenu();
+  window.closeAllNavDropdowns();
   dropdown.style.display = 'block';
   _acctDropdownOpen = true;
 }
@@ -1096,8 +1101,7 @@ function notifDeclineChallenge(e) {
 function openNotifDropdown() {
   const dropdown = document.getElementById('notifDropdown');
   if (!dropdown) return;
-  closeAccountSwitcher();
-  closeThemeMenu();
+  window.closeAllNavDropdowns();
   notifDropdownOpen = true;
   notifHistory.forEach(n => { n.read = true; });
   refreshNotifBadge();

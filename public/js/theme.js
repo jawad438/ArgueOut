@@ -39,9 +39,8 @@
     var menu = document.getElementById('themeMenu');
     if (!menu) return;
     var opening = menu.style.display !== 'flex';
-    if (opening) {
-      if (typeof closeAccountSwitcher === 'function') closeAccountSwitcher();
-      if (typeof closeNotifDropdown   === 'function') closeNotifDropdown();
+    if (opening && typeof window.closeAllNavDropdowns === 'function') {
+      window.closeAllNavDropdowns();
     }
     menu.style.display = opening ? 'flex' : 'none';
   };
