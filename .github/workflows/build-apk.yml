@@ -1,0 +1,74 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.6'
+
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Install Android SDK platform 34
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+
+      - name: Download and resize app icon
+        run: |
+          sudo apt-get install -y imagemagick -q
+          curl -L -s -o /tmp/logo.png https://argueout.onrender.com/logo.png
+          for entry in "48 mdpi" "72 hdpi" "96 xhdpi" "144 xxhdpi" "192 xxxhdpi"; do
+            size=$(echo $entry | cut -d' ' -f1)
+            dir=$(echo $entry | cut -d' ' -f2)
+            mkdir -p android/app/src/main/res/mipmap-${dir}
+            convert /tmp/logo.png -resize ${size}x${size} android/app/src/main/res/mipmap-${dir}/ic_launcher.png
+            cp android/app/src/main/res/mipmap-${dir}/ic_launcher.png android/app/src/main/res/mipmap-${dir}/ic_launcher_round.png
+          done
+          echo "Icon sizes generated successfully"
+
+      - name: Build Debug APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
+      - name: Print APK info
+        run: |
+          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+          if [ -f "$APK_PATH" ]; then
+            SIZE=$(du -sh "$APK_PATH" | cut -f1)
+            echo "✅ APK built: $APK_PATH ($SIZE)"
+          else
+            echo "❌ APK not found"
+            find android/app/build -name "*.apk" 2>/dev/null || echo "No APKs found anywhere"
+            exit 1
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArgueOut-debug-${{ github.run_number }}
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+          if-no-files-found: error

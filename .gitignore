@@ -6,3 +6,10 @@ server-err.txt
 .env
 .claude/
 skills-lock.json
+
+# Android build
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
+android/app/src/main/res/mipmap-*/

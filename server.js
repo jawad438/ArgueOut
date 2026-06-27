@@ -533,6 +533,22 @@ app.use((req, res, next) => {
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
+// TWA (Android APK) domain verification — fingerprint updated after first APK build
+app.get('/.well-known/assetlinks.json', (_, res) => {
+  res.json([{
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: {
+      namespace: 'android_app',
+      package_name: 'com.argueout.app',
+      sha256_cert_fingerprints: [
+        // Replace with your APK signing fingerprint after building
+        // Run: keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android
+        'PLACEHOLDER_REPLACE_WITH_APK_SHA256_FINGERPRINT'
+      ]
+    }
+  }]);
+});
+
 app.get('/api/debates', (req, res) => {
   const list = [];
   for (const [roomId, room] of rooms) {
