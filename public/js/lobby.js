@@ -694,10 +694,10 @@ socket.on('invite-accepted', ({ roomId, opponent }) => {
   pendingInviteRoomId   = roomId;
   pendingInviteOpponent = opponent;
 
-  addToNotifHistory({ icon: 'ðŸ”—', text: `${opponent.username} accepted your invite!` });
+  addToNotifHistory({ icon: '\u{1F517}', text: `${opponent.username} accepted your invite!` });
 
   if (Notification.permission === 'granted') {
-    new Notification('ðŸ”— ArgueOut Invite', {
+    new Notification('\u{1F517} ArgueOut Invite', {
       body: `${opponent.username} accepted your invite! Tap to join the debate.`,
       icon: '/logo.png'
     });
@@ -898,7 +898,7 @@ function showSuggestCard(data) {
     ? `You should debate ${_name} - ${_reason}. ${data.question}`
     : `You should debate ${_name} - ${_reason}.`;
   addToNotifHistory({
-    icon: 'ðŸ’¡', text: _notifText, type: 'suggest',
+    icon: ‘\u{1F4A1}’, text: _notifText, type: ‘suggest’,
     userId: data.userId, username: data.username, question: data.question || null
   });
 
