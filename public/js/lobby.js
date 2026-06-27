@@ -1511,3 +1511,35 @@ document.addEventListener('change', e => {
 function openAdminPanel() {
   window.location.href = '/admin';
 }
+
+async function requestDeletion() {
+  const btn      = document.getElementById('requestDeleteBtn');
+  const statusEl = document.getElementById('requestDeleteStatus');
+  if (!btn) return;
+  const user = auth.currentUser;
+  if (!user) return;
+  if (!confirm('Request account deletion?\n\nYour request will be reviewed by an admin. Once approved your account and all data will be permanently removed. This cannot be undone.')) return;
+  btn.disabled = true;
+  statusEl.style.display = 'none';
+  try {
+    const token = await user.getIdToken();
+    const res   = await fetch('/api/request-deletion', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    const data  = await res.json();
+    if (!res.ok) {
+      statusEl.textContent   = data.error || 'Error sending request.';
+      statusEl.style.color   = 'var(--red, #ef4444)';
+      statusEl.style.display = 'block';
+      btn.disabled = false;
+      return;
+    }
+    btn.textContent        = 'Deletion Requested ✓';
+    statusEl.textContent   = 'Your request has been sent to the admin for review.';
+    statusEl.style.color   = 'var(--text-3)';
+    statusEl.style.display = 'block';
+  } catch {
+    statusEl.textContent   = 'Network error. Please try again.';
+    statusEl.style.color   = 'var(--red, #ef4444)';
+    statusEl.style.display = 'block';
+    btn.disabled = false;
+  }
+}

@@ -363,6 +363,78 @@ app.get('/whitelist/:username', async (req, res) => {
   }
 });
 
+// -- Account deletion requests --------------------------------------------------
+// User submits a deletion request
+app.post('/api/request-deletion', async (req, res) => {
+  const h = req.headers.authorization || '';
+  const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!t) return res.status(401).json({ error: 'Unauthorized' });
+  let decoded;
+  try { decoded = await admin.auth().verifyIdToken(t); } catch { return res.status(401).json({ error: 'Unauthorized' }); }
+  try {
+    const userDoc = await fstore.collection('users').doc(decoded.uid).get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    const existing = await fstore.collection('deletion_requests').doc(decoded.uid).get();
+    if (existing.exists && existing.data().status === 'pending')
+      return res.status(409).json({ error: 'You already have a pending deletion request' });
+    await fstore.collection('deletion_requests').doc(decoded.uid).set({
+      uid: decoded.uid,
+      username: userDoc.data().username || '',
+      email: userDoc.data().email || '',
+      requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'pending'
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[deletion-request]', e.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: list pending deletion requests
+app.get('/api/admin/deletion-requests', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const snap = await fstore.collection('deletion_requests').where('status', '==', 'pending').orderBy('requestedAt', 'asc').get();
+    const requests = snap.docs.map(d => {
+      const data = d.data();
+      return { uid: d.id, username: data.username, email: data.email, requestedAt: data.requestedAt?.toDate?.()?.toISOString() || null };
+    });
+    res.json({ requests });
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: permanently delete user account
+app.delete('/api/admin/deletion-requests/:uid', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  const { uid } = req.params;
+  try {
+    const userDoc = await fstore.collection('users').doc(uid).get().catch(() => null);
+    const username = userDoc?.exists ? userDoc.data().username : null;
+    try { await admin.auth().deleteUser(uid); } catch {}
+    try { await fstore.collection('users').doc(uid).delete(); } catch {}
+    if (username) try { await fstore.collection('usernames').doc(username).delete(); } catch {}
+    try { await fstore.collection('deletion_requests').doc(uid).update({ status: 'deleted', deletedAt: admin.firestore.FieldValue.serverTimestamp() }); } catch {}
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[admin delete-user]', e.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: dismiss a deletion request
+app.post('/api/admin/deletion-requests/:uid/dismiss', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    await fstore.collection('deletion_requests').doc(req.params.uid).update({ status: 'dismissed' });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // -- Profile update endpoints (Admin SDK — bypasses Firestore security rules) ----------
 async function getAuthUser(req) {
   const h = req.headers.authorization || '';

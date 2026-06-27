@@ -217,6 +217,16 @@
         <div id="inviteExpireText" style="font-size:0.72rem;color:var(--text-3);text-align:center"></div>
       </div>
     </div>
+
+    <!-- Danger zone -->
+    <div class="profile-card" style="padding:16px 20px;border-color:rgba(239,68,68,0.18)">
+      <div style="font-size:0.72rem;font-weight:700;color:rgba(239,68,68,0.7);text-transform:uppercase;letter-spacing:0.08em;font-family:'Space Grotesk',sans-serif;margin-bottom:10px">Danger Zone</div>
+      <button class="btn btn-sm btn-full" id="requestDeleteBtn" onclick="requestDeletion()"
+        style="background:rgba(239,68,68,0.07);color:#ef4444;border:1px solid rgba(239,68,68,0.2);font-size:0.82rem;transition:background 150ms">
+        Request Account Deletion
+      </button>
+      <div id="requestDeleteStatus" style="font-size:0.75rem;margin-top:8px;line-height:1.4;display:none"></div>
+    </div>
   </div>
 
   <!-- Right panel: matchmaking -->

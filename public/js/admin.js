@@ -119,7 +119,7 @@ function switchTab(name) {
   const idx = tabNames.indexOf(name);
   if (tabs[idx]) tabs[idx].classList.add('active');
 
-  if (name === 'users') loadAllUsers();
+  if (name === 'users') { loadAllUsers(); loadDeletionRequests(); }
   if (name === 'whitelist') loadWhitelist();
 }
 
@@ -490,6 +490,70 @@ function sendNotification() {
   socket.emit('admin-send-notification', { targetUserId: resolvedNotifUserId, message: msg });
   statusEl.textContent = 'Sending...';
   statusEl.style.color = 'var(--text-3)';
+}
+
+// ── Deletion Requests ──────────────────────────────────────────
+async function loadDeletionRequests() {
+  const list  = document.getElementById('delReqList');
+  const badge = document.getElementById('delReqBadge');
+  if (!list) return;
+  list.innerHTML = '<div class="admin-empty">Loading&hellip;</div>';
+  try {
+    const token = await adminToken();
+    const res   = await fetch('/api/admin/deletion-requests', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data  = await res.json();
+    const reqs  = data.requests || [];
+    if (badge) { badge.textContent = reqs.length; badge.style.display = reqs.length ? 'inline' : 'none'; }
+    if (!reqs.length) { list.innerHTML = '<div class="admin-empty">No pending deletion requests.</div>'; return; }
+    list.innerHTML = reqs.map(r => `
+      <div class="user-row" id="delreq-${escapeHtml(r.uid)}" style="border-color:rgba(239,68,68,0.15)">
+        <div class="user-row-info">
+          <div class="user-row-name">@${escapeHtml(r.username || '(unknown)')}</div>
+          <div class="user-row-sub">${escapeHtml(r.email || '')} &nbsp;·&nbsp; Requested ${relTime(r.requestedAt)}</div>
+        </div>
+        <div class="user-row-actions">
+          <button class="btn btn-ghost btn-sm" onclick="dismissDeletionRequest('${escapeHtml(r.uid)}')">Dismiss</button>
+          <button class="btn btn-sm" style="background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.25)"
+            onclick="confirmDeleteUser('${escapeHtml(r.uid)}', '${escapeHtml(r.username || '')}')">
+            Delete Permanently
+          </button>
+        </div>
+      </div>
+    `).join('');
+  } catch {
+    list.innerHTML = '<div class="admin-empty">Error loading requests.</div>';
+  }
+}
+
+async function confirmDeleteUser(uid, username) {
+  if (!confirm(`Permanently delete @${username}?\n\nThis will:\n• Remove their Firebase Auth account\n• Delete their Firestore profile\n• Free up their username\n\nThis CANNOT be undone.`)) return;
+  try {
+    const token = await adminToken();
+    const res   = await fetch('/api/admin/deletion-requests/' + encodeURIComponent(uid), {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error', 'error'); return; }
+    showToast(`@${username} permanently deleted.`, 'success');
+    loadDeletionRequests();
+  } catch {
+    showToast('Error deleting account.', 'error');
+  }
+}
+
+async function dismissDeletionRequest(uid) {
+  try {
+    const token = await adminToken();
+    const res   = await fetch('/api/admin/deletion-requests/' + encodeURIComponent(uid) + '/dismiss', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error', 'error'); return; }
+    showToast('Request dismissed.', 'success');
+    loadDeletionRequests();
+  } catch {
+    showToast('Error dismissing request.', 'error');
+  }
 }
 
 // Auth guard — waits for Firebase auth, sends Bearer token to verify admin status server-side
