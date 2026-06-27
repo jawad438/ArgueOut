@@ -1256,6 +1256,33 @@ socket.on('opponent-reconnecting', () => {
   showToast('Opponent briefly disconnected — waiting up to 30 s for them to return…', 'info');
 });
 
+// -- AI matchmaking notification --------------------------------
+socket.on('match-notification', ({ notification }) => {
+  if (!notification) return;
+  let banner = document.getElementById('matchNotifBanner');
+  if (!banner) {
+    if (!document.getElementById('matchNotifStyle')) {
+      const s = document.createElement('style');
+      s.id = 'matchNotifStyle';
+      s.textContent = '@keyframes mnSlide{from{opacity:0;transform:translateX(-50%) translateY(-14px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
+      document.head.appendChild(s);
+    }
+    banner = document.createElement('div');
+    banner.id = 'matchNotifBanner';
+    banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:500;max-width:480px;width:calc(100% - 32px);background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.1));border:1px solid rgba(139,92,246,0.35);border-radius:14px;padding:14px 44px 14px 16px;box-shadow:0 8px 28px rgba(139,92,246,0.18);font-size:0.88rem;color:var(--text-1);line-height:1.5;animation:mnSlide 0.4s cubic-bezier(0.22,1,0.36,1) forwards';
+    const close = document.createElement('button');
+    close.style.cssText = 'position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:rgba(139,92,246,0.45);font-size:0.85rem;padding:2px 4px;line-height:1';
+    close.textContent = '✕';
+    close.onclick = () => banner.remove();
+    banner.appendChild(close);
+    document.body.appendChild(banner);
+    setTimeout(() => { if (banner?.parentNode) { banner.style.transition='opacity 0.4s'; banner.style.opacity='0'; setTimeout(()=>banner?.remove(),400); } }, 9000);
+  }
+  const txt = document.createElement('span');
+  txt.textContent = notification;
+  banner.insertBefore(txt, banner.firstChild);
+});
+
 // -- Spectator video stream (WebRTC fan-out) -------------------
 const specPeerConns = new Map(); // specSocketId -> RTCPeerConnection
 

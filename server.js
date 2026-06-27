@@ -612,6 +612,62 @@ const OR_RATE_LIMITED  = Symbol('rate-limited');
 
 const TOPIC_AI_ERROR = 'Error creating topic question, Can be a model rate limit or a server error.';
 
+// -- Matchmaking AI system prompt (drives topic + personalised notifications) --
+const MATCHMAKING_SYSTEM = `You are the matchmaking engine for ArgueOut, a live debate platform that pairs strangers who disagree with each other on purpose. Your job has three parts:
+
+1. Evaluate compatibility between two users based on their profiles.
+2. Recommend a debate topic that captures the sharpest, most genuine point of disagreement between them.
+3. Write the notification message that gets sent to each user inviting them to the debate.
+
+## What you're given
+
+For each of the two users, you'll receive:
+- Username
+- Age
+- Gender
+- Country
+- Religion
+- Beliefs (a list or description of stated opinions/positions on various topics)
+
+## How to evaluate compatibility
+
+Your matching priority is strength of opposing views on the same topic — not similarity, not shared interests. The best match is two users who clearly hold opposite, strongly-stated positions on a topic they've both expressed an opinion about.
+
+When comparing two users:
+- Look across all the topics/beliefs both users have expressed an opinion on.
+- Identify topics where their positions are in real tension — not just "different," but actually opposed.
+- Prefer topics where both users seem to hold their position with conviction (strong wording, clear stance) over topics where one or both seem lukewarm or vague.
+- If users overlap on multiple topics with strong disagreement, pick the one disagreement that seems most debatable in a live format — specific and arguable, not a vague values mismatch.
+- If there's no real opposition anywhere (the users mostly agree or don't have comparable beliefs on file), say so plainly rather than forcing a weak match — score it low and explain why.
+
+Demographic fields (age, gender, country, religion) are context, not the basis for matching. Don't use them to manufacture a topic, and never frame a recommended topic as "your religion vs their religion" or similar — the topic should always come from an actual stated belief, not an inferred stereotype based on someone's background.
+
+## Output
+
+Return a JSON object with exactly these fields:
+- score: number 0-10 (how strong and debate-worthy the opposition is)
+- topic: string (the recommended debate question, phrased as a clear specific question or proposition, max 15 words)
+- reason: string (one-line why this topic — what each side actually believes, max 12 words)
+- notification_a: string (notification for User A, 1-2 sentences)
+- notification_b: string (notification for User B, 1-2 sentences)
+
+## Writing the notification messages
+
+These are short push-style notifications, not emails:
+- 1-2 sentences, punchy, makes the person want to tap in.
+- Tease the disagreement, don't summarize it neutrally.
+- Personalize using the topic, not the demographics. Never reference the other user's age, gender, religion, or country — only the topic and the fact that someone disagrees.
+- Each user gets their own version, written from their side of the disagreement.
+- No hedging, no "we noticed that..." or AI-sounding phrasing. Sound like a sharp, slightly provocative app notification.
+
+## Boundaries
+
+- Never recommend a topic that targets a person's protected characteristics. Topics must come from a stated belief/opinion, not an identity attribute itself.
+- Avoid recommending topics that are dehumanizing framings dressed up as debate. If the only disagreement available is along those lines, score it low and say why.
+- If a user's belief data is too sparse, don't fabricate one — say so in the reason field and give a low score.
+
+Respond ONLY with valid JSON, no markdown fences.`;
+
 const SUGGEST_SYSTEM = `You are ArgueOut's debate igniter. Pick the most explosive opponent pairing and write a debate question.
 
 Selection: maximise political compass distance, then demographic contrast (age, religion, country).
@@ -724,6 +780,45 @@ function fmtUser(u) {
     u.religion ? `Religion: ${u.religion}` : null,
     u.country  ? `Country: ${u.country}`   : null,
   ].filter(Boolean).join(', ');
+}
+
+function fmtUserForMatchmaking(u) {
+  const econ   = (u.politicalX || 0) >= 0 ? 'Economic Right' : 'Economic Left';
+  const social = (u.politicalY || 0) >= 0 ? 'Authoritarian'  : 'Libertarian';
+  const lines = [
+    `Username: ${u.username || 'unknown'}`,
+    `Political position: ${econ}, ${social}`,
+  ];
+  if (u.age)                                          lines.push(`Age: ${u.age}`);
+  if (u.gender   && u.gender   !== 'prefer_not_to_say') lines.push(`Gender: ${u.gender}`);
+  if (u.country  && u.country.trim())                 lines.push(`Country: ${u.country}`);
+  if (u.religion && u.religion !== 'prefer_not_to_say') lines.push(`Religion: ${u.religion}`);
+  if (u.bio      && u.bio.trim())                     lines.push(`Beliefs: ${u.bio.trim()}`);
+  return lines.join('\n');
+}
+
+async function runMatchmakingAI(user1, user2) {
+  const userMsg = `Evaluate this debate pairing:\n\nUser A:\n${fmtUserForMatchmaking(user1)}\n\nUser B:\n${fmtUserForMatchmaking(user2)}`;
+  const data = await callOpenRouter('matchmaking', {
+    model: SUGGEST_MODEL,
+    messages: [
+      { role: 'system', content: MATCHMAKING_SYSTEM },
+      { role: 'user',   content: userMsg }
+    ],
+    temperature: 0.85,
+    max_tokens: 600
+  });
+  if (!data) return null;
+  const raw      = (data?.choices?.[0]?.message?.content || '').trim();
+  const stripped = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  let parsed;
+  try { parsed = JSON.parse(stripped); } catch {}
+  if (!parsed) {
+    const ms = [...stripped.matchAll(/\{[\s\S]*?"topic"[\s\S]*?\}/g)];
+    for (let i = ms.length - 1; i >= 0; i--) { try { parsed = JSON.parse(ms[i][0]); break; } catch {} }
+  }
+  if (parsed?.topic && parsed?.notification_a && parsed?.notification_b) return parsed;
+  return null;
 }
 
 async function generateDebateQuestionForPair(user1, user2) {
@@ -1088,6 +1183,10 @@ io.on('connection', socket => {
       politicalY: slot.politicalY
     });
     socket.join(roomId);
+
+    // Send personalised match notification if AI has already finished
+    const matchNotif = room.matchNotifications?.[decoded.uid];
+    if (matchNotif) socket.emit('match-notification', { notification: matchNotif, topic: room.question });
 
     const entry = onlineUsers.get(socket.id);
     if (entry) { entry.inDebate = true; broadcastOnlineUsers(); }
@@ -1975,10 +2074,11 @@ function attemptMatch(newSocketId) {
       { ...newUser,   socketId: null },
       { ...matchUser, socketId: null }
     ],
-    spectators:       [],
-    bannedSpectators: new Set(),
-    question:         null,
-    startedAt:        null
+    spectators:          [],
+    bannedSpectators:    new Set(),
+    question:            null,
+    matchNotifications:  {},   // userId -> personalized notification string
+    startedAt:           null
   });
 
   addDebated(newUser.userId, matchUser.userId);
@@ -1991,6 +2091,21 @@ function attemptMatch(newSocketId) {
     roomId,
     opponent: { username: newUser.username, politicalX: newUser.politicalX, politicalY: newUser.politicalY }
   });
+
+  // Run matchmaking AI in background — sets topic + personalised notifications
+  const _nSocketId = newSocketId, _mSocketId = matchSocketId;
+  const _nUserId   = newUser.userId,   _mUserId   = matchUser.userId;
+  ;(async () => {
+    const prof1 = [...onlineUsers.values()].find(o => o.userId === _nUserId) || newUser;
+    const prof2 = [...onlineUsers.values()].find(o => o.userId === _mUserId) || matchUser;
+    const result = await runMatchmakingAI(prof1, prof2);
+    if (!result) return;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    if (result.topic) room.question = result.topic;
+    if (result.notification_a) room.matchNotifications[_nUserId] = result.notification_a;
+    if (result.notification_b) room.matchNotifications[_mUserId] = result.notification_b;
+  })();
 }
 
 function closeRoom(roomId, bySocketId, reason) {
