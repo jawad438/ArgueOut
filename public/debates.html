@@ -115,14 +115,60 @@
   </div>
 
   <div class="debates-refresh">
-    <span class="debates-count" id="debatesCount">Loading...</span>
+    <span class="debates-count skel" id="debatesCount" style="display:inline-block;width:110px;height:13px;border-radius:6px;vertical-align:middle"></span>
     <button class="debates-refresh-btn" id="refreshBtn" onclick="loadDebates()">
       <svg id="refreshIcon" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Refresh
     </button>
   </div>
 
-  <div class="debates-grid" id="debatesGrid"></div>
+  <div class="debates-grid" id="debatesGrid">
+    <div class="debate-card">
+      <div class="dc-top"><div class="skel" style="height:16px;width:68%;border-radius:6px"></div></div>
+      <div class="dc-meta" style="margin-top:4px">
+        <div class="dc-debaters">
+          <div class="skel" style="width:110px;height:24px;border-radius:20px"></div>
+          <div class="skel" style="width:20px;height:12px;border-radius:4px"></div>
+          <div class="skel" style="width:110px;height:24px;border-radius:20px"></div>
+        </div>
+        <div class="dc-stats">
+          <div class="skel" style="width:72px;height:14px;border-radius:6px"></div>
+          <div class="skel" style="width:58px;height:14px;border-radius:6px"></div>
+        </div>
+      </div>
+      <div class="dc-actions"><div class="skel" style="width:112px;height:36px;border-radius:10px;margin-left:auto"></div></div>
+    </div>
+    <div class="debate-card">
+      <div class="dc-top"><div class="skel" style="height:16px;width:55%;border-radius:6px"></div></div>
+      <div class="dc-meta" style="margin-top:4px">
+        <div class="dc-debaters">
+          <div class="skel" style="width:110px;height:24px;border-radius:20px"></div>
+          <div class="skel" style="width:20px;height:12px;border-radius:4px"></div>
+          <div class="skel" style="width:110px;height:24px;border-radius:20px"></div>
+        </div>
+        <div class="dc-stats">
+          <div class="skel" style="width:72px;height:14px;border-radius:6px"></div>
+          <div class="skel" style="width:58px;height:14px;border-radius:6px"></div>
+        </div>
+      </div>
+      <div class="dc-actions"><div class="skel" style="width:112px;height:36px;border-radius:10px;margin-left:auto"></div></div>
+    </div>
+    <div class="debate-card" style="opacity:0.55">
+      <div class="dc-top"><div class="skel" style="height:16px;width:75%;border-radius:6px"></div></div>
+      <div class="dc-meta" style="margin-top:4px">
+        <div class="dc-debaters">
+          <div class="skel" style="width:110px;height:24px;border-radius:20px"></div>
+          <div class="skel" style="width:20px;height:12px;border-radius:4px"></div>
+          <div class="skel" style="width:110px;height:24px;border-radius:20px"></div>
+        </div>
+        <div class="dc-stats">
+          <div class="skel" style="width:72px;height:14px;border-radius:6px"></div>
+          <div class="skel" style="width:58px;height:14px;border-radius:6px"></div>
+        </div>
+      </div>
+      <div class="dc-actions"><div class="skel" style="width:112px;height:36px;border-radius:10px;margin-left:auto"></div></div>
+    </div>
+  </div>
 </div>
 
 <div id="toast-container"></div>

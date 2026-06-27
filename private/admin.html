@@ -113,11 +113,11 @@
     <div class="stat-row" id="statsRow">
       <div class="stat-card">
         <div class="stat-label">Pending Reports</div>
-        <div class="stat-val gradient-text" id="statPending">&ndash;</div>
+        <div class="stat-val skel" id="statPending" style="width:44px;height:28px;border-radius:8px;margin-top:6px"></div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Total Reports</div>
-        <div class="stat-val gradient-text" id="statTotal">&ndash;</div>
+        <div class="stat-val skel" id="statTotal" style="width:44px;height:28px;border-radius:8px;margin-top:6px"></div>
       </div>
     </div>
 
@@ -136,7 +136,11 @@
         <button class="filter-btn" id="filt-all" onclick="loadReports('all')">All</button>
         <button class="btn btn-ghost btn-sm" onclick="loadReports(currentFilter)" style="margin-left:auto">&#8635; Refresh</button>
       </div>
-      <div id="reportsList"><div class="admin-empty">Loading reports&hellip;</div></div>
+      <div id="reportsList">
+        <div class="skel" style="height:82px;border-radius:12px;margin-bottom:10px"></div>
+        <div class="skel" style="height:82px;border-radius:12px;margin-bottom:10px"></div>
+        <div class="skel" style="height:82px;border-radius:12px;margin-bottom:10px;opacity:0.55"></div>
+      </div>
     </div>
 
     <!-- Users tab -->
@@ -149,7 +153,10 @@
           <span id="delReqBadge" style="display:none;background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3);font-size:0.7rem;font-weight:700;padding:1px 8px;border-radius:99px"></span>
           <button class="btn btn-ghost btn-sm" onclick="loadDeletionRequests()" style="margin-left:auto">&#8635; Refresh</button>
         </div>
-        <div id="delReqList" style="padding:12px 16px"><div class="admin-empty">Loading&hellip;</div></div>
+        <div id="delReqList" style="padding:12px 16px">
+          <div class="skel" style="height:60px;border-radius:10px;margin-bottom:8px"></div>
+          <div class="skel" style="height:60px;border-radius:10px;margin-bottom:8px;opacity:0.55"></div>
+        </div>
       </div>
 
       <div class="search-row">
@@ -177,7 +184,10 @@
           <span style="font-size:0.88rem;font-weight:700">Active Links</span>
           <button class="btn btn-ghost btn-sm" onclick="loadWhitelist()">&#8635; Refresh</button>
         </div>
-        <div id="wlList" style="padding:12px 16px"><div class="admin-empty">Loading…</div></div>
+        <div id="wlList" style="padding:12px 16px">
+          <div class="skel" style="height:50px;border-radius:10px;margin-bottom:8px"></div>
+          <div class="skel" style="height:50px;border-radius:10px;margin-bottom:8px;opacity:0.55"></div>
+        </div>
       </div>
     </div>
 

@@ -68,7 +68,11 @@ async function loadDebates() {
     const res  = await fetch('/api/debates');
     const list = await res.json();
 
-    if (count) count.textContent = list.length === 0 ? 'No live debates right now' : list.length + ' live debate' + (list.length === 1 ? '' : 's');
+    if (count) {
+      count.classList.remove('skel');
+      count.style.removeProperty('width'); count.style.removeProperty('height');
+      count.textContent = list.length === 0 ? 'No live debates right now' : list.length + ' live debate' + (list.length === 1 ? '' : 's');
+    }
 
     if (!list.length) {
       grid.innerHTML = `
@@ -81,7 +85,7 @@ async function loadDebates() {
       grid.innerHTML = list.map(renderCard).join('');
     }
   } catch {
-    if (count) count.textContent = 'Could not load debates';
+    if (count) { count.classList.remove('skel'); count.style.removeProperty('width'); count.style.removeProperty('height'); count.textContent = 'Could not load debates'; }
     grid.innerHTML = '<div class="debates-empty"><p>Failed to load. Check your connection and refresh.</p></div>';
   } finally {
     if (btn) {

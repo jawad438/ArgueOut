@@ -265,8 +265,12 @@ function showDebateUI(data) {
 
   const topicEl = document.getElementById('specTopic');
   if (topicEl) {
-    topicEl.textContent = data.question || '';
-    if (!data.question) topicEl.innerHTML = '<span class="spec-topic-placeholder">No topic set yet</span>';
+    topicEl.innerHTML = '';
+    if (data.question) {
+      topicEl.textContent = data.question;
+    } else {
+      topicEl.innerHTML = '<span class="spec-topic-placeholder">No topic set yet</span>';
+    }
   }
 
   const debatersEl = document.getElementById('specDebaters');

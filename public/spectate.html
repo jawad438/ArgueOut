@@ -420,7 +420,7 @@
       <svg style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
       Live Debates
     </a>
-    <div class="spec-topic" id="specTopic"><span class="spec-topic-placeholder">Connecting…</span></div>
+    <div class="spec-topic" id="specTopic"><span class="skel" style="display:inline-block;width:160px;height:13px;border-radius:6px;vertical-align:middle"></span></div>
     <div class="spec-live-badge"><span class="spec-live-dot"></span>Live</div>
     <div class="spec-theme-btn-wrap">
       <div class="theme-switcher">
@@ -437,10 +437,27 @@
   </header>
 
   <div class="spec-body" id="specBody">
-    <!-- connecting state -->
-    <div class="spec-connecting" id="specConnecting" style="grid-column:1/-1">
-      <div class="spec-spinner"></div>
-      <span>Joining debate…</span>
+    <!-- connecting state — skeleton of the full layout -->
+    <div class="spec-connecting" id="specConnecting" style="grid-column:1/-1;padding:24px;align-items:stretch;justify-content:flex-start;overflow:auto">
+      <div style="max-width:640px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+        <!-- skeleton video grid -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="skel" style="aspect-ratio:16/9;border-radius:10px"></div>
+          <div class="skel" style="aspect-ratio:16/9;border-radius:10px"></div>
+        </div>
+        <!-- skeleton debater names -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px">
+          <div class="skel" style="width:90px;height:16px;border-radius:6px"></div>
+          <div class="skel" style="width:22px;height:12px;border-radius:4px"></div>
+          <div class="skel" style="width:90px;height:16px;border-radius:6px"></div>
+        </div>
+        <!-- skeleton chat rows -->
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+          <div class="skel" style="height:40px;border-radius:9px"></div>
+          <div class="skel" style="height:40px;border-radius:9px"></div>
+          <div class="skel" style="height:40px;border-radius:9px;opacity:0.5"></div>
+        </div>
+      </div>
     </div>
 
     <!-- left: debate chat -->

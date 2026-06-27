@@ -88,9 +88,24 @@ function populateOpponentUI() {
 
   if (opLabel)  opLabel.textContent  = opponent.username;
   if (opTag)    opTag.textContent    = tag ? ` Â· ${tag}` : '';
-  if (opPHAv)   opPHAv.textContent   = initial;
-  if (opPHName) opPHName.textContent = opponent.username;
+  if (opPHAv) {
+    opPHAv.classList.remove('skel');
+    opPHAv.style.removeProperty('border-radius');
+    opPHAv.textContent = initial;
+  }
+  if (opPHName) {
+    opPHName.classList.remove('skel');
+    ['width','height','margin-top','border-radius'].forEach(p => opPHName.style.removeProperty(p));
+    opPHName.textContent = opponent.username;
+  }
+  const ctEl = document.getElementById('connectingText');
+  if (ctEl) {
+    ctEl.classList.remove('skel');
+    ['width','height','margin-top','border-radius'].forEach(p => ctEl.style.removeProperty(p));
+  }
   if (opInfo) {
+    opInfo.classList.remove('skel');
+    ['width','height','display','border-radius'].forEach(p => opInfo.style.removeProperty(p));
     opInfo.innerHTML = `
       <span style="font-weight:600;color:var(--text-1)">${escapeHtml(currentUsername)}</span>
       <span style="margin:0 12px;color:var(--text-3)">vs</span>

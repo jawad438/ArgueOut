@@ -242,6 +242,12 @@ function renderReports(reports) {
   const statTotal   = document.getElementById('statTotal');
 
   const pending = reports.filter(r => r.status === 'pending');
+  [statPending, statTotal].forEach(el => {
+    if (!el) return;
+    el.classList.remove('skel');
+    el.classList.add('gradient-text');
+    ['width','height','margin-top','border-radius'].forEach(p => el.style.removeProperty(p));
+  });
   if (statPending) statPending.textContent = pending.length;
   if (statTotal)   statTotal.textContent   = reports.length;
 

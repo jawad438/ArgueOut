@@ -192,7 +192,7 @@
     </div>
 
     <div class="debate-topic" id="debateTopicDisplay">
-      <span id="opponentInfo" style="color:var(--text-2)">Connecting...</span>
+      <span id="opponentInfo" class="skel" style="display:inline-block;width:180px;height:14px;border-radius:6px;vertical-align:middle"></span>
     </div>
 
     <div class="debate-header-timer">
@@ -328,12 +328,9 @@
       <div class="video-panel opponent-panel" id="opponentPanel">
         <video id="opponentVideo" autoplay playsinline></video>
         <div class="video-no-cam" id="opponentNoCam" style="display:flex">
-          <div class="video-placeholder-avatar" id="opponentPlaceholderAvatar" style="background:var(--grad-right)">?</div>
-          <div class="video-placeholder-name" id="opponentPlaceholderName">Opponent</div>
-          <div id="connectingText" style="font-size:0.78rem;color:var(--text-3);margin-top:4px;display:flex;align-items:center;gap:8px">
-            <div class="spinner" style="width:14px;height:14px;border-width:2px"></div>
-            Connecting...
-          </div>
+          <div class="video-placeholder-avatar skel" id="opponentPlaceholderAvatar" style="border-radius:50%"></div>
+          <div class="video-placeholder-name skel" id="opponentPlaceholderName" style="width:80px;height:14px;border-radius:6px;margin-top:8px"></div>
+          <div id="connectingText" class="skel" style="width:100px;height:11px;border-radius:6px;margin-top:8px"></div>
         </div>
         <div class="video-label">
           <div class="video-dot" style="background:var(--blue);box-shadow:0 0 8px var(--blue)"></div>
