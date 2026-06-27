@@ -1,3 +1,16 @@
 plugins {
     id 'com.android.application' version '8.2.2' apply false
 }
+
+// Force all Kotlin stdlib variants to the same version to prevent duplicate class errors.
+// kotlin-stdlib 1.8+ merged jdk7/jdk8 into the main jar; older transitive deps still
+// reference the standalone jdk7/jdk8 artifacts, causing conflicts.
+subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+        }
+    }
+}
