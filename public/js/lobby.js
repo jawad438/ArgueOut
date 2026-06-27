@@ -108,6 +108,18 @@ function updateProfileUI(profile) {
   if (profName)     profName.textContent     = profile.name || profile.username;
   if (profUsername) profUsername.textContent = `@${profile.username}`;
 
+  // Strip skeleton placeholders now that real data is ready
+  ['navAvatar', 'navUsername', 'profileAvatar', 'profileName', 'profileUsername', 'bioText', 'profileCountry'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('skel');
+      el.style.removeProperty('width');
+      el.style.removeProperty('height');
+      el.style.removeProperty('display');
+      el.style.removeProperty('border-radius');
+    }
+  });
+
   // Show display rows (they may be hidden from a previous edit session)
   const nameDisplayRow     = document.getElementById('nameDisplayRow');
   const usernameDisplayRow = document.getElementById('usernameDisplayRow');

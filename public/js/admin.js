@@ -571,6 +571,8 @@ auth.onAuthStateChanged(async user => {
     _adminVerified = true;
     const el = document.getElementById('adminUsername');
     if (el) el.textContent = `@${data.username}`;
+    const loader = document.getElementById('adminLoadScreen');
+    if (loader) { loader.style.opacity = '0'; setTimeout(() => loader.remove(), 260); }
     socket.connect();
   } catch {
     window.location.href = '/lobby';

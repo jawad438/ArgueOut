@@ -2678,3 +2678,37 @@ html[data-theme="light"] .modal-overlay { background: rgba(200,200,220,0.62); }
 }
 .report-reason-opt:hover { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.3); color: var(--text-1); }
 .report-reason-opt input[type="radio"] { accent-color: var(--purple); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+
+/* ── Skeleton loading ─────────────────────────────────────────── */
+.skel {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255,255,255,0.06) !important;
+  color: transparent !important;
+  border-color: transparent !important;
+  fill: transparent !important;
+  stroke: transparent !important;
+  border-radius: 6px;
+  pointer-events: none;
+  user-select: none;
+}
+.skel > * { visibility: hidden; }
+.skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+  background-size: 300% 100%;
+  animation: skel-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+[data-theme="light"] .skel {
+  background: rgba(0,0,0,0.08) !important;
+}
+[data-theme="light"] .skel::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%);
+  background-size: 300% 100%;
+}
