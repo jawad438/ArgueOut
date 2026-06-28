@@ -10,7 +10,7 @@ import GlassCard from '../components/GlassCard';
 import ArgueButton from '../components/ArgueButton';
 import {getMe, updateProfileField} from '../services/api';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({navigation}) {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -18,8 +18,11 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getMe().then(setProfile).catch(() => {});
-  }, []);
+    const unsub = navigation.addListener('focus', () => {
+      getMe().then(setProfile).catch(() => {});
+    });
+    return unsub;
+  }, [navigation]);
 
   async function saveField(field) {
     try {
@@ -34,16 +37,6 @@ export default function ProfileScreen() {
     }
   }
 
-  function startEdit(field) {
-    setEditing(field);
-    setEditValue(profile?.[field] ?? '');
-  }
-
-  function cancelEdit() {
-    setEditing(null);
-    setEditValue('');
-  }
-
   if (!profile) {
     return (
       <View style={styles.center}>
@@ -52,23 +45,26 @@ export default function ProfileScreen() {
     );
   }
 
-  const fields = [
-    {key: 'name',    label: 'Name',     editable: true},
-    {key: 'username', label: 'Username', editable: true},
-    {key: 'bio',     label: 'Bio',      editable: true, multiline: true},
-    {key: 'country', label: 'Country',  editable: false},
-    {key: 'age',     label: 'Age',      editable: false},
-    {key: 'gender',  label: 'Gender',   editable: false},
-    {key: 'religion',label: 'Religion', editable: false},
+  const editableFields = [
+    {key: 'name',     label: 'Name'},
+    {key: 'username', label: 'Username'},
+    {key: 'bio',      label: 'Bio', multiline: true},
+  ];
+
+  const readonlyFields = [
+    {key: 'country',  label: 'Country'},
+    {key: 'age',      label: 'Age'},
+    {key: 'gender',   label: 'Gender'},
+    {key: 'religion', label: 'Religion'},
   ];
 
   return (
     <ScrollView
-      style={styles.root}
-      contentContainerStyle={[styles.scroll, {paddingBottom: insets.bottom + spacing.lg}]}>
+      style={[styles.root, {paddingTop: insets.top}]}
+      contentContainerStyle={{paddingBottom: insets.bottom + spacing.xl}}>
 
-      {/* Avatar / header */}
-      <View style={styles.header}>
+      {/* Avatar / name block */}
+      <View style={styles.hero}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
             {(profile.name || profile.username || '?')[0].toUpperCase()}
@@ -79,64 +75,67 @@ export default function ProfileScreen() {
       </View>
 
       {/* Editable fields */}
-      {fields.map(f => (
+      <Text style={styles.sectionLabel}>EDIT PROFILE</Text>
+      {editableFields.map(f => (
         <GlassCard key={f.key} style={styles.fieldCard}>
-          <View style={styles.fieldHeader}>
+          <View style={styles.fieldTop}>
             <Text style={styles.fieldLabel}>{f.label}</Text>
-            {f.editable && editing !== f.key && (
-              <TouchableOpacity onPress={() => startEdit(f.key)}>
-                <Text style={styles.editBtn}>Edit</Text>
+            {editing !== f.key && (
+              <TouchableOpacity onPress={() => {setEditing(f.key); setEditValue(profile[f.key] ?? '');}}>
+                <Text style={styles.editLink}>Edit</Text>
               </TouchableOpacity>
             )}
           </View>
-
           {editing === f.key ? (
             <>
               <TextInput
-                style={[styles.input, f.multiline && {height: 80}]}
+                style={[styles.input, f.multiline && {height: 80, textAlignVertical: 'top'}]}
                 value={editValue}
                 onChangeText={setEditValue}
                 multiline={f.multiline}
                 autoFocus
                 placeholderTextColor={colors.textMuted}
-                color={colors.text}
               />
-              <View style={styles.editActions}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={cancelEdit}>
+              <View style={styles.editRow}>
+                <TouchableOpacity onPress={() => setEditing(null)} style={styles.cancelBtn}>
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-                <ArgueButton
-                  label="Save"
-                  onPress={() => saveField(f.key)}
-                  loading={saving}
-                  style={styles.saveBtn}
-                />
+                <ArgueButton label="Save" onPress={() => saveField(f.key)} loading={saving} style={styles.saveBtn} />
               </View>
             </>
           ) : (
-            <Text style={styles.fieldValue}>
-              {profile[f.key] || <Text style={styles.placeholder}>Not set</Text>}
-            </Text>
+            <Text style={styles.fieldValue}>{profile[f.key] || <Text style={styles.placeholder}>Not set</Text>}</Text>
           )}
         </GlassCard>
       ))}
 
-      {/* Sign out */}
-      <ArgueButton
-        label="Sign Out"
-        variant="ghost"
-        onPress={() => auth().signOut()}
-        style={styles.signOutBtn}
-      />
+      {/* Read-only info */}
+      <Text style={[styles.sectionLabel, {marginTop: spacing.md}]}>ACCOUNT INFO</Text>
+      <GlassCard style={styles.infoCard}>
+        {readonlyFields.map((f, i) => (
+          <View key={f.key} style={[styles.infoRow, i < readonlyFields.length - 1 && styles.infoRowBorder]}>
+            <Text style={styles.infoLabel}>{f.label}</Text>
+            <Text style={styles.infoValue}>{profile[f.key] || '—'}</Text>
+          </View>
+        ))}
+      </GlassCard>
+
+      {/* Settings link */}
+      <TouchableOpacity
+        style={styles.settingsLink}
+        onPress={() => navigation.navigate('Settings')}
+        activeOpacity={0.8}>
+        <Text style={styles.settingsLinkText}>⚙️  Account Settings</Text>
+        <Text style={styles.chevron}>›</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   root: {flex: 1, backgroundColor: colors.bg},
-  scroll: {padding: spacing.md, paddingTop: spacing.lg},
   center: {flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center'},
-  header: {alignItems: 'center', marginBottom: spacing.lg},
+  hero: {alignItems: 'center', paddingVertical: spacing.xl},
   avatar: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: colors.purple, alignItems: 'center', justifyContent: 'center',
@@ -145,10 +144,14 @@ const styles = StyleSheet.create({
   avatarText: {fontSize: font.xl, fontWeight: '800', color: '#fff'},
   displayName: {fontSize: font.lg, fontWeight: '700', color: colors.text},
   username: {fontSize: font.sm, color: colors.textMuted, marginTop: 4},
-  fieldCard: {marginBottom: spacing.sm},
-  fieldHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6},
-  fieldLabel: {fontSize: font.xs, color: colors.textMuted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5},
-  editBtn: {fontSize: font.sm, color: colors.purple, fontWeight: '600'},
+  sectionLabel: {
+    fontSize: font.xs, fontWeight: '700', color: colors.textMuted,
+    letterSpacing: 0.8, paddingHorizontal: spacing.md, marginBottom: spacing.xs,
+  },
+  fieldCard: {marginHorizontal: spacing.md, marginBottom: spacing.sm},
+  fieldTop: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6},
+  fieldLabel: {fontSize: font.xs, color: colors.textMuted, fontWeight: '600'},
+  editLink: {fontSize: font.sm, color: colors.purple, fontWeight: '600'},
   fieldValue: {fontSize: font.base, color: colors.text},
   placeholder: {color: colors.textMuted},
   input: {
@@ -156,9 +159,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: spacing.sm,
     paddingVertical: 10, color: colors.text, fontSize: font.base, marginBottom: spacing.sm,
   },
-  editActions: {flexDirection: 'row', gap: spacing.sm},
+  editRow: {flexDirection: 'row', gap: spacing.sm},
   cancelBtn: {flex: 1, height: 44, alignItems: 'center', justifyContent: 'center'},
   cancelText: {color: colors.textMuted, fontWeight: '600'},
   saveBtn: {flex: 1, height: 44},
-  signOutBtn: {marginTop: spacing.md},
+  infoCard: {marginHorizontal: spacing.md, padding: 0},
+  infoRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md},
+  infoRowBorder: {borderBottomWidth: 1, borderBottomColor: colors.border},
+  infoLabel: {fontSize: font.sm, color: colors.textMuted},
+  infoValue: {fontSize: font.sm, color: colors.text, fontWeight: '500'},
+  settingsLink: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginHorizontal: spacing.md, marginTop: spacing.md,
+    backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 14,
+  },
+  settingsLinkText: {fontSize: font.base, color: colors.text, fontWeight: '500'},
+  chevron: {fontSize: 20, color: colors.textMuted},
 });
