@@ -533,6 +533,92 @@ app.use((req, res, next) => {
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
+/* ─────────────────────────────────────────────────────────────────
+   MOBILE API  — endpoints used exclusively by the React Native app
+   ───────────────────────────────────────────────────────────────── */
+
+// Resolve username → email so Firebase signInWithEmailAndPassword can work
+app.post('/api/mobile/lookup', express.json(), async (req, res) => {
+  try {
+    const id = (req.body?.identifier || '').trim().toLowerCase();
+    if (!id) return res.status(400).json({ error: 'Missing identifier' });
+    if (id.includes('@')) return res.json({ email: id });
+    const doc = await fstore.collection('usernames').doc(id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'User not found' });
+    const email = doc.data().email || `${id}@argueout.local`;
+    res.json({ email });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Register a new user from the mobile app (uses Admin SDK — no Firestore client needed)
+app.post('/api/mobile/register', express.json(), strictLimiter, async (req, res) => {
+  try {
+    const { email, password, username, name, age, gender, religion, country } = req.body || {};
+    if (!email || !password || !username || !name) return res.status(400).json({ error: 'Missing required fields' });
+    const uname = username.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,20}$/.test(uname)) return res.status(400).json({ error: 'Invalid username' });
+
+    const exists = await fstore.collection('usernames').doc(uname).get();
+    if (exists.exists) return res.status(409).json({ error: 'Username already taken' });
+
+    const userRec = await admin.auth().createUser({ email: email.trim(), password, displayName: name.trim() });
+    const uid = userRec.uid;
+
+    const batch = fstore.batch();
+    batch.set(fstore.collection('users').doc(uid), {
+      username: uname, name: name.trim(), email: email.trim().toLowerCase(),
+      gender: gender || 'prefer_not_to_say', religion: religion || 'prefer_not_to_say',
+      age: parseInt(age) || 0, country: country || '', bio: '',
+      politicalX: 0, politicalY: 0, compassSet: false, avatarUrl: null,
+      agreedToTermsAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    batch.set(fstore.collection('usernames').doc(uname), { uid, email: email.trim().toLowerCase() });
+    await batch.commit();
+
+    const customToken = await admin.auth().createCustomToken(uid);
+    res.json({ customToken, uid, username: uname });
+  } catch (e) {
+    if (e.code === 'auth/email-already-exists') return res.status(409).json({ error: 'Email already in use' });
+    res.status(500).json({ error: e.message || 'Server error' });
+  }
+});
+
+// Issue a short-lived Firebase custom token so a WebView can sign in as the native user
+app.post('/api/mobile/session-token', async (req, res) => {
+  try {
+    const decoded = await getAuthUser(req);
+    if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+    const customToken = await admin.auth().createCustomToken(decoded.uid);
+    res.json({ customToken });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Get the current user's profile (for mobile lobby/profile screens)
+app.get('/api/me', async (req, res) => {
+  try {
+    const decoded = await getAuthUser(req);
+    if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+    const doc = await fstore.collection('users').doc(decoded.uid).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Profile not found' });
+    res.json({ uid: decoded.uid, ...doc.data() });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Update political compass position from mobile
+app.post('/api/profile/compass', express.json(), async (req, res) => {
+  try {
+    const decoded = await getAuthUser(req);
+    if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+    const x = parseFloat(req.body?.x);
+    const y = parseFloat(req.body?.y);
+    if (isNaN(x) || isNaN(y) || x < -1 || x > 1 || y < -1 || y > 1)
+      return res.status(400).json({ error: 'Invalid compass values' });
+    await fstore.collection('users').doc(decoded.uid).update({ politicalX: x, politicalY: y, compassSet: true });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
 // TWA (Android APK) domain verification — fingerprint updated after first APK build
 app.get('/.well-known/assetlinks.json', (_, res) => {
   res.json([{

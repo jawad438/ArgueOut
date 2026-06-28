@@ -1,0 +1,28 @@
+{
+  "project_info": {
+    "project_number": "666299079183",
+    "project_id": "argueout",
+    "storage_bucket": "argueout.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:666299079183:android:argueout_mobile",
+        "android_client_info": {
+          "package_name": "com.argueout.mobile"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFhRtNAEIg_iXwNEHCe9-ppPTQWTcn6hs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

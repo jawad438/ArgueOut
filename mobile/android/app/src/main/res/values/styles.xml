@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:editTextBackground">@android:color/transparent</item>
+        <item name="colorPrimary">#8b5cf6</item>
+        <item name="colorPrimaryDark">#05050f</item>
+        <item name="colorAccent">#8b5cf6</item>
+        <item name="android:windowBackground">#05050f</item>
+        <item name="android:statusBarColor">#05050f</item>
+        <item name="android:navigationBarColor">#05050f</item>
+    </style>
+</resources>
