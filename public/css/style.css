@@ -2051,12 +2051,38 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   .control-label { font-size: 0.58rem; }
 }
 
-/* ── 8. VIDEO LAYOUT: opponent first on mobile (more intuitive) ── */
+/* ── 8. VIDEO LAYOUT: PiP on phones — opponent fills area, self is mini overlay ── */
+/* Two stacked 16:9 panels would eat ~440px of height leaving no room for controls. */
+/* PiP (Picture-in-Picture) is what every mobile video app does: opponent large,    */
+/* your own feed is a small draggable-feeling corner thumbnail.                      */
 @media (max-width: 640px) {
-  .video-area    { padding: 10px; gap: 8px; }
-  .video-grid    { gap: 8px; }
-  .opponent-panel { order: -1; }
-  .self-panel     { order:  1; }
+  .video-area { padding: 8px; gap: 0; }
+
+  /* Fixed height so header + video + controls all fit on screen without scrolling */
+  .video-grid {
+    position: relative;
+    display: block;   /* exit CSS Grid so children can be absolute-positioned */
+    height: 240px;
+  }
+
+  /* Opponent: fills entire video area */
+  .opponent-panel {
+    position: absolute; inset: 0;
+    border-radius: var(--r-md);
+    aspect-ratio: unset;
+  }
+
+  /* Self: small PiP thumbnail in bottom-right corner */
+  .self-panel {
+    position: absolute;
+    bottom: 10px; right: 10px;
+    width: 78px; height: 104px;  /* ~3:4 portrait ratio, typical front camera */
+    border-radius: 10px;
+    z-index: 5;
+    border: 2px solid rgba(139,92,246,0.55) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.65);
+    aspect-ratio: unset;
+  }
 }
 
 /* ── 9. CHAT SIDEBAR: safe area on iPhone (home-bar overlap) ───── */
