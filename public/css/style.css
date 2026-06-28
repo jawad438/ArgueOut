@@ -2051,38 +2051,64 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   .control-label { font-size: 0.58rem; }
 }
 
-/* ── 8. VIDEO LAYOUT: PiP on phones — opponent fills area, self is mini overlay ── */
-/* Two stacked 16:9 panels would eat ~440px of height leaving no room for controls. */
-/* PiP (Picture-in-Picture) is what every mobile video app does: opponent large,    */
-/* your own feed is a small draggable-feeling corner thumbnail.                      */
+/* ── 8. VIDEO LAYOUT + DEBATE MOBILE CLEANUP ───────────────────────────────── */
 @media (max-width: 640px) {
-  .video-area { padding: 8px; gap: 0; }
+  /* Hide logo and User-vs-User header text — wastes space on small screens */
+  .debate-header-brand { display: none; }
+  .debate-topic        { display: none; }
 
-  /* Fixed height so header + video + controls all fit on screen without scrolling */
+  /* Hide self-cam name label inside the thumbnail */
+  .self-panel .video-label { display: none; }
+
+  /* Taller portrait video container */
+  .video-area { padding: 6px; gap: 0; }
   .video-grid {
     position: relative;
-    display: block;   /* exit CSS Grid so children can be absolute-positioned */
-    height: 240px;
+    display: block;
+    height: 52dvh;
+    min-height: 280px;
+    max-height: 460px;
   }
 
-  /* Opponent: fills entire video area */
+  /* Opponent: fills full portrait container */
   .opponent-panel {
     position: absolute; inset: 0;
     border-radius: var(--r-md);
     aspect-ratio: unset;
   }
 
-  /* Self: small PiP thumbnail in bottom-right corner */
+  /* Self: portrait thumbnail in corner, no name */
   .self-panel {
     position: absolute;
-    bottom: 10px; right: 10px;
-    width: 78px; height: 104px;  /* ~3:4 portrait ratio, typical front camera */
-    border-radius: 10px;
+    bottom: 8px; right: 8px;
+    width: 64px; height: 88px;
+    border-radius: 8px;
     z-index: 5;
     border: 2px solid rgba(139,92,246,0.55) !important;
     box-shadow: 0 4px 20px rgba(0,0,0,0.65);
     aspect-ratio: unset;
   }
+
+  /* Compact control bar — scrollable single row, no wrapping */
+  .debate-controls {
+    gap: 4px !important;
+    padding: 6px 4px !important;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)) !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    justify-content: space-around;
+  }
+  .debate-controls::-webkit-scrollbar { display: none; }
+  .btn-icon       { width: 40px !important; height: 40px !important; }
+  .control-label  { font-size: 0.5rem !important; }
+  .control-wrap   { min-width: 42px !important; flex-shrink: 0 !important; }
+
+  /* Legal footer bar — hidden on debate page on mobile */
+  .debate-layout ~ .lf-bar,
+  .debate-layout + .lf-bar,
+  body:has(.debate-layout) .lf-bar { display: none !important; }
 }
 
 /* ── 9. CHAT SIDEBAR: safe area on iPhone (home-bar overlap) ───── */
