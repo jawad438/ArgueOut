@@ -2051,23 +2051,31 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   .control-label { font-size: 0.58rem; }
 }
 
+/* ── 7b. MOBILE GLOBAL: plain background, no network canvas/orbs, no footer ── */
+@media (max-width: 640px) {
+  #bgCanvas  { display: none !important; }
+  .bg-orbs   { display: none !important; }
+  body       { animation: none !important; background: #05050f !important; }
+  .lf-bar    { display: none !important; }
+}
+
 /* ── 8. VIDEO LAYOUT + DEBATE MOBILE CLEANUP ───────────────────────────────── */
 @media (max-width: 640px) {
-  /* Hide logo and User-vs-User header text — wastes space on small screens */
+  /* Hide logo and User-vs-User header text */
   .debate-header-brand { display: none; }
   .debate-topic        { display: none; }
 
   /* Hide self-cam name label inside the thumbnail */
   .self-panel .video-label { display: none; }
 
-  /* Taller portrait video container */
+  /* Portrait video container */
   .video-area { padding: 6px; gap: 0; }
   .video-grid {
     position: relative;
     display: block;
-    height: 52dvh;
-    min-height: 280px;
-    max-height: 460px;
+    height: 54dvh;
+    min-height: 300px;
+    max-height: 480px;
   }
 
   /* Opponent: fills full portrait container */
@@ -2077,39 +2085,117 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
     aspect-ratio: unset;
   }
 
-  /* Self: portrait thumbnail in corner, no name */
+  /* Self: 9:14 portrait thumbnail in bottom-right corner */
   .self-panel {
     position: absolute;
     bottom: 8px; right: 8px;
-    width: 64px; height: 88px;
+    width: 63px; height: 98px;
     border-radius: 8px;
     z-index: 5;
     border: 2px solid rgba(139,92,246,0.55) !important;
     box-shadow: 0 4px 20px rgba(0,0,0,0.65);
-    aspect-ratio: unset;
+    aspect-ratio: 9/14 !important;
   }
 
-  /* Compact control bar — scrollable single row, no wrapping */
+  /* ── 2-row control bar ──────────────────────────────────────────── */
   .debate-controls {
-    gap: 4px !important;
-    padding: 6px 4px !important;
-    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)) !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    justify-content: space-around;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 10px 18px !important;
+    padding: 10px 16px !important;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-x: unset !important;
+    scrollbar-width: unset !important;
   }
   .debate-controls::-webkit-scrollbar { display: none; }
-  .btn-icon       { width: 40px !important; height: 40px !important; }
-  .control-label  { font-size: 0.5rem !important; }
-  .control-wrap   { min-width: 42px !important; flex-shrink: 0 !important; }
+  .control-label { font-size: 0.55rem !important; }
 
-  /* Legal footer bar — hidden on debate page on mobile */
-  .debate-layout ~ .lf-bar,
-  .debate-layout + .lf-bar,
-  body:has(.debate-layout) .lf-bar { display: none !important; }
+  /* Primary row (order:1): Mic, End, Cam — big colored circles */
+  .control-wrap:has(#muteBtn),
+  .control-wrap:has(#endBtn),
+  .control-wrap:has(#camBtn) { order: 1; min-width: 64px !important; }
+
+  .control-wrap:has(#muteBtn) .btn-icon,
+  .control-wrap:has(#camBtn)  .btn-icon {
+    width: 56px !important; height: 56px !important;
+    border-radius: 50% !important;
+    background: rgba(34,197,94,0.18) !important;
+    border-color: rgba(34,197,94,0.45) !important;
+    color: var(--green) !important;
+  }
+  .control-wrap:has(#endBtn) .btn-icon {
+    width: 56px !important; height: 56px !important;
+    border-radius: 50% !important;
+    background: rgba(239,68,68,0.22) !important;
+    border-color: rgba(239,68,68,0.55) !important;
+    color: var(--red) !important;
+  }
+  /* Remove inline margin-left from end button wrap */
+  .control-wrap:has(#endBtn) { margin-left: 0 !important; }
+
+  /* Secondary row (order:2): Chat, Flip, Spec — smaller, below */
+  .control-wrap:has(#chatToggleBtn),
+  .control-wrap:has(#flipCamBtn),
+  .control-wrap:has(#specToggleBtn) { order: 2; min-width: 48px !important; }
+
+  .control-wrap:has(#chatToggleBtn) .btn-icon,
+  .control-wrap:has(#flipCamBtn)    .btn-icon,
+  .control-wrap:has(#specToggleBtn) .btn-icon {
+    width: 38px !important; height: 38px !important;
+  }
+
+  /* Report control hidden — moved to 3-dot overflow on video */
+  .control-wrap:has(#reportBtn) { display: none !important; }
+
+  /* 3-dot overflow button (shown only on mobile) */
+  .mob-overflow-wrap {
+    position: absolute;
+    top: 8px; right: 8px;
+    z-index: 10;
+    display: block;
+  }
+  .mob-overflow-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+  }
+  .mob-overflow-menu {
+    position: absolute;
+    top: 38px; right: 0;
+    background: rgba(10,10,22,0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 4px;
+    min-width: 164px;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+    z-index: 20;
+  }
+  .mob-overflow-menu.open { display: flex; }
+  .mob-overflow-menu button {
+    display: flex; align-items: center; gap: 9px;
+    padding: 11px 13px;
+    font-size: 0.87rem; font-weight: 500;
+    color: var(--text-1);
+    background: none; border: none; border-radius: 8px;
+    cursor: pointer; text-align: left; font-family: inherit;
+    width: 100%;
+  }
+  .mob-overflow-menu button:active { background: rgba(255,255,255,0.07); }
+  .mob-overflow-menu .mob-menu-danger { color: var(--red); }
 }
+
+/* Hidden by default; shown only on mobile via above rule */
+.mob-overflow-wrap { display: none; }
 
 /* ── 9. LOBBY MOBILE: simplified single-column layout ──────────── */
 @media (max-width: 640px) {

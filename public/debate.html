@@ -309,6 +309,27 @@
 
     <div class="video-grid">
 
+      <!-- 3-dot overflow menu (mobile only): Report, Pass Turn, Free Debate -->
+      <div class="mob-overflow-wrap" id="mobOverflowWrap">
+        <button class="mob-overflow-btn" id="mobOverflowBtn" aria-label="More options">
+          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+        </button>
+        <div class="mob-overflow-menu" id="mobOverflowMenu">
+          <button id="mobMenuPassTurn" onclick="passTurn();document.getElementById('mobOverflowMenu').classList.remove('open')">
+            <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            Pass Turn
+          </button>
+          <button id="mobMenuFreeDebate" onclick="requestFreeDebate();document.getElementById('mobOverflowMenu').classList.remove('open')">
+            <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Free Debate
+          </button>
+          <button class="mob-menu-danger" onclick="openDebateReport();document.getElementById('mobOverflowMenu').classList.remove('open')">
+            <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Report
+          </button>
+        </div>
+      </div>
+
       <!-- Self video -->
       <div class="video-panel self-panel" id="selfPanel">
         <video id="selfVideo" autoplay muted playsinline></video>
@@ -512,5 +533,21 @@
 <script src="/js/debate.js"></script>
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 <script src="/js/legal-footer.js"></script>
+<script>
+// Mobile 3-dot overflow menu
+(function () {
+  if (window.innerWidth > 640) return;
+  var btn  = document.getElementById('mobOverflowBtn');
+  var menu = document.getElementById('mobOverflowMenu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    menu.classList.toggle('open');
+  });
+  document.addEventListener('click', function () {
+    menu.classList.remove('open');
+  });
+})();
+</script>
 </body>
 </html>
