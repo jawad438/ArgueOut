@@ -513,6 +513,7 @@ async function loadDeletionRequests() {
   try {
     const token = await adminToken();
     const res   = await fetch('/api/admin/deletion-requests', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) { list.innerHTML = `<div class="admin-empty">Error loading requests (${res.status}).</div>`; return; }
     const data  = await res.json();
     const reqs  = data.requests || [];
     if (badge) { badge.textContent = reqs.length; badge.style.display = reqs.length ? 'inline' : 'none'; }

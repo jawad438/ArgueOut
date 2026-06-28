@@ -412,10 +412,14 @@ app.post('/api/request-deletion', async (req, res) => {
 app.get('/api/admin/deletion-requests', async (req, res) => {
   if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
   try {
-    const snap = await fstore.collection('deletion_requests').where('status', '==', 'pending').orderBy('requestedAt', 'asc').get();
+    const snap = await fstore.collection('deletion_requests').where('status', '==', 'pending').get();
     const requests = snap.docs.map(d => {
       const data = d.data();
       return { uid: d.id, username: data.username, email: data.email, requestedAt: data.requestedAt?.toDate?.()?.toISOString() || null };
+    }).sort((a, b) => {
+      if (!a.requestedAt) return 1;
+      if (!b.requestedAt) return -1;
+      return new Date(a.requestedAt) - new Date(b.requestedAt);
     });
     res.json({ requests });
   } catch (e) {
