@@ -938,7 +938,7 @@ async function generateDebateQuestionForPair(user1, user2) {
 }
 
 app.post('/api/suggest-opponent', strictLimiter, async (req, res) => {
-  const { idToken } = req.body || {};
+  const { idToken, seenUserIds } = req.body || {};
   if (!idToken || typeof idToken !== 'string' || idToken.length > 4096)
     return res.status(401).json({ error: 'No token' });
 
@@ -955,11 +955,17 @@ app.post('/api/suggest-opponent', strictLimiter, async (req, res) => {
     return res.status(404).json({ error: 'Not online' });
   }
 
+  // Client sends userIds already seen in previous sessions (persisted in localStorage)
+  const clientSeen = Array.isArray(seenUserIds)
+    ? seenUserIds.filter(id => typeof id === 'string' && id.length < 200).slice(0, 500)
+    : [];
+
   // Gather candidates: other online users, not in debate, not already suggested or debated
   const excluded = new Set([
     decoded.uid,
     ...(suggestedMap.get(decoded.uid) || []),
-    ...(debatedMap.get(decoded.uid)   || [])
+    ...(debatedMap.get(decoded.uid)   || []),
+    ...clientSeen
   ]);
   const seen = new Set([decoded.uid]);
   const candidates = [];

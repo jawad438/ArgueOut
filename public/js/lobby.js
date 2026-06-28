@@ -888,13 +888,24 @@ let suggestUserId   = null;
 let suggestUsername = null;
 let suggestQuestion = null;
 
+function _suggKey() { return 'ao_sugg_' + (currentUserId || localStorage.getItem('userId') || ''); }
+function getSuggestedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(_suggKey()) || '[]')); } catch { return new Set(); }
+}
+function recordSuggested(userId) {
+  try {
+    const s = getSuggestedIds(); s.add(userId);
+    localStorage.setItem(_suggKey(), JSON.stringify([...s]));
+  } catch {}
+}
+
 async function fetchSuggestedOpponent(token) {
   if (inQueue) return;
   try {
     const res  = await fetch('/api/suggest-opponent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: token })
+      body: JSON.stringify({ idToken: token, seenUserIds: [...getSuggestedIds()] })
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -914,6 +925,7 @@ function showSuggestCard(data) {
   suggestUserId   = data.userId;
   suggestUsername = data.username;
   suggestQuestion = data.question || null;
+  recordSuggested(data.userId);
 
   const _name = data.name || data.username;
   const _reason = data.reason || 'completely different worldview';
