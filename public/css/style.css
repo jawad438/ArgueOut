@@ -2055,7 +2055,7 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
 @media (max-width: 640px) {
   #bgCanvas  { display: none !important; }
   .bg-orbs   { display: none !important; }
-  body       { animation: none !important; background: #05050f !important; }
+  body       { animation: none !important; background: var(--bg-0) !important; }
   .lf-bar    { display: none !important; }
 }
 
