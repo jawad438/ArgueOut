@@ -33,7 +33,7 @@ jobs:
 
       - name: Install JS dependencies
         working-directory: mobile
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Generate Gradle wrapper
         working-directory: mobile/android
