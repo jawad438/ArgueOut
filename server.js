@@ -377,14 +377,31 @@ app.post('/api/request-deletion', async (req, res) => {
     const existing = await fstore.collection('deletion_requests').doc(decoded.uid).get();
     if (existing.exists && existing.data().status === 'pending')
       return res.status(409).json({ error: 'You already have a pending deletion request' });
-    await fstore.collection('deletion_requests').doc(decoded.uid).set({
+    const requestData = {
       uid: decoded.uid,
       username: userDoc.data().username || '',
       email: userDoc.data().email || '',
       requestedAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'pending'
-    });
+    };
+    await fstore.collection('deletion_requests').doc(decoded.uid).set(requestData);
     res.json({ ok: true });
+
+    // Notify all connected admin sockets in real-time
+    try {
+      const sockets = await io.fetchSockets();
+      for (const s of sockets) {
+        if (s.data.isAdmin) {
+          s.emit('admin-new-deletion-request', {
+            uid: decoded.uid,
+            username: requestData.username,
+            email: requestData.email,
+          });
+        }
+      }
+    } catch (notifyErr) {
+      console.error('[deletion-request] notify-admins error:', notifyErr.message);
+    }
   } catch (e) {
     console.error('[deletion-request]', e.message);
     res.status(500).json({ error: 'Server error' });

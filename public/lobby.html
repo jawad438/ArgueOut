@@ -120,6 +120,10 @@
       <div id="usernameEditRow" style="display:none;width:100%;margin-bottom:16px">
         <input type="text" id="usernameInput" class="form-input" maxlength="20" placeholder="your_username" autocapitalize="none" style="font-size:0.9rem;padding:8px 12px;height:auto;min-height:auto" />
         <span class="form-helper" style="display:block;margin-top:4px">3–20 chars, letters/numbers/_</span>
+        <div id="usernamePasswordRow" style="display:none;margin-top:8px">
+          <input type="password" id="usernamePasswordInput" class="form-input" placeholder="Current password" autocomplete="current-password" style="font-size:0.9rem;padding:8px 12px;height:auto;min-height:auto" />
+          <span class="form-helper" style="display:block;margin-top:4px">Enter your password to confirm the change</span>
+        </div>
         <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
           <button onclick="cancelUsernameEdit()" class="btn btn-ghost btn-sm" style="padding:4px 10px">Cancel</button>
           <button onclick="saveUsername()" class="btn btn-primary btn-sm" style="padding:4px 12px" id="saveUsernameBtn">Save</button>

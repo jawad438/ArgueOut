@@ -60,6 +60,12 @@ socket.on('authenticated', () => {
   loadReports('pending');
 });
 
+socket.on('admin-new-deletion-request', ({ username }) => {
+  showToast(`🗑️ New deletion request from @${username || 'unknown'}`, 'error');
+  const usersPane = document.getElementById('pane-users');
+  if (usersPane && usersPane.classList.contains('active')) loadDeletionRequests();
+});
+
 socket.on('admin-reports', ({ reports }) => {
   renderReports(reports);
 });

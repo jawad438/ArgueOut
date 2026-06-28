@@ -1281,11 +1281,18 @@ function startUsernameEdit() {
   document.getElementById('usernameEditRow').style.display    = 'block';
   const input = document.getElementById('usernameInput');
   if (input) { input.value = current; input.focus(); }
+  // Show password field only for password-based accounts
+  const user = auth.currentUser;
+  const isPasswordAccount = user && user.email && user.email.endsWith('@argueout.app');
+  const pwRow = document.getElementById('usernamePasswordRow');
+  if (pwRow) pwRow.style.display = isPasswordAccount ? 'block' : 'none';
 }
 
 function cancelUsernameEdit() {
   document.getElementById('usernameDisplayRow').style.display = 'flex';
   document.getElementById('usernameEditRow').style.display    = 'none';
+  const pwInput = document.getElementById('usernamePasswordInput');
+  if (pwInput) pwInput.value = '';
 }
 
 async function saveUsername() {
@@ -1303,6 +1310,23 @@ async function saveUsername() {
     return;
   }
   if (newUsername === oldUsername) { cancelUsernameEdit(); return; }
+
+  // Password accounts must confirm with current password before changing username
+  const isPasswordAccount = user.email && user.email.endsWith('@argueout.app');
+  if (isPasswordAccount) {
+    const pwInput = document.getElementById('usernamePasswordInput');
+    const pw = pwInput ? pwInput.value : '';
+    if (!pw) { showToast('Enter your current password to confirm.', 'error'); pwInput && pwInput.focus(); return; }
+    try {
+      const credential = firebase.auth.EmailAuthProvider.credential(user.email, pw);
+      await user.reauthenticateWithCredential(credential);
+    } catch {
+      showToast('Incorrect password.', 'error');
+      const pwInput2 = document.getElementById('usernamePasswordInput');
+      if (pwInput2) { pwInput2.value = ''; pwInput2.focus(); }
+      return;
+    }
+  }
 
   btn.disabled = true;
   btn.textContent = 'Saving...';
