@@ -7,19 +7,30 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:666299079183:android:argueout_mobile",
+        "mobilesdk_app_id": "1:666299079183:android:f99dc4d1ca02461b90e17a",
         "android_client_info": {
           "package_name": "com.argueout.mobile"
         }
       },
+      "oauth_client": [
+        {
+          "client_id": "666299079183-aan8tvnmiecsql2v9e84eriuqh5enc9d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyBFhRtNAEIg_iXwNEHCe9-ppPTQWTcn6hs"
+          "current_key": "AIzaSyCpLtr4zFMY2hFcoXNRuq3YrqsOD2e3QDQ"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "666299079183-aan8tvnmiecsql2v9e84eriuqh5enc9d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
