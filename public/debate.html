@@ -641,19 +641,79 @@
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 <script src="/js/legal-footer.js"></script>
 <script>
-// Mobile 3-dot overflow menu
 (function () {
   if (window.innerWidth > 640) return;
+
+  // ── Force portrait video layout via inline !important styles ──────────────
+  // CSS !important can still lose to browser-native video reflow on stream arrival.
+  // element.style.setProperty(prop, val, 'important') is the only guaranteed winner.
+  function forceMobileLayout() {
+    var vg = document.querySelector('.video-grid');
+    var op = document.getElementById('opponentPanel');
+    var sp = document.getElementById('selfPanel');
+    if (!vg || !op || !sp) return;
+
+    // Video grid: block, not grid, 54dvh tall
+    vg.style.setProperty('position',               'relative',  'important');
+    vg.style.setProperty('display',                'block',     'important');
+    vg.style.setProperty('height',                 '54dvh',     'important');
+    vg.style.setProperty('min-height',             '300px',     'important');
+    vg.style.setProperty('max-height',             '480px',     'important');
+    vg.style.setProperty('grid-template-columns',  'unset',     'important');
+
+    // Opponent: fill entire video-grid
+    op.style.setProperty('position',      'absolute', 'important');
+    op.style.setProperty('inset',         '0',        'important');
+    op.style.setProperty('aspect-ratio',  'unset',    'important');
+    op.style.setProperty('border-radius', '12px',     'important');
+
+    // Self: 9:14 portrait thumbnail, bottom-right
+    sp.style.setProperty('position',      'absolute',              'important');
+    sp.style.setProperty('bottom',        '8px',                   'important');
+    sp.style.setProperty('right',         '8px',                   'important');
+    sp.style.setProperty('width',         '63px',                  'important');
+    sp.style.setProperty('height',        '98px',                  'important');
+    sp.style.setProperty('aspect-ratio',  '9/14',                  'important');
+    sp.style.setProperty('z-index',       '5',                     'important');
+    sp.style.setProperty('border-radius', '8px',                   'important');
+    sp.style.setProperty('border',        '2px solid rgba(139,92,246,0.55)', 'important');
+  }
+
+  // Apply immediately and after every key video event
+  forceMobileLayout();
+  document.addEventListener('DOMContentLoaded', forceMobileLayout);
+
+  var ov = document.getElementById('opponentVideo');
+  if (ov) {
+    ov.addEventListener('loadedmetadata', forceMobileLayout);
+    ov.addEventListener('play',           forceMobileLayout);
+    ov.addEventListener('resize',         forceMobileLayout);
+  }
+  var sv = document.getElementById('selfVideo');
+  if (sv) {
+    sv.addEventListener('loadedmetadata', forceMobileLayout);
+    sv.addEventListener('play',           forceMobileLayout);
+  }
+
+  // MutationObserver: re-apply if anything touches video-grid style/class
+  var vg = document.querySelector('.video-grid');
+  if (vg) {
+    new MutationObserver(forceMobileLayout)
+      .observe(vg, { attributes: true, attributeFilter: ['style', 'class'] });
+  }
+
+  // ── 3-dot overflow menu ────────────────────────────────────────────────────
   var btn  = document.getElementById('mobOverflowBtn');
   var menu = document.getElementById('mobOverflowMenu');
-  if (!btn || !menu) return;
-  btn.addEventListener('click', function (e) {
-    e.stopPropagation();
-    menu.classList.toggle('open');
-  });
-  document.addEventListener('click', function () {
-    menu.classList.remove('open');
-  });
+  if (btn && menu) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      menu.classList.toggle('open');
+    });
+    document.addEventListener('click', function () {
+      menu.classList.remove('open');
+    });
+  }
 })();
 </script>
 </body>
