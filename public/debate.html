@@ -26,19 +26,42 @@
        (inline <style> comes after external CSS in cascade, wins)
        ═══════════════════════════════════════════════════════════════ */
     @media (max-width: 640px) {
+      /* No scroll at all on mobile debate — everything fits in one screen */
+      html, body { overflow: hidden !important; }
+
+      /* Full-height flex column so video fills the gap between header and controls */
+      .debate-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100dvh !important;
+        overflow: hidden !important;
+      }
+
+      /* Turn banner hidden on mobile — Pass Turn / Free Debate live in the 3-dot */
+      #turnBanner { display: none !important; }
+
       /* Hide header text */
       .debate-header-brand { display: none !important; }
       .debate-topic        { display: none !important; }
       .self-panel .video-label { display: none !important; }
 
-      /* Video area — portrait layout */
-      .video-area { padding: 6px !important; gap: 0 !important; }
+      /* Video area — stretches to fill all space between header and controls */
+      .video-area {
+        padding: 6px !important;
+        gap: 0 !important;
+        flex: 1 1 auto !important;
+        overflow: hidden !important;
+        min-height: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
       .video-grid {
         position: relative !important;
         display: block !important;
-        height: 54dvh !important;
-        min-height: 300px !important;
-        max-height: 480px !important;
+        flex: 1 1 auto !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        max-height: none !important;
         grid-template-columns: unset !important;
       }
 
@@ -83,6 +106,7 @@
         padding: 10px 16px !important;
         padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
         overflow-x: unset !important;
+        flex-shrink: 0 !important;
       }
       .control-label { font-size: 0.55rem !important; }
 
@@ -653,12 +677,12 @@
     var sp = document.getElementById('selfPanel');
     if (!vg || !op || !sp) return;
 
-    // Video grid: block, not grid, 54dvh tall
+    // Video grid: block, fills all flex space between header and controls
     vg.style.setProperty('position',               'relative',  'important');
     vg.style.setProperty('display',                'block',     'important');
-    vg.style.setProperty('height',                 '54dvh',     'important');
-    vg.style.setProperty('min-height',             '300px',     'important');
-    vg.style.setProperty('max-height',             '480px',     'important');
+    vg.style.setProperty('height',                 '100%',      'important');
+    vg.style.setProperty('min-height',             '0',         'important');
+    vg.style.setProperty('max-height',             'none',      'important');
     vg.style.setProperty('grid-template-columns',  'unset',     'important');
 
     // Opponent: fill entire video-grid
