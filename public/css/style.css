@@ -2199,12 +2199,20 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
 
 /* ── 9. LOBBY MOBILE: simplified single-column layout ──────────── */
 @media (max-width: 640px) {
-  /* Navbar: hide logo, signout, watch live, theme, admin — keep bell + gear */
+  /* Navbar: hide logo, signout, watch live, theme — keep bell, admin (admins only), gear */
   .nav-logo          { display: none !important; }
   .lobby-signout-btn { display: none !important; }
   .lobby-watch-btn   { display: none !important; }
   .theme-switcher    { display: none !important; }
-  #adminPanelBtn     { display: none !important; }
+  /* Admin button: icon-only shield on mobile */
+  #adminPanelBtn {
+    width: 40px !important; height: 40px !important;
+    padding: 0 !important; border-radius: 10px !important;
+    min-width: 0 !important; gap: 0 !important;
+    align-items: center !important; justify-content: center !important;
+  }
+  #adminPanelBtn .admin-btn-label { display: none !important; }
+  #adminPanelBtn .admin-icon-mob  { display: block !important; }
   /* notif dropdown never shows on mobile — JS redirects to /notifications */
   #notifDropdown     { display: none !important; }
   /* Show gear icon */

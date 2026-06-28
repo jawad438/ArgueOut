@@ -671,36 +671,58 @@
   // ── Force portrait video layout via inline !important styles ──────────────
   // CSS !important can still lose to browser-native video reflow on stream arrival.
   // element.style.setProperty(prop, val, 'important') is the only guaranteed winner.
+  // Handles both normal (opponent big) and swapped (self big) states.
   function forceMobileLayout() {
     var vg = document.querySelector('.video-grid');
     var op = document.getElementById('opponentPanel');
     var sp = document.getElementById('selfPanel');
     if (!vg || !op || !sp) return;
 
+    var swapped = vg.classList.contains('cams-swapped');
+
     // Video grid: block, fills all flex space between header and controls
-    vg.style.setProperty('position',               'relative',  'important');
-    vg.style.setProperty('display',                'block',     'important');
-    vg.style.setProperty('height',                 '100%',      'important');
-    vg.style.setProperty('min-height',             '0',         'important');
-    vg.style.setProperty('max-height',             'none',      'important');
-    vg.style.setProperty('grid-template-columns',  'unset',     'important');
+    vg.style.setProperty('position',              'relative', 'important');
+    vg.style.setProperty('display',               'block',    'important');
+    vg.style.setProperty('height',                '100%',     'important');
+    vg.style.setProperty('min-height',            '0',        'important');
+    vg.style.setProperty('max-height',            'none',     'important');
+    vg.style.setProperty('grid-template-columns', 'unset',    'important');
 
-    // Opponent: fill entire video-grid
-    op.style.setProperty('position',      'absolute', 'important');
-    op.style.setProperty('inset',         '0',        'important');
-    op.style.setProperty('aspect-ratio',  'unset',    'important');
-    op.style.setProperty('border-radius', '12px',     'important');
+    function applyBig(el) {
+      el.style.setProperty('position',      'absolute', 'important');
+      el.style.setProperty('top',           '0',        'important');
+      el.style.setProperty('right',         '0',        'important');
+      el.style.setProperty('bottom',        '0',        'important');
+      el.style.setProperty('left',          '0',        'important');
+      el.style.setProperty('width',         'unset',    'important');
+      el.style.setProperty('height',        'unset',    'important');
+      el.style.setProperty('aspect-ratio',  'unset',    'important');
+      el.style.setProperty('border-radius', '12px',     'important');
+      el.style.setProperty('border',        'none',     'important');
+      el.style.setProperty('z-index',       '1',        'important');
+    }
 
-    // Self: 9:14 portrait thumbnail, bottom-right
-    sp.style.setProperty('position',      'absolute',              'important');
-    sp.style.setProperty('bottom',        '8px',                   'important');
-    sp.style.setProperty('right',         '8px',                   'important');
-    sp.style.setProperty('width',         '63px',                  'important');
-    sp.style.setProperty('height',        '98px',                  'important');
-    sp.style.setProperty('aspect-ratio',  '9/14',                  'important');
-    sp.style.setProperty('z-index',       '5',                     'important');
-    sp.style.setProperty('border-radius', '8px',                   'important');
-    sp.style.setProperty('border',        '2px solid rgba(139,92,246,0.55)', 'important');
+    function applyPip(el, borderColor) {
+      el.style.setProperty('position',      'absolute',                    'important');
+      el.style.setProperty('top',           'unset',                       'important');
+      el.style.setProperty('left',          'unset',                       'important');
+      el.style.setProperty('bottom',        '8px',                         'important');
+      el.style.setProperty('right',         '8px',                         'important');
+      el.style.setProperty('width',         '63px',                        'important');
+      el.style.setProperty('height',        '98px',                        'important');
+      el.style.setProperty('aspect-ratio',  '9/14',                        'important');
+      el.style.setProperty('border-radius', '8px',                         'important');
+      el.style.setProperty('border',        '2px solid ' + borderColor,    'important');
+      el.style.setProperty('z-index',       '5',                           'important');
+    }
+
+    if (swapped) {
+      applyBig(sp);
+      applyPip(op, 'rgba(59,130,246,0.55)');
+    } else {
+      applyBig(op);
+      applyPip(sp, 'rgba(139,92,246,0.55)');
+    }
   }
 
   // Apply immediately and after every key video event
@@ -736,6 +758,17 @@
     });
     document.addEventListener('click', function () {
       menu.classList.remove('open');
+    });
+  }
+
+  // ── Tap self-panel to swap big/small cameras ───────────────────────────────
+  var vgEl = document.querySelector('.video-grid');
+  var spEl = document.getElementById('selfPanel');
+  if (vgEl && spEl) {
+    spEl.style.cursor = 'pointer';
+    spEl.addEventListener('click', function () {
+      vgEl.classList.toggle('cams-swapped');
+      forceMobileLayout();
     });
   }
 })();
