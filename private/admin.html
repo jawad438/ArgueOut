@@ -48,6 +48,33 @@
     .stat-card { background:var(--bg-1); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 20px; flex:1; min-width:140px; }
     .stat-label { font-size:0.72rem; color:var(--text-3); text-transform:uppercase; letter-spacing:0.07em; font-weight:600; font-family:'Space Grotesk',sans-serif; }
     .stat-val { font-size:1.6rem; font-weight:800; font-family:'Space Grotesk',sans-serif; }
+
+    /* ── Mobile: prevent horizontal overflow ── */
+    @media (max-width: 640px) {
+      /* Scrollable tab bar instead of overflowing */
+      .admin-tabs {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        flex-wrap: nowrap;
+      }
+      .admin-tabs::-webkit-scrollbar { display: none; }
+      .admin-tab { flex-shrink: 0; padding: 8px 14px; }
+
+      /* Nav: hide "Admin Panel" text label and username to save space */
+      .admin-nav-title { display: none; }
+      #adminUsername   { display: none; }
+      .admin-nav { padding: 0 14px; }
+      .admin-body { padding: 20px 14px; }
+
+      /* Filter row: allow wrap so Refresh doesn't push off-screen */
+      .filter-row { flex-wrap: wrap; }
+
+      /* Report/user action buttons: stack on very narrow screens */
+      .report-actions { gap: 6px; }
+      .user-row-actions { gap: 6px; }
+    }
   </style>
 </head>
 <body>
@@ -98,7 +125,7 @@
   <nav class="admin-nav">
     <div class="admin-nav-brand">
       <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
-      Admin Panel
+      <span class="admin-nav-title">Admin Panel</span>
       <span class="admin-badge">Admin</span>
     </div>
     <div style="display:flex;gap:10px;align-items:center">

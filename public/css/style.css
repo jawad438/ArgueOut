@@ -2073,9 +2073,13 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   }
 }
 
-/* ── 11. NOTIFICATION DROPDOWN: responsive width on small phones ─ */
+/* ── 11. NOTIFICATION DROPDOWN + DROPDOWNS: responsive on small phones ─ */
 @media (max-width: 480px) {
   .notif-dropdown { width: calc(100vw - 32px); right: 0; }
+  /* Account switcher: flip anchor to right so it doesn't overflow right edge */
+  .acct-dropdown  { left: auto; right: 0; max-width: calc(100vw - 32px); }
+  /* Match-suggestion card: full-width minus margins, no fixed left: 24px */
+  .suggest-card   { left: 16px; right: 16px; width: auto; max-width: 100%; }
 }
 
 /* ── 12. MODAL: bottom-sheet feel on small phones ───────────────── */
