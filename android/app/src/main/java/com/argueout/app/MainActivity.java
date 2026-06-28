@@ -51,6 +51,9 @@ public class MainActivity extends AppCompatActivity {
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
         s.setSupportMultipleWindows(false);
+        // Ignore system "font size" accessibility setting — prevents text from
+        // appearing zoomed in when the user has Large/Largest font set in Android settings
+        s.setTextZoom(100);
         // Let the site control zoom via meta viewport
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
