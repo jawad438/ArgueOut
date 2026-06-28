@@ -1331,12 +1331,6 @@ async function saveUsername() {
   btn.disabled = true;
   btn.textContent = 'Saving...';
   try {
-    // Password-based accounts use username@argueout.app as Firebase Auth email - keep in sync
-    const isPasswordAccount = user.email && user.email.endsWith('@argueout.app');
-    if (isPasswordAccount) {
-      await user.updateEmail(`${newUsername.toLowerCase().replace(/[^a-z0-9_]/g, '')}@argueout.app`);
-    }
-
     const token = await user.getIdToken();
     const r = await fetch('/api/profile/username', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ username: newUsername, oldUsername }) });
     if (r.status === 409) { showToast('Username already taken. Try another.', 'error'); return; }
@@ -1349,12 +1343,8 @@ async function saveUsername() {
     if (navUname)   navUname.textContent   = newUsername;
     cancelUsernameEdit();
     showToast('Username updated!', 'success');
-  } catch (err) {
-    if (err.code === 'auth/requires-recent-login') {
-      showToast('Please sign out and sign back in to change your username.', 'error');
-    } else {
-      showToast('Could not update username. Try again.', 'error');
-    }
+  } catch {
+    showToast('Could not update username. Try again.', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Save';

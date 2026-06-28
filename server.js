@@ -523,6 +523,21 @@ app.post('/api/profile/username', async (req, res) => {
       batch.delete(fstore.collection('usernames').doc(oldUsername));
     batch.set(fstore.collection('usernames').doc(username), { uid: decoded.uid });
     await batch.commit();
+
+    // Keep Firebase Auth email in sync for password-based accounts (username@argueout.app)
+    // Done server-side via Admin SDK to avoid client-side email-verification restrictions
+    try {
+      const authUser = await admin.auth().getUser(decoded.uid);
+      if (authUser.email && authUser.email.endsWith('@argueout.app')) {
+        const newEmail = `${username.toLowerCase()}@argueout.app`;
+        if (authUser.email !== newEmail) {
+          await admin.auth().updateUser(decoded.uid, { email: newEmail });
+        }
+      }
+    } catch (emailErr) {
+      console.warn('[profile/username] Auth email sync failed:', emailErr.message);
+    }
+
     res.json({ ok: true });
   } catch { res.status(500).json({ error: 'Server error' }); }
 });

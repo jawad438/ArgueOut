@@ -341,6 +341,13 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   min-height: 48px;
 }
 .form-input::placeholder { color: var(--text-3); }
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset !important;
+  -webkit-text-fill-color: var(--text-1) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
 .form-input:focus, .form-select:focus {
   border-color: var(--purple);
   background: var(--input-bg-focus);
