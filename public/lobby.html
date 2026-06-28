@@ -64,6 +64,10 @@
       <span class="lobby-watch-label">Watch Live</span>
     </a>
     <button class="btn btn-ghost btn-sm lobby-signout-btn" id="logoutBtn">Sign Out</button>
+    <!-- Mobile-only: gear icon → settings page -->
+    <a href="/settings" class="mobile-gear-btn" aria-label="Settings" style="display:none">
+      <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </a>
     <div id="notifDropdown" class="notif-dropdown" style="display:none">
       <div class="notif-dropdown-header">
         <span>Notifications</span>
@@ -166,7 +170,7 @@
     </div>
 
     <!-- Mini compass -->
-    <div class="profile-card" style="padding:20px">
+    <div class="profile-card" id="compassCard" style="padding:20px">
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.08em;font-family:'Space Grotesk',sans-serif;margin-bottom:10px">Your Political Position</div>
       <!-- Top label: Authoritarian -->
       <div style="text-align:center;margin-bottom:4px">
@@ -187,7 +191,7 @@
     </div>
 
     <!-- Queue size indicator -->
-    <div class="profile-card" style="padding:16px 20px; text-align:center">
+    <div class="profile-card" id="queueSizeCard" style="padding:16px 20px; text-align:center">
       <div style="font-size:0.78rem;color:var(--text-3);margin-bottom:4px">Users in queue</div>
       <div style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;" class="gradient-text" id="queueSizeDisplay">—</div>
     </div>
@@ -243,6 +247,10 @@
       <button class="btn btn-debate btn-lg" id="findBtn">
         Find Debate Partner
       </button>
+      <a href="/debates" class="mobile-watch-live-btn">
+        <span style="width:7px;height:7px;border-radius:50%;background:#ef4444;flex-shrink:0;animation:live-pulse 1.8s ease-in-out infinite"></span>
+        Watch Live Debates
+      </a>
     </div>
 
     <!-- Queue state (shown while searching) -->
@@ -259,7 +267,7 @@
     </div>
 
     <!-- How it works -->
-    <div class="how-card">
+    <div class="how-card" id="howMatchingCard">
       <div class="how-title">How matching works</div>
       <div class="how-step">
         <div class="how-num">1</div>
@@ -544,5 +552,27 @@
 </script>
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 <script src="/js/legal-footer.js"></script>
+<script>
+// Mobile overrides: redirect dropdowns to full pages
+(function () {
+  if (window.innerWidth > 640) return;
+  // Notification bell → /notifications page
+  var notifBtn = document.getElementById('notifBtn');
+  if (notifBtn) {
+    notifBtn.addEventListener('click', function (e) {
+      e.stopImmediatePropagation();
+      window.location.href = '/notifications';
+    }, true);
+  }
+  // Profile/account area → /settings page
+  var navUser = document.querySelector('.nav-user');
+  if (navUser) {
+    navUser.addEventListener('click', function (e) {
+      e.stopImmediatePropagation();
+      window.location.href = '/settings';
+    }, true);
+  }
+})();
+</script>
 </body>
 </html>

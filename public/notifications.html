@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notifications — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
+  <style>
+    body { background: var(--bg-0); min-height: 100dvh; }
+    .notif-page { max-width: 540px; margin: 0 auto; padding: 0; min-height: 100dvh; display: flex; flex-direction: column; }
+    .notif-topbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: rgba(5,5,15,0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    .notif-back {
+      width: 40px; height: 40px; border-radius: 10px;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-1); text-decoration: none; font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+    .notif-topbar-title { font-size: 1.05rem; font-weight: 700; color: var(--text-1); flex: 1; }
+    .notif-clear-all {
+      font-size: 0.8rem; color: var(--text-3); background: none;
+      border: none; cursor: pointer; padding: 6px 10px; border-radius: 8px;
+    }
+    .notif-list-page { flex: 1; }
+    .notif-item {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .notif-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--purple); flex-shrink: 0; margin-top: 5px;
+    }
+    .notif-dot.read { background: var(--border); }
+    .notif-msg { font-size: 0.9rem; color: var(--text-1); line-height: 1.5; flex: 1; }
+    .notif-time { font-size: 0.75rem; color: var(--text-3); margin-top: 3px; }
+    .notif-empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px; padding: 60px 24px; color: var(--text-3);
+    }
+    .notif-empty-icon { font-size: 3rem; }
+    .notif-empty-title { font-size: 1rem; font-weight: 700; color: var(--text-2); }
+    #loadingState { padding: 40px; text-align: center; color: var(--text-3); }
+  </style>
+</head>
+<body>
+<div class="notif-page">
+  <div class="notif-topbar">
+    <a href="/lobby" class="notif-back">←</a>
+    <span class="notif-topbar-title">Notifications</span>
+    <button class="notif-clear-all" id="clearAllBtn" style="display:none">Clear all</button>
+  </div>
+
+  <div id="loadingState">Loading…</div>
+  <div class="notif-list-page" id="notifListPage" style="display:none"></div>
+  <div class="notif-empty-state" id="emptyState" style="display:none">
+    <div class="notif-empty-icon">🔔</div>
+    <div class="notif-empty-title">All clear</div>
+    <div>You have no notifications yet</div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script>
+firebase.auth().onAuthStateChanged(function (user) {
+  if (!user) { window.location.href = '/login'; return; }
+
+  var db = firebase.firestore();
+  var col = db.collection('notifications').doc(user.uid).collection('items');
+
+  col.orderBy('createdAt', 'desc').limit(50).onSnapshot(function (snap) {
+    document.getElementById('loadingState').style.display = 'none';
+    var list = document.getElementById('notifListPage');
+    var empty = document.getElementById('emptyState');
+    var clearBtn = document.getElementById('clearAllBtn');
+
+    if (snap.empty) {
+      list.style.display = 'none';
+      empty.style.display = 'flex';
+      clearBtn.style.display = 'none';
+      return;
+    }
+
+    empty.style.display = 'none';
+    list.style.display = 'block';
+    clearBtn.style.display = 'inline-block';
+    list.innerHTML = '';
+
+    snap.forEach(function (doc) {
+      var d = doc.data();
+      var time = d.createdAt ? d.createdAt.toDate() : null;
+      var timeStr = time ? time.toLocaleDateString(undefined, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      var div = document.createElement('div');
+      div.className = 'notif-item';
+      div.innerHTML =
+        '<div class="notif-dot' + (d.read ? ' read' : '') + '"></div>' +
+        '<div><div class="notif-msg">' + (d.message || d.text || 'New notification') + '</div>' +
+        (timeStr ? '<div class="notif-time">' + timeStr + '</div>' : '') + '</div>';
+      list.appendChild(div);
+    });
+  }, function () {
+    document.getElementById('loadingState').textContent = 'Could not load notifications.';
+  });
+
+  document.getElementById('clearAllBtn').onclick = function () {
+    col.get().then(function (snap) {
+      var batch = db.batch();
+      snap.forEach(function (d) { batch.delete(d.ref); });
+      return batch.commit();
+    });
+  };
+});
+</script>
+</body>
+</html>

@@ -2111,7 +2111,66 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   body:has(.debate-layout) .lf-bar { display: none !important; }
 }
 
-/* ── 9. CHAT SIDEBAR: safe area on iPhone (home-bar overlap) ───── */
+/* ── 9. LOBBY MOBILE: simplified single-column layout ──────────── */
+@media (max-width: 640px) {
+  /* Navbar: hide logo, signout, watch live, theme, admin — keep bell + gear */
+  .nav-logo          { display: none !important; }
+  .lobby-signout-btn { display: none !important; }
+  .lobby-watch-btn   { display: none !important; }
+  .theme-switcher    { display: none !important; }
+  #adminPanelBtn     { display: none !important; }
+  /* notif dropdown never shows on mobile — JS redirects to /notifications */
+  #notifDropdown     { display: none !important; }
+  /* Show gear icon */
+  .mobile-gear-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    color: var(--text-2);
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  /* Layout: single column, no profile panel */
+  .lobby-layout  { display: block !important; }
+  .profile-panel { display: none !important; }
+  .match-panel   { width: 100%; padding: 0 16px 80px; }
+
+  /* Hide compass, online now, how it works */
+  #compassCard       { display: none !important; }
+  #queueSizeCard     { display: none !important; }
+  #directoryCard     { display: none !important; }
+  #howMatchingCard   { display: none !important; }
+
+  /* Watch Live button inside idle card */
+  .mobile-watch-live-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 13px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.04);
+    color: var(--text-2);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+/* Hidden on desktop, only shown on mobile via above rule */
+.mobile-watch-live-btn { display: none; }
+.mobile-gear-btn       { display: none; }
+
+/* ── 10. CHAT SIDEBAR: safe area on iPhone (home-bar overlap) ───── */
 @media (max-width: 1024px) {
   .chat-input-area {
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));

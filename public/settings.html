@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
+  <style>
+    body { background: var(--bg-0); min-height: 100dvh; }
+    .s-page { max-width: 540px; margin: 0 auto; padding-bottom: 40px; }
+    .s-topbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: rgba(5,5,15,0.95);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    .s-back {
+      width: 40px; height: 40px; border-radius: 10px;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-1); text-decoration: none; font-size: 1.2rem; flex-shrink: 0;
+    }
+    .s-topbar-title { font-size: 1.05rem; font-weight: 700; color: var(--text-1); }
+
+    /* Profile card at top */
+    .s-profile-card {
+      display: flex; align-items: center; gap: 14px;
+      margin: 16px; padding: 14px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; text-decoration: none; color: inherit;
+    }
+    .s-avatar {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--purple); display: flex; align-items: center;
+      justify-content: center; font-size: 1.2rem; font-weight: 800;
+      color: #fff; flex-shrink: 0; overflow: hidden;
+    }
+    .s-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .s-profile-name { font-size: 0.95rem; font-weight: 700; color: var(--text-1); }
+    .s-profile-user { font-size: 0.8rem; color: var(--text-3); margin-top: 2px; }
+    .s-chevron { margin-left: auto; color: var(--text-3); font-size: 1.2rem; }
+
+    /* Section groups */
+    .s-section { margin: 0 16px 8px; }
+    .s-section-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-3);
+      padding: 12px 4px 6px;
+    }
+    .s-group {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; overflow: hidden;
+    }
+    .s-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      cursor: pointer; text-decoration: none; color: inherit;
+      background: none; border-left: none; border-right: none;
+      border-top: none; width: 100%; text-align: left; font-family: inherit;
+      font-size: inherit;
+    }
+    .s-row:last-child { border-bottom: none; }
+    .s-row-icon { font-size: 1.1rem; width: 24px; text-align: center; flex-shrink: 0; }
+    .s-row-label { flex: 1; font-size: 0.92rem; color: var(--text-1); font-weight: 500; }
+    .s-row-sub { font-size: 0.75rem; color: var(--text-3); margin-top: 1px; }
+    .s-row-chevron { color: var(--text-3); font-size: 1rem; }
+    .s-row.danger .s-row-label { color: var(--red); }
+    .s-row.accent .s-row-label { color: var(--purple); }
+
+    /* Theme toggle row */
+    .s-theme-toggle {
+      display: flex; gap: 6px;
+      padding: 10px 16px 14px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .s-theme-btn {
+      flex: 1; padding: 8px 4px; border-radius: 8px; font-size: 0.82rem;
+      font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04); color: var(--text-2);
+      transition: background 150ms, color 150ms; font-family: inherit;
+    }
+    .s-theme-btn.active {
+      background: var(--purple); color: #fff; border-color: var(--purple);
+    }
+
+    /* Invite box */
+    .s-invite-box {
+      margin: 0 16px; padding: 14px 16px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; display: none;
+    }
+    .s-invite-link {
+      font-size: 0.78rem; font-family: monospace; color: var(--purple);
+      background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 8px; padding: 8px 10px; word-break: break-all;
+      margin-bottom: 8px;
+    }
+    .s-invite-copy {
+      font-size: 0.82rem; font-weight: 600; color: var(--purple);
+      background: none; border: 1px solid rgba(139,92,246,0.3);
+      border-radius: 8px; padding: 8px 16px; cursor: pointer; font-family: inherit;
+    }
+    .s-sign-out {
+      display: block; width: calc(100% - 32px); margin: 8px 16px 0;
+      padding: 14px; border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.04); color: var(--text-3);
+      font-size: 0.92rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; text-align: center;
+    }
+    #statusMsg { margin: 8px 16px; font-size: 0.82rem; color: var(--text-3); display: none; }
+  </style>
+</head>
+<body>
+<div class="s-page">
+  <div class="s-topbar">
+    <a href="/lobby" class="s-back">←</a>
+    <span class="s-topbar-title">Settings</span>
+  </div>
+
+  <!-- Profile card -->
+  <a href="/lobby" class="s-profile-card" id="profileCard">
+    <div class="s-avatar" id="settingsAvatar">?</div>
+    <div>
+      <div class="s-profile-name" id="settingsName">Loading…</div>
+      <div class="s-profile-user" id="settingsUsername"></div>
+    </div>
+    <span class="s-chevron">›</span>
+  </a>
+
+  <!-- Account -->
+  <div class="s-section">
+    <div class="s-section-label">Account</div>
+    <div class="s-group">
+      <a href="/lobby" class="s-row">
+        <span class="s-row-icon">👤</span>
+        <div><div class="s-row-label">Edit Profile</div></div>
+        <span class="s-row-chevron">›</span>
+      </a>
+      <a href="/notifications" class="s-row">
+        <span class="s-row-icon">🔔</span>
+        <div><div class="s-row-label">Notifications</div></div>
+        <span class="s-row-chevron">›</span>
+      </a>
+      <a href="/compass" class="s-row">
+        <span class="s-row-icon">🧭</span>
+        <div><div class="s-row-label">Political Compass</div><div class="s-row-sub">Update your position</div></div>
+        <span class="s-row-chevron">›</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Theme -->
+  <div class="s-section">
+    <div class="s-section-label">Appearance</div>
+    <div class="s-group">
+      <div style="padding:12px 16px 4px;font-size:0.85rem;color:var(--text-2);font-weight:500">Theme</div>
+      <div class="s-theme-toggle">
+        <button class="s-theme-btn" id="themeSystem" onclick="setTheme('system')">System</button>
+        <button class="s-theme-btn" id="themeLight"  onclick="setTheme('light')">Light</button>
+        <button class="s-theme-btn" id="themeDark"   onclick="setTheme('dark')">Dark</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invite -->
+  <div class="s-section">
+    <div class="s-section-label">Share</div>
+    <div class="s-group">
+      <button class="s-row" id="genInviteBtn" onclick="generateInvite()">
+        <span class="s-row-icon">🔗</span>
+        <div><div class="s-row-label">Generate Invite Link</div><div class="s-row-sub">Share a timed debate invite</div></div>
+        <span class="s-row-chevron" id="inviteChevron">›</span>
+      </button>
+    </div>
+  </div>
+  <div class="s-invite-box" id="inviteBox">
+    <div class="s-invite-link" id="inviteLinkText"></div>
+    <button class="s-invite-copy" onclick="copyInvite()">Copy Link</button>
+  </div>
+
+  <!-- Admin (shown only for admins) -->
+  <div class="s-section" id="adminSection" style="display:none">
+    <div class="s-section-label">Admin</div>
+    <div class="s-group">
+      <a href="/admin" class="s-row accent">
+        <span class="s-row-icon">🛡️</span>
+        <div><div class="s-row-label">Admin Panel</div></div>
+        <span class="s-row-chevron">›</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Danger -->
+  <div class="s-section">
+    <div class="s-section-label">Danger Zone</div>
+    <div class="s-group">
+      <button class="s-row danger" onclick="requestDeletion()">
+        <span class="s-row-icon">🗑️</span>
+        <div><div class="s-row-label">Request Account Deletion</div><div class="s-row-sub">Reviewed and deleted within 48 hrs</div></div>
+      </button>
+    </div>
+  </div>
+
+  <div id="statusMsg"></div>
+  <button class="s-sign-out" onclick="signOut()">Sign Out</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script>
+var socket;
+
+firebase.auth().onAuthStateChanged(function (user) {
+  if (!user) { window.location.href = '/login'; return; }
+
+  firebase.firestore().collection('users').doc(user.uid).get().then(function (doc) {
+    var d = doc.data() || {};
+    document.getElementById('settingsName').textContent     = d.name     || user.displayName || 'User';
+    document.getElementById('settingsUsername').textContent = '@' + (d.username || '');
+    if (d.isAdmin) document.getElementById('adminSection').style.display = 'block';
+    var av = document.getElementById('settingsAvatar');
+    if (d.avatarUrl) av.innerHTML = '<img src="' + d.avatarUrl + '" alt="">';
+    else av.textContent = (d.name || d.username || '?')[0].toUpperCase();
+  });
+
+  // Connect socket for invite generation
+  socket = io({ autoConnect: false, transports: ['websocket'] });
+  socket.on('invite-generated', function (data) {
+    var link = 'https://argueout.onrender.com' + data.url;
+    document.getElementById('inviteLinkText').textContent = link;
+    document.getElementById('inviteBox').style.display = 'block';
+    document.getElementById('inviteChevron').textContent = '✓';
+    window._inviteLink = link;
+  });
+});
+
+function generateInvite() {
+  if (!socket) return;
+  if (!socket.connected) {
+    firebase.auth().currentUser.getIdToken().then(function (token) {
+      socket.connect();
+      socket.once('connect', function () {
+        socket.emit('authenticate', { idToken: token });
+      });
+      socket.once('authenticated', function () {
+        socket.emit('generate-invite', { expiryMs: 3600000 });
+      });
+    });
+  } else {
+    socket.emit('generate-invite', { expiryMs: 3600000 });
+  }
+}
+
+function copyInvite() {
+  if (!window._inviteLink) return;
+  navigator.clipboard.writeText(window._inviteLink).then(function () {
+    showStatus('Link copied!');
+  });
+}
+
+function requestDeletion() {
+  if (!confirm('Submit a deletion request? Your account will be reviewed and deleted within 48 hours.')) return;
+  firebase.auth().currentUser.getIdToken().then(function (token) {
+    return fetch('/api/request-deletion', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+  }).then(function (r) { return r.json(); }).then(function (data) {
+    showStatus(data.error || 'Deletion request submitted.');
+  }).catch(function () { showStatus('Error submitting request.'); });
+}
+
+function signOut() {
+  firebase.auth().signOut().then(function () { window.location.href = '/login'; });
+}
+
+function setTheme(t) {
+  localStorage.setItem('ao-theme', t);
+  if (t === 'dark')        document.documentElement.setAttribute('data-theme', 'dark');
+  else if (t === 'light')  document.documentElement.setAttribute('data-theme', 'light');
+  else                     document.documentElement.removeAttribute('data-theme');
+  ['System','Light','Dark'].forEach(function (n) {
+    document.getElementById('theme' + n).classList.toggle('active', t === n.toLowerCase());
+  });
+}
+
+// Init theme buttons
+(function () {
+  var cur = localStorage.getItem('ao-theme') || 'system';
+  setTheme(cur);
+})();
+
+function showStatus(msg) {
+  var el = document.getElementById('statusMsg');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(function () { el.style.display = 'none'; }, 3000);
+}
+</script>
+</body>
+</html>
