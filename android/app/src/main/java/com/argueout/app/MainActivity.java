@@ -15,6 +15,8 @@ import android.webkit.WebViewClient;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import com.google.android.gms.auth.GoogleAuthUtil;
+import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -30,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String APP_URL = "https://argueout.onrender.com/lobby";
     private static final int PERMISSION_REQUEST_CODE = 1;
     private static final int RC_SIGN_IN = 9001;
+    private static final int RC_RECOVERABLE = 9002;
 
     private WebView webView;
     private PermissionRequest pendingPermissionRequest;
@@ -68,16 +71,13 @@ public class MainActivity extends AppCompatActivity {
         String ua = s.getUserAgentString();
         s.setUserAgentString(ua.replace("; wv)", ")"));
 
-        // Expose native Google Sign-In to the web page
         webView.addJavascriptInterface(new AndroidAuth(), "AndroidAuth");
-
         webView.setWebViewClient(new WebViewClient());
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
                 pendingPermissionRequest = request;
-
                 List<String> toRequest = new ArrayList<>();
                 for (String resource : request.getResources()) {
                     if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)
@@ -91,7 +91,6 @@ public class MainActivity extends AppCompatActivity {
                         toRequest.add(Manifest.permission.RECORD_AUDIO);
                     }
                 }
-
                 if (toRequest.isEmpty()) {
                     request.grant(request.getResources());
                 } else {
@@ -102,17 +101,16 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // Called from JavaScript: AndroidAuth.startGoogleSignIn(webClientId)
+    // Called from JavaScript with no arguments — no SHA-1 registration needed
     class AndroidAuth {
         @JavascriptInterface
-        public void startGoogleSignIn(final String webClientId) {
+        public void startGoogleSignIn() {
             runOnUiThread(() -> {
                 GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                        .requestIdToken(webClientId)
                         .requestEmail()
                         .build();
                 googleSignInClient = GoogleSignIn.getClient(MainActivity.this, gso);
-                // Always sign out first so the account picker is shown
+                // Always sign out first so the picker is shown every time
                 googleSignInClient.signOut().addOnCompleteListener(task ->
                         startActivityForResult(googleSignInClient.getSignInIntent(), RC_SIGN_IN));
             });
@@ -122,19 +120,40 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == RC_RECOVERABLE) {
+            // User granted consent; re-trigger sign-in so they pick again
+            if (googleSignInClient != null) {
+                startActivityForResult(googleSignInClient.getSignInIntent(), RC_SIGN_IN);
+            }
+            return;
+        }
+
         if (requestCode != RC_SIGN_IN) return;
 
         Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
         try {
-            GoogleSignInAccount account = task.getResult(ApiException.class);
-            String idToken = account.getIdToken();
-            if (idToken != null) {
-                String js = "window.onAndroidGoogleToken && window.onAndroidGoogleToken("
-                        + JSONObject.quote(idToken) + ")";
-                webView.post(() -> webView.evaluateJavascript(js, null));
-            }
+            final GoogleSignInAccount account = task.getResult(ApiException.class);
+
+            // Fetch an OAuth access token on a background thread (blocking network call)
+            new Thread(() -> {
+                try {
+                    String scope = "oauth2:profile email";
+                    String accessToken = GoogleAuthUtil.getToken(
+                            MainActivity.this, account.getAccount(), scope);
+                    String js = "window.onAndroidGoogleToken && window.onAndroidGoogleToken("
+                            + JSONObject.quote(accessToken) + ")";
+                    webView.post(() -> webView.evaluateJavascript(js, null));
+                } catch (UserRecoverableAuthException ure) {
+                    // Need user's consent for the scopes — show consent dialog
+                    runOnUiThread(() -> startActivityForResult(ure.getIntent(), RC_RECOVERABLE));
+                } catch (Exception e) {
+                    String js = "window.onAndroidGoogleError && window.onAndroidGoogleError(\"token_failed\")";
+                    webView.post(() -> webView.evaluateJavascript(js, null));
+                }
+            }).start();
+
         } catch (ApiException e) {
-            // 12501 = user cancelled; don't show an error in that case
             String reason = (e.getStatusCode() == 12501) ? "cancelled" : String.valueOf(e.getStatusCode());
             String js = "window.onAndroidGoogleError && window.onAndroidGoogleError("
                     + JSONObject.quote(reason) + ")";
@@ -153,22 +172,13 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
+        if (webView.canGoBack()) webView.goBack();
+        else super.onBackPressed();
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        webView.onPause();
-    }
+    protected void onPause() { super.onPause(); webView.onPause(); }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        webView.onResume();
-    }
+    protected void onResume() { super.onResume(); webView.onResume(); }
 }

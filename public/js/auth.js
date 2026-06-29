@@ -162,47 +162,24 @@ auth.getRedirectResult().then(result => {
   if (result && result.user) _finishGoogleSignIn(result).catch(() => {});
 }).catch(() => {});
 
-async function _getGoogleWebClientId() {
-  const r = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${firebase.app().options.apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ providerId: 'google.com', continueUri: location.origin }) }
-  );
-  const d = await r.json();
-  return new URL(d.authUri).searchParams.get('client_id');
-}
-
 async function handleGoogleSignIn(btnId) {
   const btn = btnId ? document.getElementById(btnId) : null;
 
-  // Native Android Google Sign-In: uses device accounts, no WebView cookies needed
+  // Native Android Google Sign-In via Google Play Services (no SHA-1 needed)
   if (typeof window.AndroidAuth !== 'undefined') {
     if (btn) setLoading(btn, true, 'Connecting...');
     try {
-      const clientId = await _getGoogleWebClientId();
-      if (!clientId) throw new Error('no-client-id');
-
-      const idToken = await new Promise((resolve, reject) => {
+      const accessToken = await new Promise((resolve, reject) => {
         window.onAndroidGoogleToken = t => { cleanup(); resolve(t); };
         window.onAndroidGoogleError = c => { cleanup(); reject(c); };
         function cleanup() { window.onAndroidGoogleToken = null; window.onAndroidGoogleError = null; }
-        window.AndroidAuth.startGoogleSignIn(clientId);
+        window.AndroidAuth.startGoogleSignIn();
       });
-
-      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+      const credential = firebase.auth.GoogleAuthProvider.credential(null, accessToken);
       const result = await auth.signInWithCredential(credential);
       await _finishGoogleSignIn(result);
     } catch (err) {
-      if (err === 'cancelled') {
-        if (btn) setLoading(btn, false);
-        return;
-      }
-      if (err === '10') {
-        // DEVELOPER_ERROR: SHA-1 not registered in Firebase Console.
-        // Fall back to WebView redirect flow which doesn't need it.
-        await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
-        return;
-      }
+      if (err === 'cancelled') { if (btn) setLoading(btn, false); return; }
       showToast((err && err.code ? friendlyError(err.code) : null) || 'Google sign-in failed. Try again.', 'error');
       if (btn) setLoading(btn, false);
     }

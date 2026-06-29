@@ -340,36 +340,20 @@ async function acctModalGoogleSignIn() {
   const errTx = document.getElementById('acctModalErrText');
   errEl.style.display = 'none';
 
-  // Native Android Google Sign-In: uses device accounts, no WebView cookies needed
+  // Native Android Google Sign-In via Google Play Services (no SHA-1 needed)
   if (typeof window.AndroidAuth !== 'undefined') {
     try {
-      const r = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${firebase.app().options.apiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ providerId: 'google.com', continueUri: location.origin }) }
-      );
-      const d = await r.json();
-      const clientId = new URL(d.authUri).searchParams.get('client_id');
-      if (!clientId) throw new Error('no-client-id');
-
-      const idToken = await new Promise((resolve, reject) => {
+      const accessToken = await new Promise((resolve, reject) => {
         window.onAndroidGoogleToken = t => { cleanup(); resolve(t); };
         window.onAndroidGoogleError = c => { cleanup(); reject(c); };
         function cleanup() { window.onAndroidGoogleToken = null; window.onAndroidGoogleError = null; }
-        window.AndroidAuth.startGoogleSignIn(clientId);
+        window.AndroidAuth.startGoogleSignIn();
       });
-
-      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+      const credential = firebase.auth.GoogleAuthProvider.credential(null, accessToken);
       const result = await auth.signInWithCredential(credential);
       await _finishLobbyGoogleSignIn(result);
     } catch (err) {
       if (err === 'cancelled') return;
-      if (err === '10') {
-        // DEVELOPER_ERROR: SHA-1 not registered. Fall back to redirect flow.
-        sessionStorage.setItem('ao-lobby-google-redirect', '1');
-        await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
-        return;
-      }
       errTx.textContent = 'Google sign-in failed. Try again.';
       errEl.style.display = 'flex';
     }
