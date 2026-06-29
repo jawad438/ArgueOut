@@ -297,13 +297,13 @@ function closeAcctModal() {
 
 function _lobbyGetWebViewContext() {
   const ua = navigator.userAgent;
-  if (/FBAN\/|FBAV\//.test(ua)) return 'inapp';
-  if (/Instagram/.test(ua))     return 'inapp';
-  if (/Twitter\//.test(ua))     return 'inapp';
-  if (/LinkedInApp/.test(ua))   return 'inapp';
+  if (/FBAN\/|FBAV\//.test(ua))              return 'inapp';
+  if (/Instagram/.test(ua))                  return 'inapp';
+  if (/Twitter\//.test(ua))                  return 'inapp';
+  if (/LinkedInApp/.test(ua))               return 'inapp';
   if (/Snapchat|TikTok|musical_ly/.test(ua)) return 'inapp';
-  if (/MicroMessenger/.test(ua)) return 'inapp';
-  if (/Line\//.test(ua))        return 'inapp';
+  if (/MicroMessenger/.test(ua))             return 'inapp';
+  if (/Line\//.test(ua))                     return 'inapp';
   if (/Android/.test(ua) && /; wv\)/.test(ua)) return 'inapp';
   if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return 'inapp';
   if (window.matchMedia('(display-mode: standalone)').matches) return 'standalone';
@@ -340,7 +340,7 @@ async function acctModalGoogleSignIn() {
   if (ctx === 'inapp') {
     const errEl = document.getElementById('acctModalErr');
     const errTx = document.getElementById('acctModalErrText');
-    errTx.textContent = 'Google sign-in is not supported in this in-app browser. Open ArgueOut in Safari or Chrome.';
+    errTx.textContent = 'Google sign-in isn\'t supported in this browser. Open ArgueOut in Chrome.';
     errEl.style.display = 'flex';
     return;
   }

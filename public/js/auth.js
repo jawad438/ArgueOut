@@ -113,23 +113,20 @@ function resetCaptcha() {
 // ── Google Sign-In ────────────────────────────────────────────
 
 // Detect browser context for Google OAuth compatibility.
-// Returns 'inapp' (in-app WebView — Google blocks OAuth entirely),
-// 'standalone' (PWA home-screen — use redirect instead of popup),
-// or null (normal browser — popup works fine).
+// 'inapp'      — WebView Google blocks (social in-app browsers, Android wv)
+// 'standalone' — PWA installed on home screen (use redirect instead of popup)
+// null         — normal browser (popup works fine)
 function getWebViewContext() {
   const ua = navigator.userAgent;
-  // Social media / app in-app browsers — redirect also stays in WebView, must block
-  if (/FBAN\/|FBAV\//.test(ua)) return 'inapp';       // Facebook
-  if (/Instagram/.test(ua))     return 'inapp';
-  if (/Twitter\//.test(ua))     return 'inapp';
-  if (/LinkedInApp/.test(ua))   return 'inapp';
+  if (/FBAN\/|FBAV\//.test(ua))              return 'inapp'; // Facebook
+  if (/Instagram/.test(ua))                  return 'inapp';
+  if (/Twitter\//.test(ua))                  return 'inapp';
+  if (/LinkedInApp/.test(ua))               return 'inapp';
   if (/Snapchat|TikTok|musical_ly/.test(ua)) return 'inapp';
-  if (/MicroMessenger/.test(ua)) return 'inapp';      // WeChat
-  if (/Line\//.test(ua))        return 'inapp';
-  // Generic Android / iOS WebViews
-  if (/Android/.test(ua) && /; wv\)/.test(ua)) return 'inapp';
-  if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return 'inapp';
-  // PWA standalone — redirect opens in Safari/Chrome, which Google allows
+  if (/MicroMessenger/.test(ua))             return 'inapp'; // WeChat
+  if (/Line\//.test(ua))                     return 'inapp';
+  if (/Android/.test(ua) && /; wv\)/.test(ua)) return 'inapp'; // Android WebView
+  if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return 'inapp'; // iOS in-app
   if (window.matchMedia('(display-mode: standalone)').matches) return 'standalone';
   if (window.navigator.standalone === true) return 'standalone';
   return null;
@@ -167,8 +164,9 @@ auth.getRedirectResult().then(result => {
 
 async function handleGoogleSignIn(btnId) {
   const ctx = getWebViewContext();
+
   if (ctx === 'inapp') {
-    showToast('Google sign-in is not supported in this in-app browser. Open ArgueOut in Safari or Chrome.', 'error');
+    showToast('Google sign-in isn\'t supported in this browser. Open ArgueOut in Chrome.', 'error');
     return;
   }
 
