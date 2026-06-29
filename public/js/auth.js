@@ -173,15 +173,22 @@ async function handleGoogleSignIn(btnId) {
   const btn = btnId ? document.getElementById(btnId) : null;
   if (btn) setLoading(btn, true, 'Connecting...');
 
+  const provider = new firebase.auth.GoogleAuthProvider();
+
+  if (ctx === 'standalone') {
+    await auth.signInWithRedirect(provider);
+    return; // page navigates away; result handled by getRedirectResult above
+  }
+
   try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    if (ctx === 'standalone') {
-      await auth.signInWithRedirect(provider);
-      return; // page navigates away; result handled by getRedirectResult above
-    }
     const result = await auth.signInWithPopup(provider);
     await _finishGoogleSignIn(result);
   } catch (err) {
+    if (err.code === 'auth/popup-blocked') {
+      // Popup blocked (e.g. Android WebView) — fall back to full-page redirect
+      await auth.signInWithRedirect(provider);
+      return; // page navigates away; result handled by getRedirectResult above
+    }
     if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
       showToast(friendlyError(err.code) || 'Google sign-in failed. Try again.', 'error');
     }

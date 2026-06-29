@@ -348,16 +348,25 @@ async function acctModalGoogleSignIn() {
   const errEl = document.getElementById('acctModalErr');
   const errTx = document.getElementById('acctModalErrText');
   errEl.style.display = 'none';
+
+  const provider = new firebase.auth.GoogleAuthProvider();
+
+  if (ctx === 'standalone') {
+    sessionStorage.setItem('ao-lobby-google-redirect', '1');
+    await auth.signInWithRedirect(provider);
+    return;
+  }
+
   try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    if (ctx === 'standalone') {
+    const result = await auth.signInWithPopup(provider);
+    await _finishLobbyGoogleSignIn(result);
+  } catch (err) {
+    if (err.code === 'auth/popup-blocked') {
+      // Popup blocked (e.g. Android WebView) — fall back to full-page redirect
       sessionStorage.setItem('ao-lobby-google-redirect', '1');
       await auth.signInWithRedirect(provider);
       return;
     }
-    const result = await auth.signInWithPopup(provider);
-    await _finishLobbyGoogleSignIn(result);
-  } catch (err) {
     if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
     errTx.textContent = 'Google sign-in failed: ' + (err.message || err.code);
     errEl.style.display = 'flex';

@@ -1,12 +1,10 @@
 package com.argueout.app;
 
 import android.Manifest;
-import android.app.Dialog;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Message;
 import android.view.View;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
@@ -26,13 +24,11 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private PermissionRequest pendingPermissionRequest;
-    private Dialog popupDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Purple status/nav bars to match ArgueOut theme
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().setStatusBarColor(Color.parseColor("#8b5cf6"));
             getWindow().setNavigationBarColor(Color.parseColor("#05050f"));
@@ -44,12 +40,6 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl(APP_URL);
     }
 
-    private static String stripWebViewMarker(String ua) {
-        // Remove "; wv)" so Google OAuth doesn't block us as a WebView.
-        // Android appends this automatically; without it we look like Chrome.
-        return ua.replace("; wv)", ")");
-    }
-
     private void setupWebView() {
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
@@ -59,64 +49,18 @@ public class MainActivity extends AppCompatActivity {
         s.setAllowFileAccess(true);
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
-        // Required for Firebase signInWithPopup — Google OAuth uses window.open()
-        s.setSupportMultipleWindows(true);
+        s.setSupportMultipleWindows(false);
         s.setTextZoom(100);
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
 
-        // Strip the WebView user-agent marker so Google OAuth accepts the request
-        s.setUserAgentString(stripWebViewMarker(s.getUserAgentString()));
+        // Remove "; wv)" so Google OAuth doesn't reject us as a WebView
+        String ua = s.getUserAgentString();
+        s.setUserAgentString(ua.replace("; wv)", ")"));
 
         webView.setWebViewClient(new WebViewClient());
 
         webView.setWebChromeClient(new WebChromeClient() {
-
-            // Handle window.open() — needed for Firebase Google sign-in popup
-            @Override
-            public boolean onCreateWindow(WebView view, boolean isDialog,
-                                          boolean isUserGesture, Message resultMsg) {
-                WebView popupWebView = new WebView(MainActivity.this);
-                WebSettings ps = popupWebView.getSettings();
-                ps.setJavaScriptEnabled(true);
-                ps.setDomStorageEnabled(true);
-                // Strip wv marker in the popup too so Google accepts it
-                ps.setUserAgentString(stripWebViewMarker(ps.getUserAgentString()));
-                ps.setSupportMultipleWindows(false);
-
-                popupWebView.setWebViewClient(new WebViewClient());
-
-                popupWebView.setWebChromeClient(new WebChromeClient() {
-                    // window.close() in the popup (called by Firebase after auth) dismisses it
-                    @Override
-                    public void onCloseWindow(WebView window) {
-                        if (popupDialog != null) {
-                            popupDialog.dismiss();
-                            popupDialog = null;
-                        }
-                        // Reload main WebView so Firebase picks up the auth result
-                        webView.reload();
-                    }
-                });
-
-                // Full-screen dialog to host the OAuth popup
-                popupDialog = new Dialog(MainActivity.this,
-                        android.R.style.Theme_Black_NoTitleBar_Fullscreen);
-                popupDialog.setContentView(popupWebView);
-                popupDialog.show();
-                popupDialog.setOnDismissListener(d -> {
-                    popupDialog = null;
-                    webView.reload();
-                });
-
-                // Connect popup WebView to window.open() call so window.opener works
-                WebView.WebViewTransport transport =
-                        (WebView.WebViewTransport) resultMsg.obj;
-                transport.setWebView(popupWebView);
-                resultMsg.sendToTarget();
-                return true;
-            }
-
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
                 pendingPermissionRequest = request;
@@ -156,11 +100,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (popupDialog != null && popupDialog.isShowing()) {
-            popupDialog.dismiss();
-            popupDialog = null;
-            return;
-        }
         if (webView.canGoBack()) {
             webView.goBack();
         } else {
