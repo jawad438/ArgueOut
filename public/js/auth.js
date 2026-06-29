@@ -112,39 +112,59 @@ function resetCaptcha() {
 
 // ── Google Sign-In ────────────────────────────────────────────
 
+// Google OAuth blocks popups in WebViews and PWA standalone mode.
+// Detect these contexts so we can fall back to signInWithRedirect.
+function needsRedirectAuth() {
+  const ua = navigator.userAgent;
+  if (/Android/.test(ua) && (/; wv\)/.test(ua) || !/Chrome\//.test(ua))) return true;
+  if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return true;
+  if (window.matchMedia('(display-mode: standalone)').matches) return true;
+  if (window.navigator.standalone === true) return true;
+  return false;
+}
+
+async function _finishGoogleSignIn(result) {
+  const user = result.user;
+  const doc  = await firestoreDb.collection('users').doc(user.uid).get();
+  if (doc.exists) {
+    const profile = doc.data();
+    localStorage.setItem('username', profile.username);
+    localStorage.setItem('userId',   user.uid);
+    if (profile.avatarUrl) localStorage.setItem('avatarDataUrl', profile.avatarUrl);
+    _saveAcctList({ uid: user.uid, username: profile.username, email: user.email || '', avatarUrl: profile.avatarUrl || user.photoURL || '', isGoogle: true });
+    showToast('Welcome back!', 'success');
+    setTimeout(() => {
+      const next = new URLSearchParams(location.search).get('next');
+      window.location.href = next || (profile.compassSet ? '/lobby' : '/compass');
+    }, 600);
+  } else {
+    sessionStorage.setItem('googleAuthPending', JSON.stringify({
+      uid:         user.uid,
+      displayName: user.displayName || '',
+      photoURL:    user.photoURL    || '',
+      email:       user.email       || ''
+    }));
+    window.location.href = '/register?mode=google';
+  }
+}
+
+// Handle redirect result on page load (WebView/PWA flows land back here)
+auth.getRedirectResult().then(result => {
+  if (result && result.user) _finishGoogleSignIn(result).catch(() => {});
+}).catch(() => {});
+
 async function handleGoogleSignIn(btnId) {
   const btn = btnId ? document.getElementById(btnId) : null;
   if (btn) setLoading(btn, true, 'Connecting...');
 
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
-    const result   = await auth.signInWithPopup(provider);
-    const user     = result.user;
-
-    const doc = await firestoreDb.collection('users').doc(user.uid).get();
-
-    if (doc.exists) {
-      const profile = doc.data();
-      localStorage.setItem('username', profile.username);
-      localStorage.setItem('userId',   user.uid);
-      if (profile.avatarUrl) localStorage.setItem('avatarDataUrl', profile.avatarUrl);
-      _saveAcctList({ uid: user.uid, username: profile.username, email: user.email || '', avatarUrl: profile.avatarUrl || user.photoURL || '', isGoogle: true });
-      showToast('Welcome back!', 'success');
-      setTimeout(() => {
-        const next = new URLSearchParams(location.search).get('next');
-        window.location.href = next || (profile.compassSet ? '/lobby' : '/compass');
-      }, 600);
-    } else {
-      // New Google user — send them through the full register form
-      sessionStorage.setItem('googleAuthPending', JSON.stringify({
-        uid:         user.uid,
-        displayName: user.displayName || '',
-        photoURL:    user.photoURL    || '',
-        email:       user.email       || ''
-      }));
-      if (btn) setLoading(btn, false);
-      window.location.href = '/register?mode=google';
+    if (needsRedirectAuth()) {
+      await auth.signInWithRedirect(provider);
+      return; // page navigates away; result handled by getRedirectResult above
     }
+    const result = await auth.signInWithPopup(provider);
+    await _finishGoogleSignIn(result);
   } catch (err) {
     if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
       showToast(friendlyError(err.code) || 'Google sign-in failed. Try again.', 'error');

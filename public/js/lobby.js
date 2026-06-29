@@ -295,26 +295,52 @@ function closeAcctModal() {
   if (userInput) { userInput.readOnly = false; userInput.style.opacity = ''; }
 }
 
+function _lobbyNeedsRedirectAuth() {
+  const ua = navigator.userAgent;
+  if (/Android/.test(ua) && (/; wv\)/.test(ua) || !/Chrome\//.test(ua))) return true;
+  if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return true;
+  if (window.matchMedia('(display-mode: standalone)').matches) return true;
+  if (window.navigator.standalone === true) return true;
+  return false;
+}
+
+async function _finishLobbyGoogleSignIn(result) {
+  const user = result.user;
+  const doc  = await firestoreDb.collection('users').doc(user.uid).get();
+  if (!doc.exists) {
+    sessionStorage.setItem('googleAuthPending', JSON.stringify({
+      uid: user.uid, displayName: user.displayName || '',
+      photoURL: user.photoURL || '', email: user.email || ''
+    }));
+    window.location.href = '/register?mode=google';
+    return;
+  }
+  const profile = doc.data();
+  saveToAccountList({ uid: user.uid, username: profile.username, email: user.email || '', avatarUrl: profile.avatarUrl || user.photoURL || '', isGoogle: true });
+  performAccountSwitch(user.uid, profile.username, profile.avatarUrl || user.photoURL || '');
+}
+
+// Handle redirect result on lobby load (from WebView/PWA Google sign-in)
+auth.getRedirectResult().then(result => {
+  if (result && result.user && sessionStorage.getItem('ao-lobby-google-redirect')) {
+    sessionStorage.removeItem('ao-lobby-google-redirect');
+    _finishLobbyGoogleSignIn(result).catch(() => {});
+  }
+}).catch(() => {});
+
 async function acctModalGoogleSignIn() {
   const errEl = document.getElementById('acctModalErr');
   const errTx = document.getElementById('acctModalErrText');
   errEl.style.display = 'none';
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
-    const result   = await auth.signInWithPopup(provider);
-    const user     = result.user;
-    const doc      = await firestoreDb.collection('users').doc(user.uid).get();
-    if (!doc.exists) {
-      sessionStorage.setItem('googleAuthPending', JSON.stringify({
-        uid: user.uid, displayName: user.displayName || '',
-        photoURL: user.photoURL || '', email: user.email || ''
-      }));
-      window.location.href = '/register?mode=google';
+    if (_lobbyNeedsRedirectAuth()) {
+      sessionStorage.setItem('ao-lobby-google-redirect', '1');
+      await auth.signInWithRedirect(provider);
       return;
     }
-    const profile = doc.data();
-    saveToAccountList({ uid: user.uid, username: profile.username, email: user.email || '', avatarUrl: profile.avatarUrl || user.photoURL || '', isGoogle: true });
-    performAccountSwitch(user.uid, profile.username, profile.avatarUrl || user.photoURL || '');
+    const result = await auth.signInWithPopup(provider);
+    await _finishLobbyGoogleSignIn(result);
   } catch (err) {
     if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
     errTx.textContent = 'Google sign-in failed: ' + (err.message || err.code);
