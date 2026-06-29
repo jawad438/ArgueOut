@@ -77,7 +77,9 @@
         <div class="cf-turnstile" id="loginTurnstile"
              data-sitekey="0x4AAAAAADqYunZzHwnreyqI"
              data-theme="auto"
-             data-size="normal"></div>
+             data-size="normal"
+             data-callback="onLoginCapDone"
+             data-expired-callback="onLoginCapExpired"></div>
       </div>
 
       <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
@@ -86,7 +88,7 @@
     </form>
 
     <div class="auth-divider"><span>or</span></div>
-    <button class="btn-google" id="googleBtn" onclick="handleGoogleSignIn('googleBtn')">
+    <button class="btn-google" id="googleBtn" onclick="handleGoogleSignIn('googleBtn')" disabled style="opacity:0.45;cursor:not-allowed">
       <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
         <path d="M17.64 9.2a10.67 10.67 0 0 0-.16-1.88H9v3.56h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92A8.79 8.79 0 0 0 17.64 9.2z" fill="#4285F4"/>
         <path d="M9 18a8.6 8.6 0 0 0 5.96-2.18l-2.91-2.26a5.43 5.43 0 0 1-8.09-2.85H.96v2.33A9 9 0 0 0 9 18z" fill="#34A853"/>
@@ -114,6 +116,16 @@
   </div>
 </footer>
 <div id="toast-container"></div>
+<script>
+function onLoginCapDone() {
+  var btn = document.getElementById('googleBtn');
+  if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; }
+}
+function onLoginCapExpired() {
+  var btn = document.getElementById('googleBtn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.45'; btn.style.cursor = 'not-allowed'; }
+}
+</script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
