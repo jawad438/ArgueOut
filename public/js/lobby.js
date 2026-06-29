@@ -363,10 +363,15 @@ async function acctModalGoogleSignIn() {
       const result = await auth.signInWithCredential(credential);
       await _finishLobbyGoogleSignIn(result);
     } catch (err) {
-      if (err !== 'cancelled') {
-        errTx.textContent = 'Google sign-in failed. Try again.';
-        errEl.style.display = 'flex';
+      if (err === 'cancelled') return;
+      if (err === '10') {
+        // DEVELOPER_ERROR: SHA-1 not registered. Fall back to redirect flow.
+        sessionStorage.setItem('ao-lobby-google-redirect', '1');
+        await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+        return;
       }
+      errTx.textContent = 'Google sign-in failed. Try again.';
+      errEl.style.display = 'flex';
     }
     return;
   }

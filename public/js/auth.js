@@ -193,9 +193,17 @@ async function handleGoogleSignIn(btnId) {
       const result = await auth.signInWithCredential(credential);
       await _finishGoogleSignIn(result);
     } catch (err) {
-      if (err !== 'cancelled') {
-        showToast('Google sign-in failed. Try again.', 'error');
+      if (err === 'cancelled') {
+        if (btn) setLoading(btn, false);
+        return;
       }
+      if (err === '10') {
+        // DEVELOPER_ERROR: SHA-1 not registered in Firebase Console.
+        // Fall back to WebView redirect flow which doesn't need it.
+        await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+        return;
+      }
+      showToast((err && err.code ? friendlyError(err.code) : null) || 'Google sign-in failed. Try again.', 'error');
       if (btn) setLoading(btn, false);
     }
     return;
