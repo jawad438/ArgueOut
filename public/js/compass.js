@@ -123,15 +123,47 @@ function getQuadrantInfo(px, py) {
   if (Math.sqrt(px * px + py * py) < CENTRIST_RADIUS) {
     return { label: 'Centrist', color: '#8b5cf6' };
   }
-  const econ   = px >= 0 ? 'Right' : 'Left';
-  const social = py >= 0 ? 'Authoritarian' : 'Libertarian';
-  const colors = {
-    'Authoritarian-Left':  { label: 'Authoritarian Left',  color: '#ef4444' },
-    'Authoritarian-Right': { label: 'Authoritarian Right', color: '#3b82f6' },
-    'Libertarian-Left':    { label: 'Libertarian Left',    color: '#22c55e' },
-    'Libertarian-Right':   { label: 'Libertarian Right',   color: '#f59e0b' },
+
+  const ax = Math.abs(px);
+  const ay = Math.abs(py);
+
+  // Intensity prefixes for each axis
+  function econLabel(v, dir) {
+    if (v < 0.30) return '';
+    if (v < 0.52) return 'Moderate ' + dir;
+    if (v < 0.75) return dir;
+    if (v < 0.90) return 'Hard ' + dir;
+    return 'Far ' + dir;
+  }
+
+  function socialLabel(v, dir) {
+    if (v < 0.30) return '';
+    if (v < 0.52) return 'Moderate ' + dir;
+    if (v < 0.75) return dir;
+    if (v < 0.90) return 'Strongly ' + dir;
+    return 'Extreme ' + dir;
+  }
+
+  const econDir   = px >= 0 ? 'Right' : 'Left';
+  const socialDir = py >= 0 ? 'Authoritarian' : 'Libertarian';
+
+  const ePart = econLabel(ax, econDir);
+  const sPart = socialLabel(ay, socialDir);
+
+  const quadColor = {
+    al: '#ef4444', ar: '#3b82f6', ll: '#22c55e', lr: '#f59e0b',
   };
-  return colors[`${social}-${econ}`] || { label: 'Centrist', color: '#8b5cf6' };
+  const colorKey = (py >= 0 ? 'a' : 'l') + (px >= 0 ? 'r' : 'l');
+  const color = quadColor[colorKey] || '#8b5cf6';
+
+  // Assemble label: social part first, then economic
+  let label;
+  if (sPart && ePart) label = sPart + ' ' + ePart;
+  else if (sPart)     label = sPart;
+  else if (ePart)     label = ePart;
+  else                label = 'Centrist';
+
+  return { label, color };
 }
 
 function updateLabels() {
