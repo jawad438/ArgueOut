@@ -112,15 +112,27 @@ function resetCaptcha() {
 
 // ── Google Sign-In ────────────────────────────────────────────
 
-// Google OAuth blocks popups in WebViews and PWA standalone mode.
-// Detect these contexts so we can fall back to signInWithRedirect.
-function needsRedirectAuth() {
+// Detect browser context for Google OAuth compatibility.
+// Returns 'inapp' (in-app WebView — Google blocks OAuth entirely),
+// 'standalone' (PWA home-screen — use redirect instead of popup),
+// or null (normal browser — popup works fine).
+function getWebViewContext() {
   const ua = navigator.userAgent;
-  if (/Android/.test(ua) && (/; wv\)/.test(ua) || !/Chrome\//.test(ua))) return true;
-  if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return true;
-  if (window.matchMedia('(display-mode: standalone)').matches) return true;
-  if (window.navigator.standalone === true) return true;
-  return false;
+  // Social media / app in-app browsers — redirect also stays in WebView, must block
+  if (/FBAN\/|FBAV\//.test(ua)) return 'inapp';       // Facebook
+  if (/Instagram/.test(ua))     return 'inapp';
+  if (/Twitter\//.test(ua))     return 'inapp';
+  if (/LinkedInApp/.test(ua))   return 'inapp';
+  if (/Snapchat|TikTok|musical_ly/.test(ua)) return 'inapp';
+  if (/MicroMessenger/.test(ua)) return 'inapp';      // WeChat
+  if (/Line\//.test(ua))        return 'inapp';
+  // Generic Android / iOS WebViews
+  if (/Android/.test(ua) && /; wv\)/.test(ua)) return 'inapp';
+  if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return 'inapp';
+  // PWA standalone — redirect opens in Safari/Chrome, which Google allows
+  if (window.matchMedia('(display-mode: standalone)').matches) return 'standalone';
+  if (window.navigator.standalone === true) return 'standalone';
+  return null;
 }
 
 async function _finishGoogleSignIn(result) {
@@ -154,12 +166,18 @@ auth.getRedirectResult().then(result => {
 }).catch(() => {});
 
 async function handleGoogleSignIn(btnId) {
+  const ctx = getWebViewContext();
+  if (ctx === 'inapp') {
+    showToast('Google sign-in is not supported in this in-app browser. Open ArgueOut in Safari or Chrome.', 'error');
+    return;
+  }
+
   const btn = btnId ? document.getElementById(btnId) : null;
   if (btn) setLoading(btn, true, 'Connecting...');
 
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
-    if (needsRedirectAuth()) {
+    if (ctx === 'standalone') {
       await auth.signInWithRedirect(provider);
       return; // page navigates away; result handled by getRedirectResult above
     }

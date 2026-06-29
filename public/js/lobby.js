@@ -295,13 +295,20 @@ function closeAcctModal() {
   if (userInput) { userInput.readOnly = false; userInput.style.opacity = ''; }
 }
 
-function _lobbyNeedsRedirectAuth() {
+function _lobbyGetWebViewContext() {
   const ua = navigator.userAgent;
-  if (/Android/.test(ua) && (/; wv\)/.test(ua) || !/Chrome\//.test(ua))) return true;
-  if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return true;
-  if (window.matchMedia('(display-mode: standalone)').matches) return true;
-  if (window.navigator.standalone === true) return true;
-  return false;
+  if (/FBAN\/|FBAV\//.test(ua)) return 'inapp';
+  if (/Instagram/.test(ua))     return 'inapp';
+  if (/Twitter\//.test(ua))     return 'inapp';
+  if (/LinkedInApp/.test(ua))   return 'inapp';
+  if (/Snapchat|TikTok|musical_ly/.test(ua)) return 'inapp';
+  if (/MicroMessenger/.test(ua)) return 'inapp';
+  if (/Line\//.test(ua))        return 'inapp';
+  if (/Android/.test(ua) && /; wv\)/.test(ua)) return 'inapp';
+  if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return 'inapp';
+  if (window.matchMedia('(display-mode: standalone)').matches) return 'standalone';
+  if (window.navigator.standalone === true) return 'standalone';
+  return null;
 }
 
 async function _finishLobbyGoogleSignIn(result) {
@@ -329,12 +336,21 @@ auth.getRedirectResult().then(result => {
 }).catch(() => {});
 
 async function acctModalGoogleSignIn() {
+  const ctx = _lobbyGetWebViewContext();
+  if (ctx === 'inapp') {
+    const errEl = document.getElementById('acctModalErr');
+    const errTx = document.getElementById('acctModalErrText');
+    errTx.textContent = 'Google sign-in is not supported in this in-app browser. Open ArgueOut in Safari or Chrome.';
+    errEl.style.display = 'flex';
+    return;
+  }
+
   const errEl = document.getElementById('acctModalErr');
   const errTx = document.getElementById('acctModalErrText');
   errEl.style.display = 'none';
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
-    if (_lobbyNeedsRedirectAuth()) {
+    if (ctx === 'standalone') {
       sessionStorage.setItem('ao-lobby-google-redirect', '1');
       await auth.signInWithRedirect(provider);
       return;
