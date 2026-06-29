@@ -162,7 +162,45 @@ auth.getRedirectResult().then(result => {
   if (result && result.user) _finishGoogleSignIn(result).catch(() => {});
 }).catch(() => {});
 
+async function _getGoogleWebClientId() {
+  const r = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${firebase.app().options.apiKey}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerId: 'google.com', continueUri: location.origin }) }
+  );
+  const d = await r.json();
+  return new URL(d.authUri).searchParams.get('client_id');
+}
+
 async function handleGoogleSignIn(btnId) {
+  const btn = btnId ? document.getElementById(btnId) : null;
+
+  // Native Android Google Sign-In: uses device accounts, no WebView cookies needed
+  if (typeof window.AndroidAuth !== 'undefined') {
+    if (btn) setLoading(btn, true, 'Connecting...');
+    try {
+      const clientId = await _getGoogleWebClientId();
+      if (!clientId) throw new Error('no-client-id');
+
+      const idToken = await new Promise((resolve, reject) => {
+        window.onAndroidGoogleToken = t => { cleanup(); resolve(t); };
+        window.onAndroidGoogleError = c => { cleanup(); reject(c); };
+        function cleanup() { window.onAndroidGoogleToken = null; window.onAndroidGoogleError = null; }
+        window.AndroidAuth.startGoogleSignIn(clientId);
+      });
+
+      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+      const result = await auth.signInWithCredential(credential);
+      await _finishGoogleSignIn(result);
+    } catch (err) {
+      if (err !== 'cancelled') {
+        showToast('Google sign-in failed. Try again.', 'error');
+      }
+      if (btn) setLoading(btn, false);
+    }
+    return;
+  }
+
   const ctx = getWebViewContext();
 
   if (ctx === 'inapp') {
@@ -170,14 +208,13 @@ async function handleGoogleSignIn(btnId) {
     return;
   }
 
-  const btn = btnId ? document.getElementById(btnId) : null;
   if (btn) setLoading(btn, true, 'Connecting...');
 
   const provider = new firebase.auth.GoogleAuthProvider();
 
   if (ctx === 'standalone') {
     await auth.signInWithRedirect(provider);
-    return; // page navigates away; result handled by getRedirectResult above
+    return;
   }
 
   try {
@@ -185,9 +222,8 @@ async function handleGoogleSignIn(btnId) {
     await _finishGoogleSignIn(result);
   } catch (err) {
     if (err.code === 'auth/popup-blocked') {
-      // Popup blocked (e.g. Android WebView) — fall back to full-page redirect
       await auth.signInWithRedirect(provider);
-      return; // page navigates away; result handled by getRedirectResult above
+      return;
     }
     if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
       showToast(friendlyError(err.code) || 'Google sign-in failed. Try again.', 'error');

@@ -336,18 +336,47 @@ auth.getRedirectResult().then(result => {
 }).catch(() => {});
 
 async function acctModalGoogleSignIn() {
+  const errEl = document.getElementById('acctModalErr');
+  const errTx = document.getElementById('acctModalErrText');
+  errEl.style.display = 'none';
+
+  // Native Android Google Sign-In: uses device accounts, no WebView cookies needed
+  if (typeof window.AndroidAuth !== 'undefined') {
+    try {
+      const r = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${firebase.app().options.apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ providerId: 'google.com', continueUri: location.origin }) }
+      );
+      const d = await r.json();
+      const clientId = new URL(d.authUri).searchParams.get('client_id');
+      if (!clientId) throw new Error('no-client-id');
+
+      const idToken = await new Promise((resolve, reject) => {
+        window.onAndroidGoogleToken = t => { cleanup(); resolve(t); };
+        window.onAndroidGoogleError = c => { cleanup(); reject(c); };
+        function cleanup() { window.onAndroidGoogleToken = null; window.onAndroidGoogleError = null; }
+        window.AndroidAuth.startGoogleSignIn(clientId);
+      });
+
+      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+      const result = await auth.signInWithCredential(credential);
+      await _finishLobbyGoogleSignIn(result);
+    } catch (err) {
+      if (err !== 'cancelled') {
+        errTx.textContent = 'Google sign-in failed. Try again.';
+        errEl.style.display = 'flex';
+      }
+    }
+    return;
+  }
+
   const ctx = _lobbyGetWebViewContext();
   if (ctx === 'inapp') {
-    const errEl = document.getElementById('acctModalErr');
-    const errTx = document.getElementById('acctModalErrText');
     errTx.textContent = 'Google sign-in isn\'t supported in this browser. Open ArgueOut in Chrome.';
     errEl.style.display = 'flex';
     return;
   }
-
-  const errEl = document.getElementById('acctModalErr');
-  const errTx = document.getElementById('acctModalErrText');
-  errEl.style.display = 'none';
 
   const provider = new firebase.auth.GoogleAuthProvider();
 
@@ -362,7 +391,6 @@ async function acctModalGoogleSignIn() {
     await _finishLobbyGoogleSignIn(result);
   } catch (err) {
     if (err.code === 'auth/popup-blocked') {
-      // Popup blocked (e.g. Android WebView) — fall back to full-page redirect
       sessionStorage.setItem('ao-lobby-google-redirect', '1');
       await auth.signInWithRedirect(provider);
       return;

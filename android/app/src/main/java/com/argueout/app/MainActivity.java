@@ -1,11 +1,12 @@
 package com.argueout.app;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -14,6 +15,13 @@ import android.webkit.WebViewClient;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
+import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,9 +29,11 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String APP_URL = "https://argueout.onrender.com/lobby";
     private static final int PERMISSION_REQUEST_CODE = 1;
+    private static final int RC_SIGN_IN = 9001;
 
     private WebView webView;
     private PermissionRequest pendingPermissionRequest;
+    private GoogleSignInClient googleSignInClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,9 +64,12 @@ public class MainActivity extends AppCompatActivity {
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
 
-        // Remove "; wv)" so Google OAuth doesn't reject us as a WebView
+        // Remove "; wv)" so Google OAuth page (redirect fallback) isn't rejected
         String ua = s.getUserAgentString();
         s.setUserAgentString(ua.replace("; wv)", ")"));
+
+        // Expose native Google Sign-In to the web page
+        webView.addJavascriptInterface(new AndroidAuth(), "AndroidAuth");
 
         webView.setWebViewClient(new WebViewClient());
 
@@ -87,6 +100,46 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    // Called from JavaScript: AndroidAuth.startGoogleSignIn(webClientId)
+    class AndroidAuth {
+        @JavascriptInterface
+        public void startGoogleSignIn(final String webClientId) {
+            runOnUiThread(() -> {
+                GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                        .requestIdToken(webClientId)
+                        .requestEmail()
+                        .build();
+                googleSignInClient = GoogleSignIn.getClient(MainActivity.this, gso);
+                // Always sign out first so the account picker is shown
+                googleSignInClient.signOut().addOnCompleteListener(task ->
+                        startActivityForResult(googleSignInClient.getSignInIntent(), RC_SIGN_IN));
+            });
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != RC_SIGN_IN) return;
+
+        Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+        try {
+            GoogleSignInAccount account = task.getResult(ApiException.class);
+            String idToken = account.getIdToken();
+            if (idToken != null) {
+                String js = "window.onAndroidGoogleToken && window.onAndroidGoogleToken("
+                        + JSONObject.quote(idToken) + ")";
+                webView.post(() -> webView.evaluateJavascript(js, null));
+            }
+        } catch (ApiException e) {
+            // 12501 = user cancelled; don't show an error in that case
+            String reason = (e.getStatusCode() == 12501) ? "cancelled" : String.valueOf(e.getStatusCode());
+            String js = "window.onAndroidGoogleError && window.onAndroidGoogleError("
+                    + JSONObject.quote(reason) + ")";
+            webView.post(() -> webView.evaluateJavascript(js, null));
+        }
     }
 
     @Override
