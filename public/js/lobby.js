@@ -755,6 +755,12 @@ function sendChallenge(targetUserId, targetUsername, question) {
   if (challengeBtn) challengeBtn.style.display = 'none';
   if (topicField)   topicField.style.display   = 'none';
   if (pendingMsg)   pendingMsg.style.display   = 'block';
+  // .up-card scrolls on mobile when the profile content is tall (compass,
+  // bio, tags, etc.); collapsing the button/topic field shrinks the
+  // content below the user's scroll position, so without this the
+  // confirmation can end up scrolled out of view, looking like nothing
+  // happened even though the challenge was sent.
+  if (pendingMsg) pendingMsg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 socket.on('challenge-error', ({ error }) => {
