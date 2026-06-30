@@ -4,10 +4,12 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -29,11 +31,34 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String APP_URL = "https://argueout.onrender.com/lobby";
     private static final int PERMISSION_REQUEST_CODE = 1;
+    private static final int IMAGE_PERMISSION_REQUEST_CODE = 2;
     private static final int RC_SIGN_IN = 9001;
+    private static final int FILE_CHOOSER_RESULT_CODE = 9002;
 
     private WebView webView;
     private PermissionRequest pendingPermissionRequest;
     private GoogleSignInClient googleSignInClient;
+    private ValueCallback<Uri[]> filePathCallback;
+
+    private static String imagePermission() {
+        return Build.VERSION.SDK_INT >= 33
+                ? Manifest.permission.READ_MEDIA_IMAGES
+                : Manifest.permission.READ_EXTERNAL_STORAGE;
+    }
+
+    private void launchImageChooser() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        try {
+            startActivityForResult(Intent.createChooser(intent, "Choose a profile picture"), FILE_CHOOSER_RESULT_CODE);
+        } catch (Exception e) {
+            if (filePathCallback != null) {
+                filePathCallback.onReceiveValue(null);
+                filePathCallback = null;
+            }
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,6 +120,20 @@ public class MainActivity extends AppCompatActivity {
                             toRequest.toArray(new String[0]), PERMISSION_REQUEST_CODE);
                 }
             }
+
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback,
+                                              FileChooserParams params) {
+                filePathCallback = callback;
+                if (ContextCompat.checkSelfPermission(MainActivity.this, imagePermission())
+                        != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(MainActivity.this,
+                            new String[]{imagePermission()}, IMAGE_PERMISSION_REQUEST_CODE);
+                } else {
+                    launchImageChooser();
+                }
+                return true;
+            }
         });
     }
 
@@ -118,6 +157,18 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == FILE_CHOOSER_RESULT_CODE) {
+            if (filePathCallback == null) return;
+            Uri[] results = null;
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                results = new Uri[]{data.getData()};
+            }
+            filePathCallback.onReceiveValue(results);
+            filePathCallback = null;
+            return;
+        }
+
         if (requestCode != RC_SIGN_IN) return;
 
         Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
@@ -146,6 +197,14 @@ public class MainActivity extends AppCompatActivity {
         if (code == PERMISSION_REQUEST_CODE && pendingPermissionRequest != null) {
             pendingPermissionRequest.grant(pendingPermissionRequest.getResources());
             pendingPermissionRequest = null;
+        } else if (code == IMAGE_PERMISSION_REQUEST_CODE) {
+            boolean granted = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
+            if (granted) {
+                launchImageChooser();
+            } else if (filePathCallback != null) {
+                filePathCallback.onReceiveValue(null);
+                filePathCallback = null;
+            }
         }
     }
 
