@@ -354,7 +354,8 @@ async function acctModalGoogleSignIn() {
       await _finishLobbyGoogleSignIn(result);
     } catch (err) {
       if (err === 'cancelled') return;
-      errTx.textContent = 'Google sign-in failed. Try again.';
+      const detail = (err && err.code) ? err.code : (typeof err === 'string' ? err : (err && err.message));
+      errTx.textContent = detail ? `Google sign-in failed: ${detail}` : 'Google sign-in failed. Try again.';
       errEl.style.display = 'flex';
     }
     return;

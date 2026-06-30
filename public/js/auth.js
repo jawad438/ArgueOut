@@ -180,7 +180,8 @@ async function handleGoogleSignIn(btnId) {
       await _finishGoogleSignIn(result);
     } catch (err) {
       if (err === 'cancelled') { if (btn) setLoading(btn, false); return; }
-      showToast((err && err.code ? friendlyError(err.code) : null) || 'Google sign-in failed. Try again.', 'error');
+      const detail = (err && err.code) ? friendlyError(err.code) : (typeof err === 'string' ? err : (err && err.message));
+      showToast(detail ? `Google sign-in failed: ${detail}` : 'Google sign-in failed. Try again.', 'error');
       if (btn) setLoading(btn, false);
     }
     return;

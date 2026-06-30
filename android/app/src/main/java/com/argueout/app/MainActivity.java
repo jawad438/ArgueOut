@@ -135,12 +135,14 @@ public class MainActivity extends AppCompatActivity {
         try {
             final GoogleSignInAccount account = task.getResult(ApiException.class);
 
-            // Fetch an OAuth access token on a background thread (blocking network call)
+            // Fetch an OAuth access token on a background thread (blocking network call).
+            // Use the email-string overload — account.getAccount() needs GET_ACCOUNTS
+            // permission to be non-null and we don't want to require that.
             new Thread(() -> {
                 try {
                     String scope = "oauth2:profile email";
                     String accessToken = GoogleAuthUtil.getToken(
-                            MainActivity.this, account.getAccount(), scope);
+                            MainActivity.this, account.getEmail(), scope);
                     String js = "window.onAndroidGoogleToken && window.onAndroidGoogleToken("
                             + JSONObject.quote(accessToken) + ")";
                     webView.post(() -> webView.evaluateJavascript(js, null));
@@ -148,7 +150,9 @@ public class MainActivity extends AppCompatActivity {
                     // Need user's consent for the scopes — show consent dialog
                     runOnUiThread(() -> startActivityForResult(ure.getIntent(), RC_RECOVERABLE));
                 } catch (Exception e) {
-                    String js = "window.onAndroidGoogleError && window.onAndroidGoogleError(\"token_failed\")";
+                    String detail = e.getClass().getSimpleName() + ": " + e.getMessage();
+                    String js = "window.onAndroidGoogleError && window.onAndroidGoogleError("
+                            + JSONObject.quote(detail) + ")";
                     webView.post(() -> webView.evaluateJavascript(js, null));
                 }
             }).start();
