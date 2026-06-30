@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
@@ -94,7 +95,16 @@ public class MainActivity extends AppCompatActivity {
         s.setUserAgentString(ua.replace("; wv)", ")"));
 
         webView.addJavascriptInterface(new AndroidAuth(), "AndroidAuth");
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                // Ignore blank/intermediate loads; only nudge real page loads.
+                if (url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
+                    forceRepaint(view);
+                }
+            }
+        });
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -135,6 +145,32 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+    }
+
+    // Some devices leave the hardware-accelerated WebView surface unpainted
+    // after a page load or in-page navigation: the new page has loaded and is
+    // interactive (taps land on the right elements) but nothing is drawn, so
+    // the screen looks frozen/black until the app is backgrounded and resumed.
+    // Backgrounding triggers a window-visibility change that makes Chromium
+    // re-composite. We replicate that automatically after every page load by
+    // briefly toggling the WebView's visibility across a frame boundary, which
+    // forces the same recomposite without the user having to switch apps.
+    private void forceRepaint(final WebView view) {
+        // Replicate exactly what an app background -> foreground cycle does, since
+        // that is what the user found un-sticks the screen: a view-visibility flip
+        // plus WebView.onPause()/onResume(). One on its own is not reliable across
+        // devices, so we do both, separated by a frame so the change isn't coalesced.
+        view.setVisibility(View.INVISIBLE);
+        view.onPause();
+        view.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                view.onResume();
+                view.setVisibility(View.VISIBLE);
+                view.requestLayout();
+                view.invalidate();
+            }
+        }, 32);
     }
 
     // Called from JavaScript with the Firebase web OAuth client ID
