@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Profile — ArgueOut</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
+  <style>
+    body { background: var(--bg-0); min-height: 100dvh; }
+    .ep-page { max-width: 480px; margin: 0 auto; padding: 0 16px 40px; }
+    .ep-topbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; margin: 0 -16px 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: var(--navbar-bg);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    .ep-back {
+      width: 40px; height: 40px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg-card);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-1); text-decoration: none; flex-shrink: 0;
+    }
+    .ep-topbar-title { font-size: 1.05rem; font-weight: 700; color: var(--text-1); }
+
+    /* Compact account-switcher trigger bar */
+    .ep-acct-bar {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 10px 14px; margin-bottom: 16px;
+      cursor: pointer;
+    }
+    .ep-acct-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--grad-brand);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.85rem;
+      color: #fff; flex-shrink: 0; overflow: hidden;
+    }
+    .ep-acct-label { flex: 1; font-size: 0.85rem; color: var(--text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ep-acct-label b { color: var(--text-1); }
+  </style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+</div>
+
+<div class="ep-page">
+  <div class="ep-topbar">
+    <a href="/settings" class="ep-back" aria-label="Back">
+      <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </a>
+    <span class="ep-topbar-title">Edit Profile</span>
+  </div>
+
+  <!-- Account switcher trigger -->
+  <div class="ep-acct-bar" id="acctSwitcherTrigger" onclick="openAccountSwitcher()" title="Switch account">
+    <div class="ep-acct-avatar" id="epAcctAvatar">?</div>
+    <div class="ep-acct-label">Signed in as <b id="epAcctUsername">…</b></div>
+    <svg style="width:14px;height:14px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.5;color:var(--text-3)" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div id="acctDropdown" class="acct-dropdown" style="display:none;position:relative;margin:-10px 0 16px">
+    <div style="padding:10px 14px 8px;font-size:0.7rem;font-weight:700;color:var(--text-3);letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Switch account</div>
+    <div id="acctList"></div>
+    <div style="border-top:1px solid var(--border);padding:4px">
+      <button class="acct-action-btn" onclick="openAddAccountModal()">
+        <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Add another account
+      </button>
+    </div>
+  </div>
+
+  <!-- Profile editing card (mirrors lobby.html's profile-panel) -->
+  <div class="profile-card">
+    <div style="position:relative;width:72px;height:72px;margin-bottom:16px;cursor:pointer" id="profilePicWrap" onclick="document.getElementById('profilePicInput').click()" title="Click to change profile picture">
+      <div class="profile-avatar-lg skel" id="profileAvatar" style="margin-bottom:0;border-radius:50%"></div>
+      <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;opacity:0;transition:opacity 150ms;font-size:0.6rem;color:#fff;font-weight:700;letter-spacing:0.05em" id="avatarHover">
+        <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Change
+      </div>
+    </div>
+    <input type="file" id="profilePicInput" accept="image/*" style="display:none" />
+
+    <div id="nameDisplayRow" style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <div class="profile-name skel" id="profileName" style="margin-bottom:0;width:130px;height:22px;border-radius:8px"></div>
+      <button onclick="startNameEdit()" title="Edit name" aria-label="Edit name" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0;opacity:0.55">
+        <svg style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+    </div>
+    <div id="nameEditRow" style="display:none;width:100%;margin-bottom:4px">
+      <input type="text" id="nameInput" class="form-input" maxlength="50" placeholder="Your full name" style="font-size:0.9rem;padding:8px 12px;height:auto;min-height:auto" />
+      <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+        <button onclick="cancelNameEdit()" class="btn btn-ghost btn-sm" style="padding:4px 10px">Cancel</button>
+        <button onclick="saveName()" class="btn btn-primary btn-sm" style="padding:4px 12px" id="saveNameBtn">Save</button>
+      </div>
+    </div>
+
+    <div id="usernameDisplayRow" style="display:flex;align-items:center;gap:4px;margin-bottom:16px">
+      <div class="profile-username skel" id="profileUsername" style="margin-bottom:0;width:88px;height:13px;border-radius:6px"></div>
+      <button onclick="startUsernameEdit()" title="Edit username" aria-label="Edit username" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0;opacity:0.55">
+        <svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+    </div>
+    <div id="usernameEditRow" style="display:none;width:100%;margin-bottom:16px">
+      <input type="text" id="usernameInput" class="form-input" maxlength="20" placeholder="your_username" autocapitalize="none" style="font-size:0.9rem;padding:8px 12px;height:auto;min-height:auto" />
+      <span class="form-helper" style="display:block;margin-top:4px">3–20 chars, letters/numbers/_</span>
+      <div id="usernamePasswordRow" style="display:none;margin-top:8px">
+        <input type="password" id="usernamePasswordInput" class="form-input" placeholder="Current password" autocomplete="current-password" style="font-size:0.9rem;padding:8px 12px;height:auto;min-height:auto" />
+        <span class="form-helper" style="display:block;margin-top:4px">Enter your password to confirm the change</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+        <button onclick="cancelUsernameEdit()" class="btn btn-ghost btn-sm" style="padding:4px 10px">Cancel</button>
+        <button onclick="saveUsername()" class="btn btn-primary btn-sm" style="padding:4px 12px" id="saveUsernameBtn">Save</button>
+      </div>
+    </div>
+
+    <div id="bioSection" style="margin-bottom:16px;width:100%">
+      <div id="bioDisplay" style="font-size:0.83rem;color:var(--text-2);line-height:1.55;text-align:left;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer" title="Click to edit bio" onclick="startBioEdit()">
+        <span id="bioText" class="skel" style="display:block;width:100%;height:36px;border-radius:6px"></span>
+      </div>
+      <div id="bioEdit" style="display:none">
+        <textarea id="bioInput" maxlength="280" rows="3" placeholder="Tell your opponents about yourself..." style="width:100%;background:var(--bg-card);border:1px solid rgba(139,92,246,0.4);border-radius:10px;padding:10px 12px;color:var(--text-1);font-size:0.83rem;font-family:inherit;resize:none;min-height:72px;outline:none;box-sizing:border-box"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+          <span style="font-size:0.7rem;color:var(--text-3);flex:1"><span id="bioEditCount">0</span>/280</span>
+          <button onclick="cancelBioEdit()" class="btn btn-ghost btn-sm" style="padding:5px 12px">Cancel</button>
+          <button onclick="saveBio()" class="btn btn-primary btn-sm" style="padding:5px 14px" id="saveBioBtn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="countryDisplayRow" style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+      <div id="profileCountry" class="skel" style="font-size:0.85rem;width:90px;height:13px;border-radius:6px"></div>
+      <button onclick="startCountryEdit()" title="Edit country" aria-label="Edit country" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0;opacity:0.55">
+        <svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+    </div>
+    <div id="countryEditRow" style="display:none;width:100%;margin-bottom:12px">
+      <div class="country-picker" id="sidebarCountryPicker">
+        <input type="text" class="form-input" id="sidebarCountrySearch" placeholder="Search country..." autocomplete="off" style="font-size:0.9rem;padding:8px 12px;height:auto;min-height:auto" />
+        <input type="hidden" id="sidebarCountry" />
+      </div>
+      <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+        <button onclick="cancelCountryEdit()" class="btn btn-ghost btn-sm" style="padding:4px 10px">Cancel</button>
+        <button onclick="saveCountry()" class="btn btn-primary btn-sm" style="padding:4px 12px" id="saveCountryBtn">Save</button>
+      </div>
+    </div>
+
+    <a href="/compass" class="btn btn-ghost btn-sm btn-full">
+      <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></svg>
+      Update Position
+    </a>
+  </div>
+</div>
+
+<!-- Account switch / add modal -->
+<div class="modal-overlay" id="acctModal" style="display:none" onclick="if(event.target===this)closeAcctModal()">
+  <div class="auth-card" style="max-width:380px;width:100%;position:relative">
+    <button onclick="closeAcctModal()" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center" aria-label="Close">
+      <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div style="margin-bottom:20px">
+      <div id="acctModalTitle" style="font-size:1.1rem;font-weight:700;font-family:'Space Grotesk',sans-serif">Add another account</div>
+    </div>
+    <button class="btn-google btn-full" style="width:100%;margin-bottom:14px" onclick="acctModalGoogleSignIn()">
+      <svg style="width:18px;height:18px;flex-shrink:0" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/><path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+      Continue with Google
+    </button>
+    <div class="auth-divider"><span>or sign in with password</span></div>
+    <div id="acctModalUserWrap" style="margin-bottom:10px">
+      <input id="acctModalUser" class="form-input" placeholder="Username or email" autocapitalize="none" autocomplete="username" style="margin-bottom:0" />
+    </div>
+    <div style="margin-bottom:14px">
+      <input id="acctModalPass" class="form-input" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')acctModalSubmit()" style="margin-bottom:0" />
+    </div>
+    <div id="acctModalErr" class="form-error" style="display:none;margin-bottom:12px">
+      <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="acctModalErrText"></span>
+    </div>
+    <button id="acctModalSubmitBtn" class="btn btn-primary btn-full" onclick="acctModalSubmit()">Sign In</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/countries.js"></script>
+<script src="/js/account-switcher.js"></script>
+<script>
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
+function showToast(message, type) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const icons  = { success: '✓', error: '✕', info: 'ℹ' };
+  const colors = { success: 'var(--green)', error: 'var(--red)', info: 'var(--purple)' };
+  const toast  = document.createElement('div');
+  toast.className = `toast ${type || 'info'}`;
+  toast.innerHTML = `<span class="toast-icon" style="color:${colors[type] || colors.info}">${icons[type] || icons.info}</span> ${message}`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function compressAvatar(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const SIZE   = 96;
+      const canvas = document.createElement('canvas');
+      canvas.width = SIZE; canvas.height = SIZE;
+      const ctx    = canvas.getContext('2d');
+      const s      = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, SIZE, SIZE);
+      resolve(canvas.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+function applyAvatar(avatarUrl, initial) {
+  const profAvatar = document.getElementById('profileAvatar');
+  const acctAvatar = document.getElementById('epAcctAvatar');
+  const imgHtml = `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+  if (avatarUrl) {
+    if (profAvatar) profAvatar.innerHTML = imgHtml;
+    if (acctAvatar) acctAvatar.innerHTML = imgHtml;
+  } else {
+    if (profAvatar) profAvatar.textContent = initial;
+    if (acctAvatar) acctAvatar.textContent = initial;
+  }
+}
+
+let _profile = null;
+
+firebase.auth().onAuthStateChanged(async user => {
+  if (!user) { window.location.href = '/login'; return; }
+
+  const doc = await firestoreDb.collection('users').doc(user.uid).get();
+  if (!doc.exists) { window.location.href = '/login'; return; }
+  _profile = doc.data();
+  const initial = (_profile.username || 'U')[0].toUpperCase();
+
+  ['width','height','display','border-radius'].forEach(p => document.getElementById('profileAvatar').style.removeProperty(p));
+  document.getElementById('profileAvatar').classList.remove('skel');
+  applyAvatar(_profile.avatarUrl || '', initial);
+
+  const nameEl = document.getElementById('profileName');
+  nameEl.classList.remove('skel');
+  ['width','height','border-radius'].forEach(p => nameEl.style.removeProperty(p));
+  nameEl.textContent = _profile.name || _profile.username;
+
+  const userEl = document.getElementById('profileUsername');
+  userEl.classList.remove('skel');
+  ['width','height','border-radius'].forEach(p => userEl.style.removeProperty(p));
+  userEl.textContent = `@${_profile.username}`;
+
+  const bioText = document.getElementById('bioText');
+  bioText.classList.remove('skel');
+  ['width','height','border-radius'].forEach(p => bioText.style.removeProperty(p));
+  if (_profile.bio) {
+    bioText.textContent = _profile.bio;
+    bioText.style.color = 'var(--text-2)'; bioText.style.fontStyle = 'normal';
+  } else {
+    bioText.textContent = 'Add a bio...';
+    bioText.style.color = 'var(--text-3)'; bioText.style.fontStyle = 'italic';
+  }
+
+  const countryEl = document.getElementById('profileCountry');
+  countryEl.classList.remove('skel');
+  ['width','height','border-radius'].forEach(p => countryEl.style.removeProperty(p));
+  if (_profile.country) {
+    const flag = (typeof countryFlag === 'function') ? countryFlag(_profile.country) : '';
+    countryEl.textContent = flag + _profile.country;
+    countryEl.style.color = 'var(--text-2)'; countryEl.style.fontStyle = 'normal';
+    countryEl.dataset.raw = _profile.country;
+  } else {
+    countryEl.textContent = 'No country set';
+    countryEl.style.color = 'var(--text-3)'; countryEl.style.fontStyle = 'italic';
+  }
+
+  document.getElementById('epAcctUsername').textContent = '@' + _profile.username;
+});
+
+// -- Bio edit -----------------------------------------------------
+function startBioEdit() {
+  document.getElementById('bioDisplay').style.display = 'none';
+  document.getElementById('bioEdit').style.display = 'block';
+  const input = document.getElementById('bioInput');
+  input.value = (_profile && _profile.bio) || '';
+  document.getElementById('bioEditCount').textContent = input.value.length;
+  input.focus();
+}
+function cancelBioEdit() {
+  document.getElementById('bioDisplay').style.display = 'block';
+  document.getElementById('bioEdit').style.display = 'none';
+}
+document.addEventListener('input', e => {
+  if (e.target.id === 'bioInput') document.getElementById('bioEditCount').textContent = e.target.value.length;
+});
+async function saveBio() {
+  const bioInput = document.getElementById('bioInput');
+  const saveBtn  = document.getElementById('saveBioBtn');
+  const bioText  = document.getElementById('bioText');
+  const user     = firebase.auth().currentUser;
+  if (!bioInput || !user) return;
+  const newBio = bioInput.value.trim().slice(0, 280);
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+  try {
+    const token = await user.getIdToken();
+    const r = await fetch('/api/profile/bio', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ bio: newBio }) });
+    if (!r.ok) throw new Error('Failed');
+    _profile.bio = newBio;
+    if (newBio) { bioText.textContent = newBio; bioText.style.color = 'var(--text-2)'; bioText.style.fontStyle = 'normal'; }
+    else        { bioText.textContent = 'Add a bio...'; bioText.style.color = 'var(--text-3)'; bioText.style.fontStyle = 'italic'; }
+    cancelBioEdit();
+    showToast('Bio updated!', 'success');
+  } catch { showToast('Could not save bio. Try again.', 'error'); }
+  finally { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+}
+
+// -- Name edit ------------------------------------------------------
+function startNameEdit() {
+  document.getElementById('nameDisplayRow').style.display = 'none';
+  document.getElementById('nameEditRow').style.display = 'block';
+  const input = document.getElementById('nameInput');
+  input.value = (_profile && _profile.name) || '';
+  input.focus();
+}
+function cancelNameEdit() {
+  document.getElementById('nameDisplayRow').style.display = 'flex';
+  document.getElementById('nameEditRow').style.display = 'none';
+}
+async function saveName() {
+  const input = document.getElementById('nameInput');
+  const btn   = document.getElementById('saveNameBtn');
+  const user  = firebase.auth().currentUser;
+  if (!input || !user) return;
+  const newName = input.value.trim();
+  if (!newName) { showToast('Name cannot be empty.', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const token = await user.getIdToken();
+    const r = await fetch('/api/profile/name', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ name: newName }) });
+    if (!r.ok) throw new Error('Failed');
+    _profile.name = newName;
+    document.getElementById('profileName').textContent = newName;
+    cancelNameEdit();
+    showToast('Name updated!', 'success');
+  } catch { showToast('Could not update name. Try again.', 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Save'; }
+}
+
+// -- Username edit ----------------------------------------------
+function startUsernameEdit() {
+  document.getElementById('usernameDisplayRow').style.display = 'none';
+  document.getElementById('usernameEditRow').style.display = 'block';
+  const input = document.getElementById('usernameInput');
+  input.value = (_profile && _profile.username) || '';
+  input.focus();
+  const user = firebase.auth().currentUser;
+  const isPasswordAccount = user && user.email && user.email.endsWith('@argueout.app');
+  document.getElementById('usernamePasswordRow').style.display = isPasswordAccount ? 'block' : 'none';
+}
+function cancelUsernameEdit() {
+  document.getElementById('usernameDisplayRow').style.display = 'flex';
+  document.getElementById('usernameEditRow').style.display = 'none';
+  document.getElementById('usernamePasswordInput').value = '';
+}
+async function saveUsername() {
+  const input = document.getElementById('usernameInput');
+  const btn   = document.getElementById('saveUsernameBtn');
+  const user  = firebase.auth().currentUser;
+  if (!input || !user) return;
+  const newUsername = input.value.trim();
+  const oldUsername = (_profile && _profile.username) || '';
+  if (!newUsername) { showToast('Username cannot be empty.', 'error'); return; }
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) { showToast('Username: 3-20 chars, letters/numbers/underscore only.', 'error'); return; }
+  if (newUsername === oldUsername) { cancelUsernameEdit(); return; }
+
+  const isPasswordAccount = user.email && user.email.endsWith('@argueout.app');
+  if (isPasswordAccount) {
+    const pwInput = document.getElementById('usernamePasswordInput');
+    const pw = pwInput ? pwInput.value : '';
+    if (!pw) { showToast('Enter your current password to confirm.', 'error'); pwInput && pwInput.focus(); return; }
+    try {
+      const credential = firebase.auth.EmailAuthProvider.credential(user.email, pw);
+      await user.reauthenticateWithCredential(credential);
+    } catch {
+      showToast('Incorrect password.', 'error');
+      pwInput.value = ''; pwInput.focus();
+      return;
+    }
+  }
+
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const token = await user.getIdToken();
+    const r = await fetch('/api/profile/username', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ username: newUsername, oldUsername }) });
+    if (r.status === 409) { showToast('Username already taken. Try another.', 'error'); return; }
+    if (!r.ok) throw new Error('Failed');
+    _profile.username = newUsername;
+    localStorage.setItem('username', newUsername);
+    document.getElementById('profileUsername').textContent = `@${newUsername}`;
+    document.getElementById('epAcctUsername').textContent = `@${newUsername}`;
+    cancelUsernameEdit();
+    showToast('Username updated!', 'success');
+  } catch { showToast('Could not update username. Try again.', 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Save'; }
+}
+
+// -- Country edit -------------------------------------------------
+function startCountryEdit() {
+  document.getElementById('countryDisplayRow').style.display = 'none';
+  document.getElementById('countryEditRow').style.display = 'block';
+  const current = document.getElementById('profileCountry');
+  if (typeof setCountryPickerValue === 'function') {
+    setCountryPickerValue('sidebarCountrySearch', 'sidebarCountry', current.dataset.raw || '');
+  }
+  setTimeout(() => document.getElementById('sidebarCountrySearch')?.focus(), 50);
+}
+function cancelCountryEdit() {
+  document.getElementById('countryDisplayRow').style.display = 'flex';
+  document.getElementById('countryEditRow').style.display = 'none';
+}
+async function saveCountry() {
+  const btn  = document.getElementById('saveCountryBtn');
+  const val  = (document.getElementById('sidebarCountry') || {}).value || '';
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const token = await user.getIdToken();
+    const r = await fetch('/api/profile/country', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ country: val }) });
+    if (!r.ok) throw new Error('Failed');
+    _profile.country = val;
+    const el = document.getElementById('profileCountry');
+    if (val) {
+      const flag = (typeof countryFlag === 'function') ? countryFlag(val) : '';
+      el.textContent = flag + val; el.style.color = 'var(--text-2)'; el.style.fontStyle = 'normal'; el.dataset.raw = val;
+    } else {
+      el.textContent = 'No country set'; el.style.color = 'var(--text-3)'; el.style.fontStyle = 'italic'; el.dataset.raw = '';
+    }
+    cancelCountryEdit();
+    showToast('Country updated.', 'success');
+  } catch { showToast('Could not update country. Try again.', 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Save'; }
+}
+
+// -- Avatar change --------------------------------------------------
+document.getElementById('profilePicWrap')?.addEventListener('mouseenter', () => { document.getElementById('avatarHover').style.opacity = '1'; });
+document.getElementById('profilePicWrap')?.addEventListener('mouseleave', () => { document.getElementById('avatarHover').style.opacity = '0'; });
+
+document.getElementById('profilePicInput')?.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { showToast('Image must be under 10 MB.', 'error'); return; }
+  const user    = firebase.auth().currentUser;
+  const initial = ((_profile && _profile.username) || 'U')[0].toUpperCase();
+  const reader  = new FileReader();
+  reader.onload = async ev => {
+    applyAvatar(ev.target.result, initial);
+    try {
+      const compressed = await compressAvatar(ev.target.result);
+      const token = await user.getIdToken();
+      const r = await fetch('/api/profile/avatar', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ avatarUrl: compressed }) });
+      if (!r.ok) throw new Error('Failed');
+      _profile.avatarUrl = compressed;
+      localStorage.setItem('avatarDataUrl', compressed);
+      applyAvatar(compressed, initial);
+      showToast('Profile picture updated!', 'success');
+    } catch { showToast('Could not save picture. Try again.', 'error'); }
+  };
+  reader.readAsDataURL(file);
+});
+</script>
+</body>
+</html>
