@@ -29,7 +29,14 @@
     e.preventDefault();
     leaving = true;
     document.documentElement.classList.add('ao-page-leaving');
-    setTimeout(function () { location.href = url.href; }, 150);
+    // Safety: if the Android WebView intercepts the URL (shouldOverrideUrlLoading)
+    // without actually navigating, the page stays stuck at opacity:0 and leaving=true
+    // forever, making every button appear frozen. Reset after 2s if we're still here.
+    var safetyTimer = setTimeout(function () {
+      leaving = false;
+      document.documentElement.classList.remove('ao-page-leaving');
+    }, 2000);
+    setTimeout(function () { clearTimeout(safetyTimer); location.href = url.href; }, 150);
   }, true);
 
   function playEnter() {
