@@ -7,7 +7,7 @@
     var s = document.createElement('style');
     s.textContent =
       '#bgCanvas{display:none!important}' +
-      'html,body{background:#05050f!important}';
+      'html,body{background:var(--bg-0)!important}';
     document.head.appendChild(s);
   }
   if (document.head) injectBaseStyles();

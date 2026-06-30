@@ -175,6 +175,15 @@ const ICE_SERVERS = [
 ];
 
 let peerConn = null, localStream = null, rawMicStream = null;
+// Remote ICE candidates can arrive (over the same socket) before the offer/
+// answer round-trip finishes setting the remote description - e.g. the
+// answerer starts trickling candidates right after setLocalDescription,
+// which can beat the 'webrtc-answer' socket message to the initiator under
+// load. addIceCandidate() before a remote description exists silently fails
+// on some browsers, dropping that candidate and intermittently breaking the
+// connection. Queue candidates that arrive too early and flush them once
+// the remote description is set.
+let pendingIceCandidates = [];
 let micEnabled = true, camEnabled = true;
 let myTurnMuted = false;
 let localMediaPromise = null;
@@ -374,7 +383,16 @@ function armVideoConnectTimer() {
   }, 20000);
 }
 
+async function flushPendingIceCandidates() {
+  const queued = pendingIceCandidates;
+  pendingIceCandidates = [];
+  for (const candidate of queued) {
+    try { await peerConn.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+  }
+}
+
 function createPeerConnection() {
+  pendingIceCandidates = [];
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
   pc.onicecandidate = ({ candidate }) => {
@@ -419,6 +437,7 @@ async function startAsInitiator() {
 async function handleOffer(offer) {
   peerConn = createPeerConnection();
   await peerConn.setRemoteDescription(new RTCSessionDescription(offer));
+  await flushPendingIceCandidates();
   const answer = await peerConn.createAnswer();
   await peerConn.setLocalDescription(answer);
   socket.emit('webrtc-answer', { roomId, answer });
@@ -467,8 +486,19 @@ socket.on('start-webrtc', async ({ isInitiator, opponent: opp }) => {
 });
 
 socket.on('webrtc-offer',  async ({ offer })    => { if (!peerConn) await ensureLocalMedia(); await handleOffer(offer); });
-socket.on('webrtc-answer', async ({ answer })   => { if (peerConn) await peerConn.setRemoteDescription(new RTCSessionDescription(answer)); });
-socket.on('webrtc-ice',    async ({ candidate }) => { if (peerConn) { try { await peerConn.addIceCandidate(new RTCIceCandidate(candidate)); } catch {} } });
+socket.on('webrtc-answer', async ({ answer })   => {
+  if (!peerConn) return;
+  await peerConn.setRemoteDescription(new RTCSessionDescription(answer));
+  await flushPendingIceCandidates();
+});
+socket.on('webrtc-ice', async ({ candidate }) => {
+  if (!peerConn) return;
+  if (!peerConn.remoteDescription || !peerConn.remoteDescription.type) {
+    pendingIceCandidates.push(candidate);
+    return;
+  }
+  try { await peerConn.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+});
 
 // -- Chat images (base64 -> ObjectURL, expire on debate end) ---
 
