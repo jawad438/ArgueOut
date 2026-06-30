@@ -464,14 +464,16 @@
       .spec-debater-pos { font-size: 0.64rem; padding: 1px 6px; }
       .spec-vs { font-size: 0.68rem; }
 
-      /* ── Cams cover the rest of the screen by default. The debate chat is
-         pulled out of normal flow into its own bottom sheet (below) so the
-         video naturally fills whatever space it isn't using. ── */
+      /* ── The debate chat is pulled out of normal flow into its own bottom
+         sheet (below), so this grid is free to fill whatever space it isn't
+         using. Slots stay semi-square (not stretched into tall strips) and
+         sit centered in that space — the grid's black background fills the
+         rest, like a video wall rather than two squashed/stretched tiles. ── */
       .spec-video-grid {
-        flex: 1 1 auto; min-height: 0; grid-template-rows: 1fr; gap: 6px; padding: 8px;
+        flex: 1 1 auto; min-height: 0; align-items: center; gap: 6px; padding: 8px;
         border-bottom: none;
       }
-      .spec-video-slot { aspect-ratio: unset; height: 100%; }
+      .spec-video-slot { aspect-ratio: 4/5; width: 100%; max-height: 100%; }
 
       /* ── Debate chat becomes its own bottom sheet (same pattern as
          .spec-side), independently toggled, mutually exclusive with it ── */
@@ -656,9 +658,8 @@
       <svg style="width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M4 22V4a1 1 0 0 1 1-1h13.93a1 1 0 0 1 .91 1.41L17 10l2.84 5.59A1 1 0 0 1 18.93 17H5a1 1 0 0 0-1 1z"/></svg>
     </div>
     <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.25rem;font-weight:800;color:var(--text-1);margin:0 0 8px">This Debate Has Ended</h2>
-    <p style="font-size:0.85rem;color:var(--text-3);margin:0 0 20px">You can keep reviewing the chat, or head back to find another live debate.</p>
+    <p style="font-size:0.85rem;color:var(--text-3);margin:0 0 20px">Head back to find another live debate.</p>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <button class="btn btn-ghost btn-sm" id="specEndedStayBtn">Stay &amp; Review</button>
       <a href="/debates" class="btn btn-primary btn-sm">Back to Live Debates</a>
     </div>
   </div>

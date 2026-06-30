@@ -549,10 +549,8 @@ socket.on('debate-ended', () => {
 (function setupEndedOverlay() {
   const overlay  = document.getElementById('specEndedOverlay');
   const closeBtn = document.getElementById('specEndedCloseBtn');
-  const stayBtn  = document.getElementById('specEndedStayBtn');
   function dismiss() { if (overlay) overlay.style.display = 'none'; }
   if (closeBtn) closeBtn.addEventListener('click', dismiss);
-  if (stayBtn)  stayBtn.addEventListener('click', dismiss);
   if (overlay) overlay.addEventListener('click', e => { if (e.target === overlay) dismiss(); });
 })();
 
