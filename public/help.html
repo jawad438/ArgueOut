@@ -161,7 +161,12 @@
 </div>
 
 <nav class="navbar">
-  <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+  <div class="nav-left">
+    <a href="#" class="nav-back-btn" aria-label="Back" onclick="event.preventDefault();if(document.referrer&&history.length>1){history.back()}else{location.href='/lobby'}">
+      <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </a>
+    <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+  </div>
   <div class="nav-actions">
     <div class="theme-switcher">
       <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme" title="Switch theme">

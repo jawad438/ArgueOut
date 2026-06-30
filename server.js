@@ -644,6 +644,40 @@ app.get('/api/me', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
+// Notifications — read/clear via Admin SDK so client-side Firestore security
+// rules (which don't cover this collection) can't block the read.
+app.get('/api/notifications', async (req, res) => {
+  try {
+    const decoded = await getAuthUser(req);
+    if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+    const snap = await fstore.collection('notifications').doc(decoded.uid)
+      .collection('items').orderBy('createdAt', 'desc').limit(50).get();
+    const items = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        message: data.message || data.text || '',
+        read: !!data.read,
+        createdAt: data.createdAt ? data.createdAt.toMillis() : null
+      };
+    });
+    res.json({ items });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/notifications/clear', async (req, res) => {
+  try {
+    const decoded = await getAuthUser(req);
+    if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+    const col = fstore.collection('notifications').doc(decoded.uid).collection('items');
+    const snap = await col.get();
+    const batch = fstore.batch();
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
 // Update political compass position from mobile
 app.post('/api/profile/compass', express.json(), async (req, res) => {
   try {
