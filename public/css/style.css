@@ -25,6 +25,21 @@
   @view-transition { navigation: none; }
 }
 
+/* ── Mobile page transitions (custom JS-driven, see page-transitions.js) ──
+   Used instead of the View Transitions API on mobile widths (and inside the
+   Android app, where @view-transition is disabled — see inline head script)
+   because that API was unreliable in Android WebView. Animates <html>
+   rather than <body> since body already owns the light-theme hue animation. */
+@media (max-width: 1024px) {
+  html.ao-page-enter   { animation: ao-slide-in 240ms cubic-bezier(0.4, 0, 0.2, 1); }
+  html.ao-page-leaving { animation: ao-slide-out 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+}
+@keyframes ao-slide-in  { from { transform: translateX(28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes ao-slide-out { to   { transform: translateX(-28px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  html.ao-page-enter, html.ao-page-leaving { animation: none !important; }
+}
+
 /* ── Tokens ─────────────────────────────────────────────────── */
 :root {
   --bg-0:          #05050f;

@@ -6,7 +6,8 @@
   <title>Edit Profile — ArgueOut</title>
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="icon" href="/favicon.png" type="image/png" />
-  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');if(typeof window.AndroidAuth!=='undefined')document.write('<style>@view-transition{navigation:none}</style>');}());</script>
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');if(typeof window.AndroidAuth!=='undefined'||window.matchMedia('(max-width:1024px)').matches)document.write('<style>@view-transition{navigation:none}</style>');}());</script>
+  <script src="/js/page-transitions.js" defer></script>
   <style>
     body { background: var(--bg-0); min-height: 100dvh; }
     .ep-page { max-width: 480px; margin: 0 auto; padding: 0 16px 40px; }
