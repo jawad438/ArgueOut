@@ -87,14 +87,14 @@
 
     <div class="profile-card">
       <!-- Profile picture (clickable to change) -->
-      <div style="position:relative;width:72px;height:72px;margin-bottom:16px;cursor:pointer" id="profilePicWrap" onclick="document.getElementById('profilePicInput').click()" title="Click to change profile picture">
+      <div style="position:relative;width:72px;height:72px;margin-bottom:16px;cursor:pointer" id="profilePicWrap" title="Click to change profile picture">
         <div class="profile-avatar-lg skel" id="profileAvatar" style="margin-bottom:0;border-radius:50%"></div>
-        <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;opacity:0;transition:opacity 150ms;font-size:0.6rem;color:#fff;font-weight:700;letter-spacing:0.05em" id="avatarHover">
+        <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;opacity:0;transition:opacity 150ms;font-size:0.6rem;color:#fff;font-weight:700;letter-spacing:0.05em;pointer-events:none" id="avatarHover">
           <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Change
         </div>
+        <input type="file" id="profilePicInput" accept="image/*" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border-radius:50%" />
       </div>
-      <input type="file" id="profilePicInput" accept="image/*" style="display:none" />
       <!-- Name display / edit -->
       <div id="nameDisplayRow" style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
         <div class="profile-name skel" id="profileName" style="margin-bottom:0;width:130px;height:22px;border-radius:8px"></div>
