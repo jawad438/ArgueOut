@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.png" type="image/png" />
   <meta name="theme-color" content="#8b5cf6" />
-  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');if(typeof window.AndroidAuth!=='undefined')document.write('<style>@view-transition{navigation:none}</style>');}());</script>
   <style>
     body { overflow: hidden; }
 
