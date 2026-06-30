@@ -10,6 +10,8 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+const ICON_STAR = '<svg style="width:12px;height:12px;vertical-align:-1px" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+
 function posTag(x, y) {
   return (y >= 0 ? 'Auth' : 'Lib') + '-' + (x >= 0 ? 'R' : 'L');
 }
@@ -132,7 +134,7 @@ function highlightComment(commentId, username, message, highlightedBy) {
     if (header && !header.querySelector('.spec-comment-highlight-tag')) {
       const tag = document.createElement('span');
       tag.className = 'spec-comment-highlight-tag';
-      tag.textContent = '⭐ Highlighted';
+      tag.innerHTML = ICON_STAR + ' Highlighted';
       header.appendChild(tag);
     }
     setTimeout(() => {
@@ -152,7 +154,7 @@ function showHighlightToast(username, message, highlightedBy) {
   const toast = document.createElement('div');
   toast.className = 'spec-hl-toast';
   toast.innerHTML = `
-    <div class="spec-hl-label"><span class="spec-hl-star">⭐</span> Highlighted Question</div>
+    <div class="spec-hl-label"><span class="spec-hl-star">${ICON_STAR}</span> Highlighted Question</div>
     <div class="spec-hl-author">@${esc(username)}</div>
     <div class="spec-hl-message">${esc(message)}</div>
     <div class="spec-hl-by">Highlighted by @${esc(highlightedBy)}</div>

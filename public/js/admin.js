@@ -4,7 +4,11 @@ function showToast(msg, type = 'info') {
   const c = document.getElementById('toast-container');
   if (!c) return;
   const colors = { success:'var(--green)', error:'var(--red)', info:'var(--purple)' };
-  const icons  = { success:'&#10003;', error:'&#10005;', info:'&#8505;' };
+  const icons  = {
+    success: '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    info:    '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
   const t = document.createElement('div');
   t.className = `toast ${type}`;
   t.innerHTML = `<span class="toast-icon" style="color:${colors[type]}">${icons[type]}</span> ${msg}`;
@@ -63,14 +67,14 @@ socket.on('authenticated', () => {
 });
 
 socket.on('admin-new-deletion-request', ({ username }) => {
-  showToast(`🗑️ New deletion request from @${username || 'unknown'}`, 'error');
+  showToast(`New deletion request from @${username || 'unknown'}`, 'error');
   const usersPane = document.getElementById('pane-users');
   if (usersPane && usersPane.classList.contains('active')) loadDeletionRequests();
 });
 
 socket.on('admin-new-appeal', ({ username, type }) => {
   const who = username ? '@' + username : 'an IP-banned visitor';
-  showToast(`📨 New ${type} appeal from ${who}`, 'info');
+  showToast(`New ${type} appeal from ${who}`, 'info');
   loadAppeals(currentAppealFilter);
 });
 

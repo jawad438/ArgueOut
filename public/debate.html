@@ -367,14 +367,14 @@
     <div id="sparkSuggestBar" class="spark-suggest-bar" style="display:none">
       <input id="sparkSuggestInput" class="spark-suggest-input" type="text" maxlength="120" placeholder="What should the debate be about?">
       <button class="spark-btn spark-send-btn" onclick="sendSuggestion()">Send</button>
-      <button class="spark-btn spark-cancel-btn" onclick="closeSuggestInput()">✕</button>
+      <button class="spark-btn spark-cancel-btn" onclick="closeSuggestInput()"><svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
   </div>
 
   <!-- Suggestion received panel (fixed, bottom-left) -->
   <div id="suggestionPanel" class="challenge-notif" style="display:none;left:24px;right:auto">
     <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="font-size:1.5rem;flex-shrink:0">💬</div>
+      <div style="flex-shrink:0;color:var(--purple)"><svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div>
       <div style="flex:1">
         <div id="suggestionPanelText" style="font-size:0.88rem;font-weight:600;margin-bottom:10px;line-height:1.4"></div>
         <div style="display:flex;gap:8px">
@@ -391,7 +391,7 @@
   <!-- Speak-request panel (shown to current speaker when listener asks to speak) -->
   <div id="speakRequestPanel" class="challenge-notif" style="display:none;left:24px;right:auto">
     <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="font-size:1.5rem;flex-shrink:0">✋</div>
+      <div style="flex-shrink:0;color:var(--purple)"><svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div>
       <div style="flex:1">
         <div id="speakRequestText" style="font-size:0.88rem;font-weight:600;margin-bottom:10px;line-height:1.4"></div>
         <div style="display:flex;gap:8px">
@@ -408,7 +408,7 @@
   <!-- Free-debate request panel -->
   <div id="freeDebatePanel" class="challenge-notif" style="display:none;left:24px;right:auto">
     <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="font-size:1.5rem;flex-shrink:0">🗣️</div>
+      <div style="flex-shrink:0;color:var(--purple)"><svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></div>
       <div style="flex:1">
         <div id="freeDebatePanelText" style="font-size:0.88rem;font-weight:600;margin-bottom:10px;line-height:1.4"></div>
         <div style="display:flex;gap:8px">
@@ -592,7 +592,7 @@
 
 <!-- Room not found overlay -->
 <div class="debate-ended-overlay" id="roomNotFoundOverlay">
-  <div style="font-size:3rem;margin-bottom:8px">🔗</div>
+  <div style="margin-bottom:8px;color:var(--text-3)"><svg style="width:48px;height:48px;fill:none;stroke:currentColor;stroke-width:1.5" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
   <h2 style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;margin-bottom:8px">Room Not Found</h2>
   <p style="color:var(--text-2);font-size:1rem;margin-bottom:32px;max-width:380px;line-height:1.7">This room link has expired or doesn't exist. It may have already ended, or the link is incorrect.</p>
   <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
@@ -602,7 +602,7 @@
 
 <!-- Debate ended overlay -->
 <div class="debate-ended-overlay" id="endedOverlay">
-  <div style="font-size:3rem;margin-bottom:8px">🏁</div>
+  <div style="margin-bottom:8px;color:var(--purple)"><svg style="width:48px;height:48px;fill:none;stroke:currentColor;stroke-width:1.5" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div>
   <h2 style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;margin-bottom:8px">Debate Ended</h2>
   <p style="color:var(--text-2);font-size:1rem;margin-bottom:32px;max-width:360px;line-height:1.7" id="endedReason">The debate has concluded.</p>
   <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
@@ -614,7 +614,7 @@
 <!-- Image lightbox -->
 <div id="imgLightbox" onclick="closeLightbox()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out">
   <img id="imgLightboxImg" style="max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.7);pointer-events:none" alt="Full size image">
-  <button onclick="closeLightbox()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.14);border:none;color:#fff;cursor:pointer;border-radius:50%;width:38px;height:38px;font-size:1.1rem;display:flex;align-items:center;justify-content:center;pointer-events:auto" aria-label="Close image">✕</button>
+  <button onclick="closeLightbox()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.14);border:none;color:#fff;cursor:pointer;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;pointer-events:auto" aria-label="Close image"><svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 </div>
 
 <!-- Report modal (debate) -->

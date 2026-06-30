@@ -13,12 +13,23 @@ const debateQuestion = localStorage.getItem('debateQuestion') || null;
 let currentUsername  = localStorage.getItem('username') || 'You';
 let currentIdToken   = null;
 
+// -- Small inline icons (used in dynamically-built spectator/highlight UI) --
+const ICON_STAR  = '<svg style="width:12px;height:12px;vertical-align:-1px" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+const ICON_ZAP   = '<svg style="width:12px;height:12px;vertical-align:-1px" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+const ICON_BAN    = '<svg style="width:12px;height:12px;vertical-align:-1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>';
+const ICON_CHECK = '<svg style="width:12px;height:12px;vertical-align:-1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICON_X     = '<svg style="width:12px;height:12px;vertical-align:-1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
 // -- Toast -----------------------------------------------------
 function showToast(msg, type = 'info') {
   const c = document.getElementById('toast-container');
   if (!c) return;
   const colors = { success: 'var(--green)', error: 'var(--red)', info: 'var(--purple)' };
-  const icons  = { success: '✓', error: '✕', info: 'ℹ' };
+  const icons  = {
+    success: '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    info:    '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
   const t = document.createElement('div');
   t.className = `toast ${type}`;
   t.innerHTML = `<span class="toast-icon" style="color:${colors[type]}">${icons[type]}</span> ${msg}`;
@@ -755,9 +766,9 @@ function addSpecComment(payload) {
     </div>
     <div class="spec-panel-comment-body">${escapeHtml(payload.message)}</div>
     <div class="spec-panel-comment-actions">
-      <button class="spec-panel-hl-btn" onclick="highlightSpecComment('${escapeHtml(payload.id)}','${uname}',this)">⭐ Highlight</button>
-      <button class="spec-panel-kick-btn" onclick="kickSpectator('${sid}','${uname}',this)">⚡ Kick</button>
-      <button class="spec-panel-ban-btn" onclick="banSpectator('${sid}','${uname}',this)">🚫 Ban</button>
+      <button class="spec-panel-hl-btn" onclick="highlightSpecComment('${escapeHtml(payload.id)}','${uname}',this)">${ICON_STAR} Highlight</button>
+      <button class="spec-panel-kick-btn" onclick="kickSpectator('${sid}','${uname}',this)">${ICON_ZAP} Kick</button>
+      <button class="spec-panel-ban-btn" onclick="banSpectator('${sid}','${uname}',this)">${ICON_BAN} Ban</button>
     </div>
   `;
   if (specPanelComments) {
@@ -801,10 +812,10 @@ function highlightSpecComment(commentId, username, btn) {
   }
 
   // Revert previous highlight button
-  if (_activeHlBtn) { _activeHlBtn.textContent = '⭐ Highlight'; _activeHlBtn.disabled = false; _activeHlBtn.style.opacity = ''; }
+  if (_activeHlBtn) { _activeHlBtn.innerHTML = ICON_STAR + ' Highlight'; _activeHlBtn.disabled = false; _activeHlBtn.style.opacity = ''; }
 
   socket.emit('highlight-comment', { roomId, commentId, username, message });
-  if (btn) { btn.textContent = '✓ Unhighlight'; btn.disabled = false; btn.style.opacity = ''; }
+  if (btn) { btn.innerHTML = ICON_CHECK + ' Unhighlight'; btn.disabled = false; btn.style.opacity = ''; }
   _activeHlCommentId = commentId;
   _activeHlBtn       = btn;
 }
@@ -820,8 +831,8 @@ function showDebateHlToast(username, message, highlightedBy) {
   const toast = document.createElement('div');
   toast.className = 'debate-hl-toast';
   toast.innerHTML = `
-    <button class="debate-hl-dismiss" onclick="dismissHlToast()" title="Dismiss">✕</button>
-    <div class="debate-hl-label"><span class="debate-hl-star">⭐</span> Spectator Question</div>
+    <button class="debate-hl-dismiss" onclick="dismissHlToast()" title="Dismiss">${ICON_X}</button>
+    <div class="debate-hl-label"><span class="debate-hl-star">${ICON_STAR}</span> Spectator Question</div>
     <div class="debate-hl-author">@${escapeHtml(username)}</div>
     <div class="debate-hl-message">${escapeHtml(message)}</div>
     ${highlightedBy ? `<div class="debate-hl-by">Highlighted by @${escapeHtml(highlightedBy)}</div>` : ''}
@@ -862,7 +873,7 @@ socket.on('comment-highlighted', ({ commentId, username, message, highlightedBy 
     if (header && !header.querySelector('.hl-tag')) {
       const tag = document.createElement('span');
       tag.className = 'hl-tag';
-      tag.textContent = '⭐ Highlighted';
+      tag.innerHTML = ICON_STAR + ' Highlighted';
       header.appendChild(tag);
     }
     setTimeout(() => { el.classList.remove('highlighted'); el.classList.add('highlighted-persist'); }, 1500);
@@ -879,7 +890,7 @@ socket.on('comment-unhighlighted', ({ commentId }) => {
   }
   dismissHlToast();
   if (_activeHlCommentId === commentId) {
-    if (_activeHlBtn) { _activeHlBtn.textContent = '⭐ Highlight'; _activeHlBtn.disabled = false; _activeHlBtn.style.opacity = ''; }
+    if (_activeHlBtn) { _activeHlBtn.innerHTML = ICON_STAR + ' Highlight'; _activeHlBtn.disabled = false; _activeHlBtn.style.opacity = ''; }
     _activeHlCommentId = null;
     _activeHlBtn = null;
   }
@@ -1293,7 +1304,7 @@ socket.on('match-notification', ({ notification }) => {
     banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:500;max-width:480px;width:calc(100% - 32px);background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.1));border:1px solid rgba(139,92,246,0.35);border-radius:14px;padding:14px 44px 14px 16px;box-shadow:0 8px 28px rgba(139,92,246,0.18);font-size:0.88rem;color:var(--text-1);line-height:1.5;animation:mnSlide 0.4s cubic-bezier(0.22,1,0.36,1) forwards';
     const close = document.createElement('button');
     close.style.cssText = 'position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:rgba(139,92,246,0.45);font-size:0.85rem;padding:2px 4px;line-height:1';
-    close.textContent = '✕';
+    close.innerHTML = ICON_X;
     close.onclick = () => banner.remove();
     banner.appendChild(close);
     document.body.appendChild(banner);

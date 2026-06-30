@@ -18,12 +18,23 @@ function compressAvatar(dataUrl) {
   });
 }
 
+// -- Small inline icons (used in notification history entries) --
+const ICON_ZAP   = '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+const ICON_CHECK = '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICON_X     = '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+const ICON_LINK  = '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+const ICON_BULB  = '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>';
+
 // -- Toast -----------------------------------------------------
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   if (!container) return;
   const colors = { success: 'var(--green)', error: 'var(--red)', info: 'var(--purple)' };
-  const icons  = { success: '✓', error: '✕', info: 'ℹ' };
+  const icons  = {
+    success: '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    info:    '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
   const toast  = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.innerHTML = `<span class="toast-icon" style="color:${colors[type]}">${icons[type]}</span> ${message}`;
@@ -183,6 +194,35 @@ function updateProfileUI(profile) {
   const miniCanvas = document.getElementById('miniCompass');
   if (miniCanvas) drawMiniCompass(miniCanvas, profile.politicalX || 0, profile.politicalY || 0);
 }
+
+// -- Instant-load illusion ---------------------------------------
+// The real profile fetch (Firebase auth confirm + Firestore read) takes
+// 1-3s. Cache the last-known profile per-account and render it the moment
+// the script runs, so the page looks fully loaded with zero perceived
+// wait. auth.onAuthStateChanged re-renders with the real data once it
+// arrives — invisible in the common case since nothing changed, and a
+// silent correction (no skeleton flash) on the rare case something did.
+function _profileCacheKey(uid) { return 'ao-profile-cache-' + uid; }
+
+function cacheProfileSnapshot(uid, profile) {
+  try {
+    localStorage.setItem(_profileCacheKey(uid), JSON.stringify({
+      username: profile.username, name: profile.name || '', avatarUrl: profile.avatarUrl || '',
+      bio: profile.bio || '', country: profile.country || '', age: profile.age || null,
+      gender: profile.gender || '', religion: profile.religion || '',
+      politicalX: profile.politicalX || 0, politicalY: profile.politicalY || 0,
+    }));
+  } catch {}
+}
+
+(function renderCachedProfileInstantly() {
+  const uid = localStorage.getItem('userId');
+  if (!uid) return;
+  try {
+    const cached = JSON.parse(localStorage.getItem(_profileCacheKey(uid)) || 'null');
+    if (cached) updateProfileUI(cached);
+  } catch {}
+})();
 
 // -- Helpers ---------------------------------------------------
 function escapeHtml(str) {
@@ -725,19 +765,19 @@ socket.on('challenge-received', ({ from, question }) => {
     ? `${from.username} challenged you! "${question}"`
     : `${from.username} challenged you to a debate!`;
   addToNotifHistory({
-    icon: '⚔️', text: notifBody, type: 'challenge',
+    icon: ICON_ZAP, text: notifBody, type: 'challenge',
     challengerSocketId: from.socketId
   });
 
   if (Notification.permission === 'granted') {
-    new Notification('⚔️ ArgueOut Challenge', {
+    new Notification('ArgueOut Challenge', {
       body: question ? `${from.username}: "${question}"` : `${from.username} is challenging you to a debate!`,
       icon: '/logo.png'
     });
   }
 
   const notifText = document.getElementById('challengeNotifText');
-  if (notifText) notifText.textContent = `⚔️ ${from.username} challenged you to a debate!`;
+  if (notifText) notifText.textContent = `${from.username} challenged you to a debate!`;
 
   const panel = document.getElementById('challengeNotifPanel');
   if (panel) panel.classList.add('active');
@@ -750,7 +790,7 @@ socket.on('challenge-received', ({ from, question }) => {
 });
 
 socket.on('challenge-accepted', ({ roomId, opponent, question }) => {
-  addToNotifHistory({ icon: '✅', text: `${opponent.username} accepted your challenge!` });
+  addToNotifHistory({ icon: ICON_CHECK, text: `${opponent.username} accepted your challenge!` });
   showToast(`Challenge accepted! Starting debate...`, 'success');
   localStorage.setItem('debateRoomId', roomId);
   localStorage.setItem('debateOpponent', JSON.stringify(opponent));
@@ -795,10 +835,10 @@ socket.on('invite-accepted', ({ roomId, opponent }) => {
   pendingInviteRoomId   = roomId;
   pendingInviteOpponent = opponent;
 
-  addToNotifHistory({ icon: '\u{1F517}', text: `${opponent.username} accepted your invite!` });
+  addToNotifHistory({ icon: ICON_LINK, text: `${opponent.username} accepted your invite!` });
 
   if (Notification.permission === 'granted') {
-    new Notification('\u{1F517} ArgueOut Invite', {
+    new Notification('ArgueOut Invite', {
       body: `${opponent.username} accepted your invite! Tap to join the debate.`,
       icon: '/logo.png'
     });
@@ -841,7 +881,7 @@ if (generateInviteBtn) {
 }
 
 socket.on('challenge-rejected', ({ byUsername }) => {
-  addToNotifHistory({ icon: '❌', text: `${byUsername} declined your challenge.` });
+  addToNotifHistory({ icon: ICON_X, text: `${byUsername} declined your challenge.` });
   showToast(`${byUsername} declined your challenge.`, 'info');
   closeProfileModal();
 });
@@ -929,6 +969,7 @@ auth.onAuthStateChanged(async (user) => {
 
     currentUserId = user.uid;
     updateProfileUI(profile);
+    cacheProfileSnapshot(user.uid, profile);
 
     // Keep the accounts list entry fresh with latest profile data
     saveToAccountList({
@@ -1011,7 +1052,7 @@ function showSuggestCard(data) {
     ? `You should debate ${_name} - ${_reason}. ${data.question}`
     : `You should debate ${_name} - ${_reason}.`;
   addToNotifHistory({
-    icon: '\u{1F4A1}', text: _notifText, type: 'suggest',
+    icon: ICON_BULB, text: _notifText, type: 'suggest',
     userId: data.userId, username: data.username, question: data.question || null
   });
 
@@ -1153,7 +1194,7 @@ function renderNotifList() {
     }
     const iconHtml = n.fromAdmin
       ? '<span style="font-size:0.62rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(139,92,246,0.2);color:var(--purple);letter-spacing:0.04em">ADMIN</span>'
-      : (n.icon ? escapeHtml(n.icon) : '');
+      : (n.icon || '');
     return `<div class="notif-item${n.read ? '' : ' unread'}">
       <span class="notif-item-icon">${iconHtml}</span>
       <div class="notif-item-body">
@@ -1668,7 +1709,7 @@ async function requestDeletion() {
       btn.disabled = false;
       return;
     }
-    btn.textContent        = 'Deletion Requested ✓';
+    btn.innerHTML          = 'Deletion Requested ' + ICON_CHECK;
     statusEl.textContent   = 'Your request has been sent to the admin for review.';
     statusEl.style.color   = 'var(--text-3)';
     statusEl.style.display = 'block';

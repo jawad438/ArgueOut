@@ -49,7 +49,7 @@
 
   <!-- Invalid / expired -->
   <div id="invalidState" class="auth-card" style="display:none;text-align:center;padding:48px 32px">
-    <div style="font-size:3rem;margin-bottom:12px">🔗</div>
+    <div style="margin-bottom:12px;color:var(--text-3)"><svg style="width:48px;height:48px;fill:none;stroke:currentColor;stroke-width:1.5" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
     <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:10px">Link Expired</h1>
     <p style="color:var(--text-2);line-height:1.7;margin-bottom:28px" id="invalidMsg">This invite link has expired or doesn't exist.</p>
     <a href="/" class="btn btn-primary">Go to ArgueOut</a>
@@ -57,7 +57,7 @@
 
   <!-- Valid invite — not logged in -->
   <div id="loginPromptState" class="auth-card" style="display:none;text-align:center;padding:40px 32px">
-    <div style="font-size:3rem;margin-bottom:12px">⚔️</div>
+    <div style="margin-bottom:12px;color:var(--amber)"><svg style="width:48px;height:48px;fill:currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
     <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:800;margin-bottom:8px">You've Been Challenged</h1>
     <p style="color:var(--text-2);margin-bottom:6px"><strong id="loginHostName" style="color:var(--text-1)"></strong> has invited you to a live political debate.</p>
     <p style="color:var(--text-3);font-size:0.85rem;margin-bottom:28px" id="loginExpireText"></p>
@@ -67,7 +67,7 @@
 
   <!-- Valid invite — logged in, ready to join -->
   <div id="inviteState" class="auth-card" style="display:none;text-align:center;padding:40px 32px">
-    <div style="font-size:3rem;margin-bottom:12px">⚔️</div>
+    <div style="margin-bottom:12px;color:var(--amber)"><svg style="width:48px;height:48px;fill:currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
     <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:800;margin-bottom:8px">You've Been Challenged</h1>
     <p style="color:var(--text-2);margin-bottom:6px"><strong id="inviteHostName" style="color:var(--text-1)"></strong> has invited you to a live political debate.</p>
     <p style="color:var(--text-3);font-size:0.85rem;margin-bottom:28px" id="inviteExpireText"></p>
