@@ -387,19 +387,35 @@
         margin: 10px auto 2px; flex-shrink: 0;
       }
 
-      /* Floating toggle button to open/close the panel — kept clear of the
-         home-indicator / gesture bar on notched phones */
-      #specSheetToggle {
-        display: flex; position: fixed;
-        bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: 16px; z-index: 110;
+      /* Floating toggle buttons — both share this base, stacked above one
+         another, kept clear of the home-indicator / gesture bar */
+      #specSheetToggle, #specDebateChatToggle {
+        display: flex; position: fixed; right: 16px; z-index: 110;
         width: 50px; height: 50px; border-radius: 50%;
-        background: var(--purple); color: #fff; border: none;
-        align-items: center; justify-content: center;
-        box-shadow: 0 4px 18px rgba(139,92,246,0.45);
-        cursor: pointer; transition: transform 200ms, opacity 200ms;
+        border: none; align-items: center; justify-content: center;
+        cursor: pointer; transition: transform 200ms, opacity 200ms, bottom 200ms;
       }
-      #specSheetToggle.open { background: var(--bg-0); color: var(--text-2); border: 1px solid var(--border); }
-      #specSheetToggle .badge-dot {
+      #specSheetToggle {
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        background: var(--purple); color: #fff;
+        box-shadow: 0 4px 18px rgba(139,92,246,0.45);
+      }
+      /* While open, sit above its own sheet's input row instead of on top of it */
+      #specSheetToggle.open {
+        background: var(--bg-0); color: var(--text-2); border: 1px solid var(--border);
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px) + 64px);
+      }
+      #specDebateChatToggle {
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px) + 62px);
+        background: var(--bg-0); color: var(--text-2); border: 1px solid var(--border);
+        box-shadow: 0 4px 18px rgba(0,0,0,0.28);
+      }
+      #specDebateChatToggle.open { background: var(--purple); color: #fff; border-color: transparent; }
+      /* Only one sheet open at a time — hide the other toggle so they never collide */
+      #specSheetToggle.peer-open, #specDebateChatToggle.peer-open {
+        opacity: 0; pointer-events: none; transform: scale(0.7);
+      }
+      #specSheetToggle .badge-dot, #specDebateChatToggle .badge-dot {
         position: absolute; top: -2px; right: -2px;
         width: 10px; height: 10px; border-radius: 50%;
         background: #ef4444; border: 2px solid var(--bg-0); display: none;
@@ -420,21 +436,39 @@
       .spec-live-badge { padding: 5px; border-radius: 50%; }
       .spec-live-dot { margin: 0; }
 
-      /* ── Debater video grid: taller portrait-leaning slots so phone-camera
-         streams (the common case) don't get crushed into a thin landscape
-         strip and crop out faces — see object-position above for framing. ── */
-      .spec-video-grid { gap: 6px; padding: 10px 10px 8px; }
-      .spec-video-slot { aspect-ratio: 3/4; }
-      .spec-video-initials { width: 38px; height: 38px; font-size: 0.95rem; }
-      .spec-video-label { font-size: 0.66rem; padding: 4px 7px; }
-
-      /* ── Debaters row: compact, never wraps awkwardly on narrow phones ── */
-      .spec-debaters { padding: 10px 12px 8px; gap: 8px; }
+      /* ── Debaters row: compact strip above the video, never wraps awkwardly ── */
+      .spec-debaters { padding: 8px 12px; gap: 8px; flex-shrink: 0; }
       .spec-debater-name { font-size: 0.78rem; }
       .spec-debater-pos { font-size: 0.64rem; padding: 1px 6px; }
       .spec-vs { font-size: 0.68rem; }
 
-      .spec-debate-chat { padding: 12px 14px; }
+      /* ── Cams cover the rest of the screen by default. The debate chat is
+         pulled out of normal flow into its own bottom sheet (below) so the
+         video naturally fills whatever space it isn't using. ── */
+      .spec-video-grid {
+        flex: 1 1 auto; min-height: 0; grid-template-rows: 1fr; gap: 6px; padding: 8px;
+        border-bottom: none;
+      }
+      .spec-video-slot { aspect-ratio: unset; height: 100%; }
+
+      /* ── Debate chat becomes its own bottom sheet (same pattern as
+         .spec-side), independently toggled, mutually exclusive with it ── */
+      .spec-debate-chat {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 100;
+        height: 50dvh; max-height: 50dvh;
+        background: var(--bg-0); border-top: 1px solid var(--border);
+        box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
+        transform: translateY(100%);
+        transition: transform 280ms cubic-bezier(0.16,1,0.3,1);
+        padding: 10px 16px 16px;
+      }
+      .spec-debate-chat.sheet-open { transform: translateY(0); }
+      .spec-debate-chat::before {
+        content: ''; display: block; width: 36px; height: 4px;
+        background: var(--border); border-radius: 2px;
+        margin: 0 auto 8px;
+      }
+
       .spec-input { font-size: 0.9rem; padding: 10px 13px; }
       .spec-send-btn, .spec-branch-start-btn { padding: 10px 14px; }
 
@@ -577,7 +611,11 @@
   </div>
 </div>
 
-<!-- Mobile sheet toggle button (hidden on desktop via CSS) -->
+<!-- Mobile sheet toggle buttons (hidden on desktop via CSS) -->
+<button id="specDebateChatToggle" style="display:none" aria-label="Toggle debate transcript">
+  <svg style="width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+  <span class="badge-dot" id="specDebateChatBadge"></span>
+</button>
 <button id="specSheetToggle" style="display:none" aria-label="Toggle spectator chat">
   <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
   <span class="badge-dot" id="specSheetBadge"></span>
@@ -597,39 +635,69 @@
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 <script>
 (function() {
-  var btn = document.getElementById('specSheetToggle');
-  var side = document.getElementById('specSide');
-  var badge = document.getElementById('specSheetBadge');
-  var sheetOpen = false;
+  // Cams fill the screen by default on mobile; opening either chat slides
+  // its bottom sheet up over the video. Only one sheet is open at a time —
+  // opening one closes the other so they never stack.
+  var specBtn   = document.getElementById('specSheetToggle');
+  var specPane  = document.getElementById('specSide');
+  var specBadge = document.getElementById('specSheetBadge');
+
+  var debateBtn   = document.getElementById('specDebateChatToggle');
+  var debatePane  = document.getElementById('specDebateChat');
+  var debateBadge = document.getElementById('specDebateChatBadge');
+
+  var openSheet = null; // null | 'spec' | 'debate'
 
   function isMobile() { return window.innerWidth <= 800; }
 
   function updateToggleVisibility() {
-    if (btn) btn.style.display = isMobile() ? 'flex' : 'none';
+    var mobile = isMobile();
+    if (specBtn)   specBtn.style.display   = mobile ? 'flex' : 'none';
+    if (debateBtn) debateBtn.style.display = mobile ? 'flex' : 'none';
   }
   updateToggleVisibility();
   window.addEventListener('resize', updateToggleVisibility);
 
-  if (btn) {
-    btn.addEventListener('click', function() {
-      sheetOpen = !sheetOpen;
-      if (side) side.classList.toggle('sheet-open', sheetOpen);
-      btn.classList.toggle('open', sheetOpen);
-      btn.querySelector('svg').style.transform = sheetOpen ? 'rotate(180deg)' : '';
-      if (sheetOpen && badge) badge.style.display = 'none';
+  function setSheet(which) {
+    openSheet = which;
+    var specOpen   = which === 'spec';
+    var debateOpen = which === 'debate';
+
+    if (specPane)  specPane.classList.toggle('sheet-open', specOpen);
+    if (specBtn) {
+      specBtn.classList.toggle('open', specOpen);
+      specBtn.classList.toggle('peer-open', debateOpen);
+      specBtn.querySelector('svg').style.transform = specOpen ? 'rotate(180deg)' : '';
+      if (specOpen && specBadge) specBadge.style.display = 'none';
+    }
+
+    if (debatePane) debatePane.classList.toggle('sheet-open', debateOpen);
+    if (debateBtn) {
+      debateBtn.classList.toggle('open', debateOpen);
+      debateBtn.classList.toggle('peer-open', specOpen);
+      if (debateOpen && debateBadge) debateBadge.style.display = 'none';
+    }
+  }
+
+  if (specBtn) {
+    specBtn.addEventListener('click', function() {
+      setSheet(openSheet === 'spec' ? null : 'spec');
+    });
+  }
+  if (debateBtn) {
+    debateBtn.addEventListener('click', function() {
+      setSheet(openSheet === 'debate' ? null : 'debate');
     });
   }
 
-  // Show badge when new comments arrive while sheet is closed
-  var origAdd = window.addSpectatorComment;
-  document.addEventListener('spec-comment-added', function() {
-    if (!sheetOpen && isMobile() && badge) badge.style.display = 'block';
-  });
-
-  // Expose sheet state so spectate.js can notify badge
-  window._specSheetIsOpen = function() { return sheetOpen; };
+  // Expose sheet state so spectate.js can notify badges
+  window._specSheetIsOpen = function() { return openSheet === 'spec'; };
   window._specSheetShowBadge = function() {
-    if (!sheetOpen && isMobile() && badge) badge.style.display = 'block';
+    if (openSheet !== 'spec' && isMobile() && specBadge) specBadge.style.display = 'block';
+  };
+  window._specDebateSheetIsOpen = function() { return openSheet === 'debate'; };
+  window._specDebateSheetShowBadge = function() {
+    if (openSheet !== 'debate' && isMobile() && debateBadge) debateBadge.style.display = 'block';
   };
 }());
 </script>

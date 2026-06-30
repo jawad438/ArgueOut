@@ -76,6 +76,8 @@ function addDebateMessage(username, message, timestamp) {
   `;
   feed.appendChild(div);
   feed.scrollTop = feed.scrollHeight;
+
+  if (typeof window._specDebateSheetShowBadge === 'function') window._specDebateSheetShowBadge();
 }
 
 // ── Spectator comments ───────────────────────────────────────
