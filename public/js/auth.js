@@ -162,20 +162,33 @@ auth.getRedirectResult().then(result => {
   if (result && result.user) _finishGoogleSignIn(result).catch(() => {});
 }).catch(() => {});
 
+async function _getGoogleWebClientId() {
+  const r = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${firebase.app().options.apiKey}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerId: 'google.com', continueUri: location.origin }) }
+  );
+  const d = await r.json();
+  return new URL(d.authUri).searchParams.get('client_id');
+}
+
 async function handleGoogleSignIn(btnId) {
   const btn = btnId ? document.getElementById(btnId) : null;
 
-  // Native Android Google Sign-In via Google Play Services (no SHA-1 needed)
+  // Native Android Google Sign-In: device account picker, ID token flow
   if (typeof window.AndroidAuth !== 'undefined') {
     if (btn) setLoading(btn, true, 'Connecting...');
     try {
-      const accessToken = await new Promise((resolve, reject) => {
+      const clientId = await _getGoogleWebClientId();
+      if (!clientId) throw new Error('no-client-id');
+
+      const idToken = await new Promise((resolve, reject) => {
         window.onAndroidGoogleToken = t => { cleanup(); resolve(t); };
         window.onAndroidGoogleError = c => { cleanup(); reject(c); };
         function cleanup() { window.onAndroidGoogleToken = null; window.onAndroidGoogleError = null; }
-        window.AndroidAuth.startGoogleSignIn();
+        window.AndroidAuth.startGoogleSignIn(clientId);
       });
-      const credential = firebase.auth.GoogleAuthProvider.credential(null, accessToken);
+      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
       const result = await auth.signInWithCredential(credential);
       await _finishGoogleSignIn(result);
     } catch (err) {

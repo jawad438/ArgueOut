@@ -340,16 +340,25 @@ async function acctModalGoogleSignIn() {
   const errTx = document.getElementById('acctModalErrText');
   errEl.style.display = 'none';
 
-  // Native Android Google Sign-In via Google Play Services (no SHA-1 needed)
+  // Native Android Google Sign-In: device account picker, ID token flow
   if (typeof window.AndroidAuth !== 'undefined') {
     try {
-      const accessToken = await new Promise((resolve, reject) => {
+      const r = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${firebase.app().options.apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ providerId: 'google.com', continueUri: location.origin }) }
+      );
+      const d = await r.json();
+      const clientId = new URL(d.authUri).searchParams.get('client_id');
+      if (!clientId) throw new Error('no-client-id');
+
+      const idToken = await new Promise((resolve, reject) => {
         window.onAndroidGoogleToken = t => { cleanup(); resolve(t); };
         window.onAndroidGoogleError = c => { cleanup(); reject(c); };
         function cleanup() { window.onAndroidGoogleToken = null; window.onAndroidGoogleError = null; }
-        window.AndroidAuth.startGoogleSignIn();
+        window.AndroidAuth.startGoogleSignIn(clientId);
       });
-      const credential = firebase.auth.GoogleAuthProvider.credential(null, accessToken);
+      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
       const result = await auth.signInWithCredential(credential);
       await _finishLobbyGoogleSignIn(result);
     } catch (err) {

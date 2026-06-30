@@ -15,8 +15,6 @@ import android.webkit.WebViewClient;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import com.google.android.gms.auth.GoogleAuthUtil;
-import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -32,7 +30,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String APP_URL = "https://argueout.onrender.com/lobby";
     private static final int PERMISSION_REQUEST_CODE = 1;
     private static final int RC_SIGN_IN = 9001;
-    private static final int RC_RECOVERABLE = 9002;
 
     private WebView webView;
     private PermissionRequest pendingPermissionRequest;
@@ -101,12 +98,13 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // Called from JavaScript with no arguments — no SHA-1 registration needed
+    // Called from JavaScript with the Firebase web OAuth client ID
     class AndroidAuth {
         @JavascriptInterface
-        public void startGoogleSignIn() {
+        public void startGoogleSignIn(final String webClientId) {
             runOnUiThread(() -> {
                 GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                        .requestIdToken(webClientId)
                         .requestEmail()
                         .build();
                 googleSignInClient = GoogleSignIn.getClient(MainActivity.this, gso);
@@ -120,43 +118,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == RC_RECOVERABLE) {
-            // User granted consent; re-trigger sign-in so they pick again
-            if (googleSignInClient != null) {
-                startActivityForResult(googleSignInClient.getSignInIntent(), RC_SIGN_IN);
-            }
-            return;
-        }
-
         if (requestCode != RC_SIGN_IN) return;
 
         Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
         try {
-            final GoogleSignInAccount account = task.getResult(ApiException.class);
-
-            // Fetch an OAuth access token on a background thread (blocking network call).
-            // Use the email-string overload — account.getAccount() needs GET_ACCOUNTS
-            // permission to be non-null and we don't want to require that.
-            new Thread(() -> {
-                try {
-                    String scope = "oauth2:profile email";
-                    String accessToken = GoogleAuthUtil.getToken(
-                            MainActivity.this, account.getEmail(), scope);
-                    String js = "window.onAndroidGoogleToken && window.onAndroidGoogleToken("
-                            + JSONObject.quote(accessToken) + ")";
-                    webView.post(() -> webView.evaluateJavascript(js, null));
-                } catch (UserRecoverableAuthException ure) {
-                    // Need user's consent for the scopes — show consent dialog
-                    runOnUiThread(() -> startActivityForResult(ure.getIntent(), RC_RECOVERABLE));
-                } catch (Exception e) {
-                    String detail = e.getClass().getSimpleName() + ": " + e.getMessage();
-                    String js = "window.onAndroidGoogleError && window.onAndroidGoogleError("
-                            + JSONObject.quote(detail) + ")";
-                    webView.post(() -> webView.evaluateJavascript(js, null));
-                }
-            }).start();
-
+            GoogleSignInAccount account = task.getResult(ApiException.class);
+            String idToken = account.getIdToken();
+            if (idToken != null) {
+                String js = "window.onAndroidGoogleToken && window.onAndroidGoogleToken("
+                        + JSONObject.quote(idToken) + ")";
+                webView.post(() -> webView.evaluateJavascript(js, null));
+            } else {
+                String js = "window.onAndroidGoogleError && window.onAndroidGoogleError(\"no_id_token\")";
+                webView.post(() -> webView.evaluateJavascript(js, null));
+            }
         } catch (ApiException e) {
             String reason = (e.getStatusCode() == 12501) ? "cancelled" : String.valueOf(e.getStatusCode());
             String js = "window.onAndroidGoogleError && window.onAndroidGoogleError("
