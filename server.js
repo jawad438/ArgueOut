@@ -1468,10 +1468,13 @@ io.on('connection', socket => {
 
     socket.emit('authenticated', { userId: decoded.uid, username: userData.username });
 
-    // Deliver any pending (unread) admin notifications from Firestore
+    // Deliver any pending (unread) admin notifications from Firestore.
+    // Scoped to type=='admin' specifically — this collection now also holds
+    // other notification kinds (e.g. challenges) that must NOT be relabeled
+    // and surfaced through the admin-message toast/badge flow below.
     try {
       const notifSnap = await fstore.collection('notifications').doc(decoded.uid)
-        .collection('items').where('read', '==', false).limit(20).get();
+        .collection('items').where('read', '==', false).where('type', '==', 'admin').limit(20).get();
       if (!notifSnap.empty) {
         const batch = fstore.batch();
         const messages = [];
@@ -1731,6 +1734,17 @@ io.on('connection', socket => {
       from:     { socketId: socket.id, userId: me.userId, username: me.username },
       question: question || null
     });
+    // Also persist to Firestore: the in-app bell dropdown is live/in-memory
+    // only, but on mobile the bell navigates to the separate /notifications
+    // page instead, which reads from here. Without this write that page
+    // showed "All clear" even right after a challenge actually arrived.
+    const notifMsg = question
+      ? `${me.username} challenged you! "${question}"`
+      : `${me.username} challenged you to a debate!`;
+    fstore.collection('notifications').doc(safeTarget).collection('items').add({
+      type: 'challenge', message: notifMsg, read: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    }).catch(err => console.error('[send-challenge] notif persist error:', err.message));
   });
 
   socket.on('accept-challenge', ({ challengerSocketId }) => {
