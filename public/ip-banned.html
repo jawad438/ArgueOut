@@ -19,11 +19,68 @@
   <div class="auth-card" style="text-align:center;padding:56px 32px;max-width:460px">
     <div style="font-size:3.5rem;margin-bottom:16px;line-height:1">&#x1F512;</div>
     <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:10px">Access Denied</h1>
-    <p style="color:var(--text-2);line-height:1.7">Your network has been blocked from accessing ArgueOut due to a violation of our terms of service.</p>
+    <p style="color:var(--text-2);line-height:1.7;margin-bottom:20px">Your network has been blocked from accessing ArgueOut due to a violation of our terms of service.</p>
+
+    <div id="appealSection" style="display:none;text-align:left">
+      <label class="form-label" for="appealMsg" style="display:block;margin-bottom:6px">Think this is a mistake? Appeal it</label>
+      <textarea id="appealMsg" class="form-input" maxlength="200" placeholder="Briefly explain why (5–200 characters)" style="min-height:80px;resize:vertical;width:100%"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <span id="appealCount" style="font-size:0.72rem;color:var(--text-3)">0/200</span>
+        <button class="btn btn-primary btn-sm" id="appealSubmitBtn" onclick="submitAppeal()">Send Appeal</button>
+      </div>
+      <div id="appealStatus" style="font-size:0.8rem;margin-top:8px;min-height:18px"></div>
+    </div>
+    <div id="appealSentMsg" style="display:none;text-align:left;padding:10px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;color:var(--green);font-size:0.85rem">
+      Your appeal has been sent and is pending review.
+    </div>
   </div>
 </div>
 <script src="/js/bg.js"></script>
 <script src="/js/theme.js"></script>
+<script>
+(async function checkAppealStatus() {
+  try {
+    const res = await fetch('/api/appeal-ip/status');
+    const data = await res.json();
+    document.getElementById(data.pending ? 'appealSentMsg' : 'appealSection').style.display = 'block';
+  } catch {
+    document.getElementById('appealSection').style.display = 'block';
+  }
+})();
+
+document.getElementById('appealMsg')?.addEventListener('input', e => {
+  document.getElementById('appealCount').textContent = e.target.value.length + '/200';
+});
+
+async function submitAppeal() {
+  const textarea = document.getElementById('appealMsg');
+  const statusEl = document.getElementById('appealStatus');
+  const btn      = document.getElementById('appealSubmitBtn');
+  const msg = textarea.value.trim();
+  if (msg.length < 5 || msg.length > 200) {
+    statusEl.textContent = 'Message must be 5–200 characters.';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    const res = await fetch('/api/appeal-ip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send appeal.');
+    document.getElementById('appealSection').style.display = 'none';
+    document.getElementById('appealSentMsg').style.display = 'block';
+  } catch (err) {
+    statusEl.textContent = err.message || 'Failed to send appeal. Try again.';
+    statusEl.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send Appeal';
+  }
+}
+</script>
 <script src="/js/legal-footer.js"></script>
 </body>
 </html>

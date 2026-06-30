@@ -47,6 +47,7 @@ const durOptions = DURATIONS.map(d =>
 // Socket
 const socket = io({ autoConnect: false });
 let currentFilter = 'pending';
+let currentAppealFilter = 'pending';
 let resolvedNotifUserId = null;
 let allUsersCache = [];
 
@@ -58,12 +59,19 @@ socket.on('connect', () => {
 
 socket.on('authenticated', () => {
   loadReports('pending');
+  loadAppeals('pending');
 });
 
 socket.on('admin-new-deletion-request', ({ username }) => {
   showToast(`🗑️ New deletion request from @${username || 'unknown'}`, 'error');
   const usersPane = document.getElementById('pane-users');
   if (usersPane && usersPane.classList.contains('active')) loadDeletionRequests();
+});
+
+socket.on('admin-new-appeal', ({ username, type }) => {
+  const who = username ? '@' + username : 'an IP-banned visitor';
+  showToast(`📨 New ${type} appeal from ${who}`, 'info');
+  loadAppeals(currentAppealFilter);
 });
 
 socket.on('admin-reports', ({ reports }) => {
@@ -120,12 +128,13 @@ function switchTab(name) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   const pane = document.getElementById(`pane-${name}`);
   const tabs = document.querySelectorAll('.admin-tab');
-  const tabNames = ['reports','users','notify','whitelist'];
+  const tabNames = ['reports','users','appeals','notify','whitelist'];
   if (pane) pane.classList.add('active');
   const idx = tabNames.indexOf(name);
   if (tabs[idx]) tabs[idx].classList.add('active');
 
   if (name === 'users') { loadAllUsers(); loadDeletionRequests(); }
+  if (name === 'appeals') loadAppeals(currentAppealFilter);
   if (name === 'whitelist') loadWhitelist();
 }
 
@@ -551,6 +560,97 @@ async function confirmDeleteUser(uid, username) {
     loadDeletionRequests();
   } catch {
     showToast('Error deleting account.', 'error');
+  }
+}
+
+// ── Appeals ────────────────────────────────────────────────────
+const APPEAL_TYPE_LABEL = { timeout: 'Timeout', ban: 'Ban', 'ip-ban': 'IP Ban' };
+
+async function loadAppeals(filter = 'pending') {
+  currentAppealFilter = filter;
+  document.getElementById('appeal-filt-pending')?.classList.toggle('active', filter === 'pending');
+  document.getElementById('appeal-filt-all')?.classList.toggle('active', filter === 'all');
+  const list = document.getElementById('appealsList');
+  if (list && document.getElementById('pane-appeals')?.classList.contains('active')) {
+    list.innerHTML = '<div class="admin-empty">Loading&hellip;</div>';
+  }
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/admin/appeals', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) { if (list) list.innerHTML = `<div class="admin-empty">Error loading appeals (${res.status}).</div>`; return; }
+    const data = await res.json();
+    const appeals = (data.appeals || []).filter(a => filter === 'all' || a.status === 'pending');
+
+    const badge = document.getElementById('appealsBadge');
+    const pendingCount = (data.appeals || []).filter(a => a.status === 'pending').length;
+    if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount ? 'inline' : 'none'; }
+
+    renderAppeals(appeals);
+  } catch {
+    if (list) list.innerHTML = '<div class="admin-empty">Error loading appeals.</div>';
+  }
+}
+
+function renderAppeals(appeals) {
+  const list = document.getElementById('appealsList');
+  if (!list) return;
+  if (!appeals.length) {
+    list.innerHTML = '<div class="admin-empty">No appeals found.</div>';
+    return;
+  }
+  list.innerHTML = appeals.map(a => {
+    const isPending = a.status === 'pending';
+    const who = a.username ? '@' + escapeHtml(a.username) : `IP ${escapeHtml(a.ip || 'unknown')}`;
+    return `
+    <div class="report-item${!isPending ? ' report-dismissed' : ''}">
+      <div class="report-header">
+        <span class="report-parties">
+          ${who}
+          <span class="report-loc" style="margin-left:6px">${APPEAL_TYPE_LABEL[a.type] || a.type}</span>
+        </span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="report-meta">${relTime(a.createdAt)}</span>
+          ${!isPending ? `<span class="report-loc" style="color:var(--text-3)">${escapeHtml(a.status)}</span>` : ''}
+        </div>
+      </div>
+      <div class="report-reason">"${escapeHtml(a.message)}"</div>
+      ${isPending ? `
+      <div class="report-actions">
+        <button class="btn btn-ghost btn-sm" onclick="dismissAppeal('${a.id}')">Dismiss</button>
+        <button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--green);border:1px solid rgba(34,197,94,0.25)" onclick="approveAppeal('${a.id}')">Approve &amp; Lift Restriction</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function approveAppeal(id) {
+  if (!confirm('Approve this appeal and lift the restriction?')) return;
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/admin/appeals/' + encodeURIComponent(id) + '/approve', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error', 'error'); return; }
+    showToast('Appeal approved — restriction lifted.', 'success');
+    loadAppeals(currentAppealFilter);
+  } catch {
+    showToast('Error approving appeal.', 'error');
+  }
+}
+
+async function dismissAppeal(id) {
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/admin/appeals/' + encodeURIComponent(id) + '/dismiss', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error', 'error'); return; }
+    showToast('Appeal dismissed.', 'success');
+    loadAppeals(currentAppealFilter);
+  } catch {
+    showToast('Error dismissing appeal.', 'error');
   }
 }
 

@@ -22,6 +22,20 @@
     <h1 id="banTitle" style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:10px">Account Restricted</h1>
     <p id="banDesc" style="color:var(--text-2);line-height:1.7;margin-bottom:24px">Checking your account status&hellip;</p>
     <div id="countdown" style="display:none;font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:700;color:var(--purple);letter-spacing:0.04em;margin-bottom:24px"></div>
+
+    <div id="appealSection" style="display:none;text-align:left;margin-bottom:20px">
+      <label class="form-label" for="appealMsg" style="display:block;margin-bottom:6px">Think this is a mistake? Appeal it</label>
+      <textarea id="appealMsg" class="form-input" maxlength="200" placeholder="Briefly explain why (5–200 characters)" style="min-height:80px;resize:vertical;width:100%"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <span id="appealCount" style="font-size:0.72rem;color:var(--text-3)">0/200</span>
+        <button class="btn btn-primary btn-sm" id="appealSubmitBtn" onclick="submitAppeal()">Send Appeal</button>
+      </div>
+      <div id="appealStatus" style="font-size:0.8rem;margin-top:8px;min-height:18px"></div>
+    </div>
+    <div id="appealSentMsg" style="display:none;margin-bottom:20px;padding:10px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;color:var(--green);font-size:0.85rem">
+      Your appeal has been sent and is pending review.
+    </div>
+
     <button class="btn btn-ghost" onclick="handleSignOut()">Sign out</button>
   </div>
 </div>
@@ -72,6 +86,60 @@ function handleSignOut() {
   auth.signOut().then(() => { window.location.href = '/login'; });
 }
 
+let _appealStatusChecked = false;
+
+async function checkAppealStatus() {
+  if (_appealStatusChecked) return;
+  _appealStatusChecked = true;
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/appeal/status', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    if (data.pending) {
+      document.getElementById('appealSection').style.display = 'none';
+      document.getElementById('appealSentMsg').style.display = 'block';
+    } else {
+      document.getElementById('appealSection').style.display = 'block';
+    }
+  } catch {
+    document.getElementById('appealSection').style.display = 'block';
+  }
+}
+
+async function submitAppeal() {
+  const textarea = document.getElementById('appealMsg');
+  const statusEl = document.getElementById('appealStatus');
+  const btn      = document.getElementById('appealSubmitBtn');
+  const msg = textarea.value.trim();
+  if (msg.length < 5 || msg.length > 200) {
+    statusEl.textContent = 'Message must be 5–200 characters.';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/appeal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ message: msg })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send appeal.');
+    document.getElementById('appealSection').style.display = 'none';
+    document.getElementById('appealSentMsg').style.display = 'block';
+  } catch (err) {
+    statusEl.textContent = err.message || 'Failed to send appeal. Try again.';
+    statusEl.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send Appeal';
+  }
+}
+
+document.getElementById('appealMsg')?.addEventListener('input', e => {
+  document.getElementById('appealCount').textContent = e.target.value.length + '/200';
+});
+
 function applyBanData(data) {
   if (!data.banned) {
     window.location.href = '/lobby';
@@ -99,6 +167,7 @@ function applyBanData(data) {
     titleEl.textContent = 'You\'ve been banned';
     descEl.textContent  = 'Your account has been permanently removed from ArgueOut due to a violation of our community guidelines.';
   }
+  checkAppealStatus();
 }
 
 auth.onAuthStateChanged(user => {

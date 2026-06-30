@@ -152,6 +152,7 @@
     <div class="admin-tabs">
       <button class="admin-tab active" onclick="switchTab('reports')">Reports</button>
       <button class="admin-tab" onclick="switchTab('users')">Users</button>
+      <button class="admin-tab" onclick="switchTab('appeals')">Appeals<span id="appealsBadge" style="display:none;margin-left:6px;background:rgba(239,68,68,0.18);color:var(--red);font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:99px"></span></button>
       <button class="admin-tab" onclick="switchTab('notify')">Notify</button>
       <button class="admin-tab" onclick="switchTab('whitelist')">Whitelist</button>
     </div>
@@ -191,6 +192,18 @@
         <button class="btn btn-primary btn-sm" onclick="searchUsers()">Search</button>
       </div>
       <div id="usersList"><div class="admin-empty">Search for a user above</div></div>
+    </div>
+
+    <!-- Appeals tab -->
+    <div class="admin-pane" id="pane-appeals">
+      <div class="filter-row">
+        <button class="filter-btn active" id="appeal-filt-pending" onclick="loadAppeals('pending')">Pending</button>
+        <button class="filter-btn" id="appeal-filt-all" onclick="loadAppeals('all')">All</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadAppeals(currentAppealFilter)" style="margin-left:auto">&#8635; Refresh</button>
+      </div>
+      <div id="appealsList">
+        <div class="admin-empty">Loading&hellip;</div>
+      </div>
     </div>
 
     <!-- Whitelist tab -->

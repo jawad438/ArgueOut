@@ -195,10 +195,11 @@ const strictLimiter = rateLimit({
 
 app.use(express.json({ limit: '64kb' })); // cap request body size
 
-// Block IP-banned clients from all HTTP pages
+// Block IP-banned clients from all HTTP pages — except the appeal endpoint,
+// so a banned visitor can still send the admin a short appeal message.
 app.use((req, res, next) => {
   const ip = getClientIp(req);
-  if (ip && bannedIpSet.has(ip)) {
+  if (ip && bannedIpSet.has(ip) && req.path !== '/api/appeal-ip' && req.path !== '/api/appeal-ip/status') {
     return res.status(403).sendFile(path.join(__dirname, 'public', 'ip-banned.html'));
   }
   next();
@@ -453,6 +454,169 @@ app.post('/api/admin/deletion-requests/:uid/dismiss', async (req, res) => {
   if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
   try {
     await fstore.collection('deletion_requests').doc(req.params.uid).update({ status: 'dismissed' });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// -- Ban / timeout / IP-ban appeals --------------------------------------------
+function validAppealMessage(message) {
+  const msg = typeof message === 'string' ? message.trim() : '';
+  return (msg.length >= 5 && msg.length <= 200) ? msg : null;
+}
+
+async function notifyAdminsNewAppeal(payload) {
+  try {
+    const sockets = await io.fetchSockets();
+    for (const s of sockets) {
+      if (s.data.isAdmin) s.emit('admin-new-appeal', payload);
+    }
+  } catch (e) { console.error('[appeal] notify-admins error:', e.message); }
+}
+
+// Logged-in user (account ban or timeout) submits an appeal
+app.post('/api/appeal', strictLimiter, async (req, res) => {
+  const h = req.headers.authorization || '';
+  const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!t) return res.status(401).json({ error: 'Unauthorized' });
+  let decoded;
+  try { decoded = await admin.auth().verifyIdToken(t); } catch { return res.status(401).json({ error: 'Unauthorized' }); }
+  const msg = validAppealMessage(req.body?.message);
+  if (!msg) return res.status(400).json({ error: 'Message must be 5–200 characters.' });
+  try {
+    const userDoc = await fstore.collection('users').doc(decoded.uid).get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    const u = userDoc.data();
+    const bannedUntil = u.bannedUntil ? u.bannedUntil.toDate() : null;
+    if (!u.banned || (bannedUntil && bannedUntil <= new Date()))
+      return res.status(400).json({ error: 'Your account is not currently restricted.' });
+
+    const existing = await fstore.collection('appeals').where('uid', '==', decoded.uid).limit(20).get();
+    if (existing.docs.some(d => d.data().status === 'pending'))
+      return res.status(409).json({ error: 'You already have a pending appeal.' });
+
+    const appealData = {
+      uid: decoded.uid, username: u.username || '', ip: getClientIp(req),
+      type: bannedUntil ? 'timeout' : 'ban', message: msg, status: 'pending',
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    await fstore.collection('appeals').add(appealData);
+    res.json({ ok: true });
+    notifyAdminsNewAppeal({ username: appealData.username, type: appealData.type });
+  } catch (e) {
+    console.error('[appeal]', e.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Logged-in user: does a pending appeal already exist?
+app.get('/api/appeal/status', async (req, res) => {
+  const h = req.headers.authorization || '';
+  const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!t) return res.status(401).json({ error: 'Unauthorized' });
+  let decoded;
+  try { decoded = await admin.auth().verifyIdToken(t); } catch { return res.status(401).json({ error: 'Unauthorized' }); }
+  try {
+    const snap = await fstore.collection('appeals').where('uid', '==', decoded.uid).limit(20).get();
+    res.json({ pending: snap.docs.some(d => d.data().status === 'pending') });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// IP-banned: does a pending appeal already exist for this IP?
+app.get('/api/appeal-ip/status', async (req, res) => {
+  const ip = getClientIp(req);
+  if (!ip || !bannedIpSet.has(ip)) return res.status(400).json({ error: 'Your network is not currently blocked.' });
+  try {
+    const snap = await fstore.collection('appeals').where('ip', '==', ip).limit(20).get();
+    res.json({ pending: snap.docs.some(d => d.data().status === 'pending') });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// IP-banned (unauthenticated, can't reach any other route) submits an appeal
+app.post('/api/appeal-ip', strictLimiter, async (req, res) => {
+  const ip = getClientIp(req);
+  if (!ip || !bannedIpSet.has(ip)) return res.status(400).json({ error: 'Your network is not currently blocked.' });
+  const msg = validAppealMessage(req.body?.message);
+  if (!msg) return res.status(400).json({ error: 'Message must be 5–200 characters.' });
+  try {
+    const existing = await fstore.collection('appeals').where('ip', '==', ip).limit(20).get();
+    if (existing.docs.some(d => d.data().status === 'pending'))
+      return res.status(409).json({ error: 'You already have a pending appeal.' });
+
+    const appealData = {
+      uid: null, username: null, ip, type: 'ip-ban', message: msg,
+      status: 'pending', createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    await fstore.collection('appeals').add(appealData);
+    res.json({ ok: true });
+    notifyAdminsNewAppeal({ username: null, type: 'ip-ban' });
+  } catch (e) {
+    console.error('[appeal-ip]', e.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: list appeals
+app.get('/api/admin/appeals', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const snap = await fstore.collection('appeals').orderBy('createdAt', 'desc').limit(150).get();
+    const appeals = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id, uid: data.uid || null, username: data.username || null, ip: data.ip || null,
+        type: data.type, message: data.message, status: data.status,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null
+      };
+    });
+    res.json({ appeals });
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: approve an appeal — lifts the ban/timeout/IP-ban it refers to
+app.post('/api/admin/appeals/:id/approve', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const ref = fstore.collection('appeals').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Not found' });
+    const a = doc.data();
+
+    if (a.type === 'ip-ban') {
+      if (a.ip) {
+        await fstore.collection('banned_ips').doc(a.ip).delete().catch(() => {});
+        bannedIpSet.delete(a.ip);
+        const usnap = await fstore.collection('users').where('bannedIp', '==', a.ip).get();
+        if (!usnap.empty) {
+          const batch = fstore.batch();
+          usnap.docs.forEach(d => batch.update(d.ref, { banned: false, bannedUntil: null, ipBanned: false, bannedIp: null }));
+          await batch.commit();
+        }
+      }
+    } else if (a.uid) {
+      await fstore.collection('users').doc(a.uid).update({ banned: false, bannedUntil: null, ipBanned: false, bannedIp: null });
+      try {
+        const sockets = await io.fetchSockets();
+        for (const s of sockets) if (s.data.userId === a.uid) s.emit('account-unbanned');
+      } catch {}
+    }
+
+    await ref.update({ status: 'resolved' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[admin appeal approve]', e.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: dismiss an appeal without lifting the restriction
+app.post('/api/admin/appeals/:id/dismiss', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    await fstore.collection('appeals').doc(req.params.id).update({ status: 'dismissed' });
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Server error' });
