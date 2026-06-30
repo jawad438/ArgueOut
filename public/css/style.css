@@ -2141,6 +2141,28 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   .lf-bar    { display: none !important; }
 }
 
+/* ── 7c. ANDROID WEBVIEW PAINT-FREEZE FIX ──────────────────────────────────────
+   Root cause of the app "freezing" (screen stops updating but taps still land,
+   only un-sticking when you background and reopen the app): a position:fixed
+   element with backdrop-filter: blur() — the .navbar is on every page, plus the
+   glass cards/modals — triggers a long-standing Android WebView compositor bug.
+   The page loads and stays interactive, but Chromium never flushes a new frame
+   to the screen until the drawing surface is recreated, which is exactly what an
+   app background -> foreground cycle does. Removing backdrop-filter at mobile/app
+   widths eliminates the trigger so every page and navigation paints normally.
+   The blur is barely perceptible on a phone and the mobile design already runs a
+   plain background (orbs/particle canvas/body animation are all disabled above),
+   so visually this is essentially a no-op; cards stay delineated by their border
+   and shadow, and the fixed navbar is made solid so it reads cleanly without the
+   frosted effect. */
+@media (max-width: 1024px) {
+  *, *::before, *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .navbar { background: var(--bg-1); }
+}
+
 /* ── 8. VIDEO LAYOUT + DEBATE MOBILE CLEANUP ───────────────────────────────── */
 @media (max-width: 640px) {
   /* Hide logo and User-vs-User header text */
