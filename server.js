@@ -170,7 +170,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiting — global (all routes)
+// Rate limiting — API routes only. Static assets, page loads, and the
+// socket.io polling handshake must never count against this — a single
+// page load pulls down dozens of files (css/js/images/fonts), so applying
+// this globally was exhausting the budget after just a few page reloads.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
   max: 300,
@@ -178,7 +181,7 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: req => getClientIp(req),
   message: { error: 'Too many requests. Please slow down.' },
-  skip: req => req.path === '/api/health'
+  skip: req => !req.path.startsWith('/api') || req.path === '/api/health'
 });
 app.use(globalLimiter);
 

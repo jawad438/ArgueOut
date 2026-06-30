@@ -606,65 +606,6 @@ document.getElementById('sparkSuggestInput')?.addEventListener('keydown', e => {
   if (e.key === 'Enter') sendSuggestion();
 });
 
-// Shows the topic in a centered popup (synced to both users via the same socket
-// event), then flies it down into the spark banner where it lands and stays
-// for the rest of the debate.
-function flyTopicIntoBanner(question, onLand) {
-  const popup  = document.getElementById('topicRevealPopup');
-  const card   = document.getElementById('topicRevealCard');
-  const text   = document.getElementById('topicRevealText');
-  const banner = document.getElementById('sparkBanner');
-  const qv     = document.getElementById('questionView');
-  const qEl    = document.getElementById('sparkQuestion');
-
-  if (!popup || !card || !text || !banner || !qv || !qEl) {
-    if (qEl) { qEl.textContent = question; qEl.style.color = ''; qEl.style.fontStyle = ''; }
-    if (onLand) onLand();
-    return;
-  }
-
-  text.textContent = question;
-  card.classList.remove('flying');
-  card.style.transform = '';
-  card.style.opacity = '';
-  popup.style.display = 'flex';
-  card.style.animation = 'none';
-  void card.offsetWidth;
-  card.style.animation = '';
-
-  // Lay out the destination invisibly so we can measure exactly where to fly to.
-  banner.style.display = 'flex';
-  qv.style.display = 'flex';
-  banner.style.visibility = 'hidden';
-
-  setTimeout(() => {
-    const startRect = card.getBoundingClientRect();
-    const endRect   = qEl.getBoundingClientRect();
-    banner.style.visibility = '';
-
-    const dx = (endRect.left + endRect.width / 2) - (startRect.left + startRect.width / 2);
-    const dy = (endRect.top + endRect.height / 2) - (startRect.top + startRect.height / 2);
-    const scale = Math.max(0.15, Math.min(0.55, (endRect.width / startRect.width) || 0.3));
-
-    card.classList.add('flying');
-    requestAnimationFrame(() => {
-      card.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
-      card.style.opacity = '0';
-    });
-
-    setTimeout(() => {
-      qEl.textContent = question;
-      qEl.style.color = '';
-      qEl.style.fontStyle = '';
-      popup.style.display = 'none';
-      card.classList.remove('flying');
-      card.style.transform = '';
-      card.style.opacity = '';
-      if (onLand) onLand();
-    }, 660);
-  }, 1100);
-}
-
 socket.on('question-generating', () => {
   const rtv    = document.getElementById('requestTopicView');
   const status = document.getElementById('requestTopicStatus');
@@ -688,12 +629,12 @@ socket.on('question-updated', ({ question, error }) => {
   const skip   = document.getElementById('sparkSkipBtn');
   const sug    = document.getElementById('sparkSuggestBtn');
   if (rtv) rtv.style.display = 'none';
+  if (qv)  qv.style.display = 'flex';
+  if (banner) banner.style.display = 'flex';
   if (error) {
-    if (qv)     qv.style.display = 'flex';
-    if (banner) banner.style.display = 'flex';
     if (qEl) { qEl.textContent = error; qEl.style.color = '#f87171'; qEl.style.fontStyle = 'italic'; }
   } else {
-    flyTopicIntoBanner(question);
+    if (qEl) { qEl.textContent = question; qEl.style.color = ''; qEl.style.fontStyle = ''; }
     localStorage.setItem('debateQuestion', question);
   }
   if (skip)  { skip.textContent = 'Skip'; skip.disabled = false; }
