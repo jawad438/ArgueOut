@@ -31,13 +31,15 @@
    because that API was unreliable in Android WebView. Animates <html>
    rather than <body> since body already owns the light-theme hue animation. */
 @media (max-width: 1024px) {
-  html.ao-page-enter   { animation: ao-slide-in 240ms cubic-bezier(0.4, 0, 0.2, 1); }
-  html.ao-page-leaving { animation: ao-slide-out 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+  html.ao-page-enter { animation: ao-slide-in 240ms cubic-bezier(0.4, 0, 0.2, 1); }
 }
-@keyframes ao-slide-in  { from { transform: translateX(28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-@keyframes ao-slide-out { to   { transform: translateX(-28px); opacity: 0; } }
+@keyframes ao-slide-in { from { transform: translateX(28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+/* Safety: never let a stale ao-page-leaving class (from an older cached build)
+   hold the page at opacity:0 — the slide-out transition was removed because it
+   blanked the screen during slow navigations. Force it back to visible. */
+html.ao-page-leaving { opacity: 1 !important; animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  html.ao-page-enter, html.ao-page-leaving { animation: none !important; }
+  html.ao-page-enter { animation: none !important; }
 }
 
 /* ── Tokens ─────────────────────────────────────────────────── */

@@ -1,5 +1,11 @@
-/* bg.js — deep network background, runs on every page */
+/* bg.js — deep network background, runs on every page.
+   Skipped on mobile widths: the canvas is display:none there (see the
+   max-width:640px rule in style.css), so running the O(n^2) particle loop
+   would just burn CPU/battery on phones — exactly the kind of low-end
+   device where it causes jank — for something that is never painted. */
 (function () {
+  if (window.matchMedia && window.matchMedia('(max-width: 640px)').matches) return;
+
   const canvas = document.createElement('canvas');
   canvas.id = 'bgCanvas';
   Object.assign(canvas.style, {

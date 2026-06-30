@@ -1,52 +1,24 @@
-/* page-transitions.js — slide-sideways page transitions on mobile widths.
-   Intercepts same-origin link clicks to play a slide-out before navigating,
-   and plays a slide-in on every page arrival (link, back/forward, JS
-   redirect). Animates <html> via the .ao-page-enter/.ao-page-leaving
-   classes defined in style.css. */
+/* page-transitions.js — slide-IN page transitions on mobile widths.
+
+   Plays a short slide-in on every page arrival (link nav, back/forward,
+   JS redirect). Animates <html> via the .ao-page-enter class in style.css.
+
+   IMPORTANT: this intentionally does NOT intercept link clicks to play a
+   slide-OUT before navigating. An earlier version did, applying opacity:0
+   to the whole page and then calling location.href. On a slow connection or
+   a cold-starting server the new page can take several seconds to load, and
+   during that time the old page stayed held at opacity:0 — a black screen
+   that still received taps, which read as the app "freezing". Letting links
+   navigate normally keeps the current page fully visible until the next one
+   is ready; the slide-in on arrival is enough to feel like a transition. */
 
 (function () {
   function isMobile() { return window.matchMedia('(max-width: 1024px)').matches; }
 
-  // Once a navigation is committed to, ignore further taps — without this,
-  // an impatient double-tap on a slow device could queue a second
-  // location.href change that fires while the first is already unloading,
-  // occasionally landing on the wrong page or showing two overlapping slides.
-  var leaving = false;
-
-  document.addEventListener('click', function (e) {
-    if (leaving || !isMobile() || e.defaultPrevented || e.button !== 0 ||
-        e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var a = e.target.closest && e.target.closest('a[href]');
-    if (!a) return;
-    if (a.target && a.target !== '' && a.target !== '_self') return;
-    if (a.hasAttribute('download')) return;
-    var href = a.getAttribute('href');
-    if (!href || href.charAt(0) === '#' || /^(javascript:|mailto:|tel:)/i.test(href)) return;
-    var url;
-    try { url = new URL(href, location.href); } catch (err) { return; }
-    if (url.origin !== location.origin) return;
-    if (url.href.split('#')[0] === location.href.split('#')[0]) return;
-    e.preventDefault();
-    leaving = true;
-    document.documentElement.classList.add('ao-page-leaving');
-    // Safety reset: if the new page loads slowly (Render.com cold start) or the
-    // Android WebView intercepts the URL without navigating, ao-page-leaving's
-    // opacity:0 would otherwise leave the screen black indefinitely. We let this
-    // timer always run — if navigation succeeds the old page's JS context is
-    // destroyed automatically (timer auto-cancelled); if the page is still alive
-    // after 800ms the server is slow or the URL was blocked, so reveal the current
-    // page again so the user isn't stuck staring at a black screen.
-    setTimeout(function () {
-      leaving = false;
-      document.documentElement.classList.remove('ao-page-leaving');
-    }, 800);
-    setTimeout(function () { location.href = url.href; }, 150);
-  }, true);
-
   function playEnter() {
-    leaving = false;
     if (!isMobile()) return;
     var html = document.documentElement;
+    // Defensive: clear any stale leaving class left by an older cached build.
     html.classList.remove('ao-page-leaving');
     html.classList.add('ao-page-enter');
     var done = false;
