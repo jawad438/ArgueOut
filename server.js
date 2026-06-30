@@ -1833,16 +1833,17 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on('suggest-question', ({ roomId, suggestion }) => {
+  socket.on('suggest-question', ({ roomId, suggestion, mode }) => {
     const room = rooms.get(roomId);
     if (!room) return;
     const me = socketUsers.get(socket.id);
     if (!me) return;
     const clean = String(suggestion || '').trim().slice(0, 120);
     if (!clean) return;
-    roomPendingSuggestion.set(roomId, { fromSocketId: socket.id, fromUsername: me.username, suggestion: clean });
+    const cleanMode = mode === 'ai' ? 'ai' : 'asis';
+    roomPendingSuggestion.set(roomId, { fromSocketId: socket.id, fromUsername: me.username, suggestion: clean, mode: cleanMode });
     const other = room.users.find(u => u.socketId && u.socketId !== socket.id);
-    if (other) io.to(other.socketId).emit('suggestion-received', { suggestion: clean, fromUsername: me.username });
+    if (other) io.to(other.socketId).emit('suggestion-received', { suggestion: clean, fromUsername: me.username, mode: cleanMode });
   });
 
   socket.on('respond-suggestion', ({ roomId, accepted }) => {
@@ -1854,6 +1855,13 @@ io.on('connection', socket => {
     if (!accepted) {
       const fromSock = io.sockets.sockets.get(pending.fromSocketId);
       if (fromSock) fromSock.emit('suggestion-rejected');
+      return;
+    }
+    // "As is": both debaters agreed to use the exact suggested wording —
+    // set it directly, no AI round-trip needed.
+    if (pending.mode === 'asis') {
+      room.question = pending.suggestion;
+      io.to(roomId).emit('question-updated', { question: pending.suggestion });
       return;
     }
     io.to(roomId).emit('question-generating');

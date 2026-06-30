@@ -1097,6 +1097,19 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 }
 .spark-suggest-input:focus  { border-color: var(--purple); }
 .spark-suggest-input::placeholder { color: var(--text-3); }
+.spark-ai-toggle {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 6px 10px; border-radius: var(--r-full);
+  font-size: 0.7rem; font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+  color: var(--text-3); background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  cursor: pointer; user-select: none; white-space: nowrap;
+  transition: background 150ms, color 150ms, border-color 150ms;
+}
+.spark-ai-toggle:hover { color: var(--text-1); }
+.spark-ai-toggle.active {
+  background: rgba(139,92,246,0.18); color: var(--purple); border-color: rgba(139,92,246,0.4);
+}
 @keyframes sparkFadeIn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }

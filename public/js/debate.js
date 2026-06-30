@@ -600,11 +600,20 @@ function closeSuggestInput() {
   if (bar) bar.style.display = 'none';
 }
 
+// Off by default: your opponent gets your exact wording. Toggle on to let
+// the AI rework it into a sharper debate question instead.
+let aiEnhanceMode = false;
+function toggleAiEnhance() {
+  aiEnhanceMode = !aiEnhanceMode;
+  const btn = document.getElementById('sparkAiEnhanceToggle');
+  if (btn) btn.classList.toggle('active', aiEnhanceMode);
+}
+
 function sendSuggestion() {
   const input = document.getElementById('sparkSuggestInput');
   const text  = (input?.value || '').trim();
   if (!text) return;
-  socket.emit('suggest-question', { roomId, suggestion: text });
+  socket.emit('suggest-question', { roomId, suggestion: text, mode: aiEnhanceMode ? 'ai' : 'asis' });
   input.value = '';
   closeSuggestInput();
   suggestSent = true;
@@ -659,13 +668,20 @@ socket.on('question-updated', ({ question, error }) => {
   mySkipped           = false;
   suggestSent         = false;
   questionRequestSent = false;
+  aiEnhanceMode       = false;
+  const aiToggle = document.getElementById('sparkAiEnhanceToggle');
+  if (aiToggle) aiToggle.classList.remove('active');
   closeSuggestInput();
 });
 
-socket.on('suggestion-received', ({ suggestion, fromUsername }) => {
+socket.on('suggestion-received', ({ suggestion, fromUsername, mode }) => {
   const panel = document.getElementById('suggestionPanel');
   const text  = document.getElementById('suggestionPanelText');
-  if (text)  text.textContent = `${fromUsername} suggests: "${suggestion}"`;
+  if (text) {
+    text.textContent = mode === 'ai'
+      ? `${fromUsername} wants to AI-enhance this into a topic: "${suggestion}"`
+      : `${fromUsername} suggests: "${suggestion}"`;
+  }
   if (panel) panel.style.display = 'block';
   setTimeout(() => {
     const p = document.getElementById('suggestionPanel');

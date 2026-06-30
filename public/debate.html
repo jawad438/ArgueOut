@@ -366,6 +366,10 @@
     </div>
     <div id="sparkSuggestBar" class="spark-suggest-bar" style="display:none">
       <input id="sparkSuggestInput" class="spark-suggest-input" type="text" maxlength="120" placeholder="What should the debate be about?">
+      <button type="button" id="sparkAiEnhanceToggle" class="spark-ai-toggle" onclick="toggleAiEnhance()" title="Off: your opponent sees this exact wording. On: AI polishes it into a sharper debate question.">
+        <svg style="width:12px;height:12px;flex-shrink:0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.7 5.1L19 9l-5.3 1.9L12 16l-1.7-5.1L5 9l5.3-1.9z"/></svg>
+        AI Enhance
+      </button>
       <button class="spark-btn spark-send-btn" onclick="sendSuggestion()">Send</button>
       <button class="spark-btn spark-cancel-btn" onclick="closeSuggestInput()"><svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
