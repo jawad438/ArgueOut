@@ -6,7 +6,7 @@
   <title>Notifications — ArgueOut</title>
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="icon" href="/favicon.png" type="image/png" />
-  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');if(typeof window.AndroidAuth!=='undefined'||window.matchMedia('(max-width:1024px)').matches)document.write('<style>@view-transition{navigation:none}</style>');}());</script>
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');document.documentElement.style.background=(t==='light'||(t!=='dark'&&window.matchMedia('(prefers-color-scheme: light)').matches))?'#e5e5f2':'#05050f';if(typeof window.AndroidAuth!=='undefined'||window.matchMedia('(max-width:1024px)').matches)document.write('<style>@view-transition{navigation:none}</style>');}());</script>
   <script src="/js/page-transitions.js" defer></script>
   <style>
     body { background: var(--bg-0); min-height: 100dvh; }
@@ -46,6 +46,7 @@
     .notif-dot.read { background: var(--border); }
     .notif-msg { font-size: 0.9rem; color: var(--text-1); line-height: 1.5; flex: 1; }
     .notif-time { font-size: 0.75rem; color: var(--text-3); margin-top: 3px; }
+    .notif-actions { display: flex; gap: 8px; margin-top: 10px; }
     .notif-empty-state {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
@@ -73,11 +74,62 @@
   </div>
 </div>
 
+<div id="toast-container"></div>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-init.js"></script>
 <script>
+function showToast(msg, type) {
+  var c = document.getElementById('toast-container');
+  if (!c) return;
+  var t = document.createElement('div');
+  t.className = 'toast toast-' + (type || 'info');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(function () { t.classList.add('show'); }, 10);
+  setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 3500);
+}
+
+// -- Socket.io: only needed to act on challenge notifications -----------
+var socket = io({ autoConnect: false });
+var socketReady = false;
+
+socket.on('connect', function () {
+  var user = firebase.auth().currentUser;
+  if (user) user.getIdToken().then(function (token) { socket.emit('authenticate', { idToken: token }); });
+});
+socket.on('authenticated', function () { socketReady = true; });
+
+socket.on('challenge-accepted', function (data) {
+  showToast('Challenge accepted! Starting debate…', 'success');
+  localStorage.setItem('debateRoomId', data.roomId);
+  localStorage.setItem('debateOpponent', JSON.stringify(data.opponent));
+  if (data.question) localStorage.setItem('debateQuestion', data.question);
+  else localStorage.removeItem('debateQuestion');
+  setTimeout(function () { window.location.href = '/debate?room=' + encodeURIComponent(data.roomId); }, 500);
+});
+
+socket.on('challenge-error', function (data) {
+  showToast(data.error || 'Something went wrong.', 'error');
+  loadNotifs();
+});
+
+function acceptChallenge(notifId, fromUserId, question, row) {
+  if (!socketReady) { showToast('Still connecting — try again in a moment.', 'info'); return; }
+  row.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+  socket.emit('accept-challenge-by-user', { challengerUserId: fromUserId, question: question || null, notifId: notifId });
+}
+
+function declineChallenge(notifId, fromUserId, row) {
+  if (!socketReady) { showToast('Still connecting — try again in a moment.', 'info'); return; }
+  row.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+  socket.emit('reject-challenge-by-user', { challengerUserId: fromUserId, notifId: notifId });
+  showToast('Challenge declined.', 'info');
+  setTimeout(loadNotifs, 400);
+}
+
 function renderNotifs(items) {
   var loadEl = document.getElementById('loadingState');
   var list = document.getElementById('notifListPage');
@@ -102,6 +154,7 @@ function renderNotifs(items) {
     msg.className = 'notif-msg';
     msg.textContent = d.message || 'New notification';
     var body = document.createElement('div');
+    body.style.flex = '1';
     body.appendChild(msg);
     if (timeStr) {
       var t = document.createElement('div');
@@ -111,6 +164,21 @@ function renderNotifs(items) {
     }
     var row = document.createElement('div');
     row.className = 'notif-item';
+    if (d.type === 'challenge' && d.fromUserId && !d.read) {
+      var actions = document.createElement('div');
+      actions.className = 'notif-actions';
+      var acceptBtn = document.createElement('button');
+      acceptBtn.className = 'btn btn-primary btn-sm';
+      acceptBtn.textContent = 'Accept';
+      acceptBtn.onclick = function () { acceptChallenge(d.id, d.fromUserId, d.question, row); };
+      var declineBtn = document.createElement('button');
+      declineBtn.className = 'btn btn-ghost btn-sm';
+      declineBtn.textContent = 'Decline';
+      declineBtn.onclick = function () { declineChallenge(d.id, d.fromUserId, row); };
+      actions.appendChild(acceptBtn);
+      actions.appendChild(declineBtn);
+      body.appendChild(actions);
+    }
     row.appendChild(dot);
     row.appendChild(body);
     list.appendChild(row);
@@ -142,6 +210,7 @@ function loadNotifs() {
 firebase.auth().onAuthStateChanged(function (user) {
   if (!user) { window.location.href = '/login'; return; }
   loadNotifs();
+  if (!socket.connected) socket.connect();
   document.getElementById('clearAllBtn').onclick = function () {
     user.getIdToken().then(function (token) {
       return fetch('/api/notifications/clear', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });

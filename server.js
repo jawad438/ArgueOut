@@ -820,9 +820,14 @@ app.get('/api/notifications', async (req, res) => {
       const data = d.data();
       return {
         id: d.id,
+        type: data.type || null,
         message: data.message || data.text || '',
         read: !!data.read,
-        createdAt: data.createdAt ? data.createdAt.toMillis() : null
+        createdAt: data.createdAt ? data.createdAt.toMillis() : null,
+        // Challenge-specific fields, used to render Accept/Decline on the page
+        fromUserId:   data.fromUserId || null,
+        fromUsername: data.fromUsername || null,
+        question:     data.question || null
       };
     });
     res.json({ items });
@@ -1743,9 +1748,27 @@ io.on('connection', socket => {
       : `${me.username} challenged you to a debate!`;
     fstore.collection('notifications').doc(safeTarget).collection('items').add({
       type: 'challenge', message: notifMsg, read: false,
+      fromUserId: me.userId, fromUsername: me.username, question: question || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     }).catch(err => console.error('[send-challenge] notif persist error:', err.message));
   });
+
+  function createDebateRoomForChallenge(challenger, me, question, s1, s2) {
+    const roomId = uuidv4();
+    rooms.set(roomId, {
+      users: [
+        { userId: challenger.userId, username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY, socketId: null },
+        { userId: me.userId,         username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY,         socketId: null }
+      ],
+      spectators:        [],
+      bannedSpectators:  new Set(),
+      question:          null,
+      startedAt:         null
+    });
+    addDebated(challenger.userId, me.userId);
+    s1.emit('challenge-accepted', { roomId, question, opponent: { username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY         } });
+    s2.emit('challenge-accepted', { roomId, question, opponent: { username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY } });
+  }
 
   socket.on('accept-challenge', ({ challengerSocketId }) => {
     const me         = onlineUsers.get(socket.id);
@@ -1758,23 +1781,41 @@ io.on('connection', socket => {
 
     const question = pendingQuestions.get(challengerSocketId) || null;
     pendingQuestions.delete(challengerSocketId);
+    createDebateRoomForChallenge(challenger, me, question, s1, s2);
+  });
 
-    const roomId = uuidv4();
-    rooms.set(roomId, {
-      users: [
-        { userId: challenger.userId, username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY, socketId: null },
-        { userId: me.userId,         username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY,         socketId: null }
-      ],
-      spectators:        [],
-      bannedSpectators:  new Set(),
-      question:          null,
-      startedAt:         null
-    });
+  // Notifications-page variant: the challenger's socketId from when the
+  // challenge was sent may be long gone by the time this is acted on (the
+  // whole point of persisting it is to survive across sessions), so this
+  // resolves the challenger by userId instead, and takes the question
+  // straight from the notification doc rather than the (possibly stale)
+  // pendingQuestions map.
+  socket.on('accept-challenge-by-user', ({ challengerUserId, question, notifId }) => {
+    const me = onlineUsers.get(socket.id);
+    if (!me) return;
+    const entry = [...onlineUsers.entries()].find(([, u]) => u.userId === challengerUserId);
+    if (!entry) { socket.emit('challenge-error', { error: 'Challenger is no longer online.' }); return; }
+    const [challengerSocketId, challenger] = entry;
+    const s1 = io.sockets.sockets.get(challengerSocketId);
+    const s2 = socket;
+    if (!s1 || !s2) return;
+    pendingQuestions.delete(challengerSocketId);
+    createDebateRoomForChallenge(challenger, me, question ? String(question).slice(0, 300) : null, s1, s2);
+    if (notifId) {
+      fstore.collection('notifications').doc(me.userId).collection('items').doc(String(notifId))
+        .update({ read: true }).catch(() => {});
+    }
+  });
 
-    addDebated(challenger.userId, me.userId);
-
-    s1.emit('challenge-accepted', { roomId, question, opponent: { username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY         } });
-    s2.emit('challenge-accepted', { roomId, question, opponent: { username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY } });
+  socket.on('reject-challenge-by-user', ({ challengerUserId, notifId }) => {
+    const me = onlineUsers.get(socket.id);
+    if (!me) return;
+    const entry = [...onlineUsers.entries()].find(([, u]) => u.userId === challengerUserId);
+    if (entry) io.to(entry[0]).emit('challenge-rejected', { byUsername: me.username });
+    if (notifId) {
+      fstore.collection('notifications').doc(me.userId).collection('items').doc(String(notifId))
+        .update({ read: true }).catch(() => {});
+    }
   });
 
   // -- Invite links ---------------------------------------------
