@@ -2326,6 +2326,15 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
 .mobile-watch-live-btn { display: none; }
 .mobile-gear-btn       { display: none; }
 
+/* Live debate count badge next to "Watch Live" links */
+.live-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 9px; background: #ef4444; color: #fff;
+  font-size: 0.68rem; font-weight: 800; line-height: 1;
+  flex-shrink: 0;
+}
+
 /* ── 10. CHAT SIDEBAR: safe area on iPhone (home-bar overlap) ───── */
 @media (max-width: 1024px) {
   .chat-input-area {

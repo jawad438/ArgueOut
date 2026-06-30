@@ -63,6 +63,7 @@
     <a href="/debates" class="btn btn-ghost btn-sm lobby-watch-btn" style="display:inline-flex;align-items:center;gap:5px">
       <span style="width:7px;height:7px;border-radius:50%;background:#ef4444;flex-shrink:0;animation:live-pulse 1.8s ease-in-out infinite"></span>
       <span class="lobby-watch-label">Watch Live</span>
+      <span class="live-count-badge" id="liveCountBadgeNav" style="display:none">0</span>
     </a>
     <button class="btn btn-ghost btn-sm lobby-signout-btn" id="logoutBtn">Sign Out</button>
     <!-- Mobile-only: gear icon → settings page -->
@@ -254,7 +255,8 @@
       </button>
       <a href="/debates" class="mobile-watch-live-btn">
         <span style="width:7px;height:7px;border-radius:50%;background:#ef4444;flex-shrink:0;animation:live-pulse 1.8s ease-in-out infinite"></span>
-        Watch Live Debates
+        <span>Watch Live Debates</span>
+        <span class="live-count-badge" id="liveCountBadgeMobile" style="display:none">0</span>
       </a>
     </div>
 
@@ -421,6 +423,10 @@
 
       <!-- Actions -->
       <div class="up-actions">
+        <div id="challengeTopicField" style="display:none;margin-bottom:10px;text-align:left">
+          <label for="challengeTopicInput" style="display:block;font-size:0.72rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Topic (optional)</label>
+          <input type="text" id="challengeTopicInput" class="form-input" maxlength="300" placeholder="What do you want to debate about?" style="width:100%;box-sizing:border-box" />
+        </div>
         <button class="btn btn-primary btn-full up-challenge-btn" id="challengeBtn" style="display:none">
           <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/></svg>
           Challenge to Debate

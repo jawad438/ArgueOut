@@ -701,18 +701,23 @@ function openUserProfile(userId) {
   }
 
   // Actions
-  const challengeBtn = document.getElementById('challengeBtn');
-  const pendingMsg   = document.getElementById('challengePendingMsg');
-  const inDebateMsg  = document.getElementById('upInDebateMsg');
+  const challengeBtn   = document.getElementById('challengeBtn');
+  const topicField     = document.getElementById('challengeTopicField');
+  const topicInput     = document.getElementById('challengeTopicInput');
+  const pendingMsg     = document.getElementById('challengePendingMsg');
+  const inDebateMsg    = document.getElementById('upInDebateMsg');
+  if (topicInput) topicInput.value = '';
   if (pendingMsg)  pendingMsg.style.display  = 'none';
   if (inDebateMsg) inDebateMsg.style.display = 'none';
   if (challengeBtn) {
     if (user.inDebate) {
       challengeBtn.style.display = 'none';
+      if (topicField) topicField.style.display = 'none';
       if (inDebateMsg) inDebateMsg.style.display = 'block';
     } else {
       challengeBtn.style.display = 'flex';
-      challengeBtn.onclick = () => sendChallenge(user.userId, user.username);
+      if (topicField) topicField.style.display = 'block';
+      challengeBtn.onclick = () => sendChallenge(user.userId, user.username, topicInput ? topicInput.value.trim() : null);
     }
   }
 
@@ -745,8 +750,10 @@ function sendChallenge(targetUserId, targetUsername, question) {
   socket.emit('send-challenge', { targetUserId, question: question || null });
   showToast(`Challenge sent to ${targetUsername}!`, 'info');
   const challengeBtn = document.getElementById('challengeBtn');
+  const topicField   = document.getElementById('challengeTopicField');
   const pendingMsg   = document.getElementById('challengePendingMsg');
   if (challengeBtn) challengeBtn.style.display = 'none';
+  if (topicField)   topicField.style.display   = 'none';
   if (pendingMsg)   pendingMsg.style.display   = 'block';
 }
 
@@ -754,6 +761,27 @@ socket.on('challenge-error', ({ error }) => {
   showToast(error, 'error');
   closeProfileModal();
 });
+
+// -- Live debate count badge ------------------------------------
+function formatLiveCount(n) {
+  return n > 99 ? '+99' : String(n);
+}
+
+async function refreshLiveDebateCount() {
+  let count = 0;
+  try {
+    const res = await fetch('/api/debates');
+    if (res.ok) count = (await res.json()).length;
+  } catch {}
+  const badges = [document.getElementById('liveCountBadgeNav'), document.getElementById('liveCountBadgeMobile')];
+  badges.forEach(b => {
+    if (!b) return;
+    if (count > 0) { b.textContent = formatLiveCount(count); b.style.display = 'inline-flex'; }
+    else b.style.display = 'none';
+  });
+}
+refreshLiveDebateCount();
+setInterval(refreshLiveDebateCount, 15000);
 
 let pendingChallengeQuestion = null;
 
