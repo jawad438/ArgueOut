@@ -151,10 +151,16 @@ function populateSelfUI(profile) {
 }
 
 // -- WebRTC ----------------------------------------------------
+// STUN alone fails behind symmetric NAT (common on mobile data, some
+// routers/school networks) with no fallback. Open Relay Project's free
+// public TURN servers act as a relay fallback for those connections.
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
 ];
 
 let peerConn = null, localStream = null, rawMicStream = null;
