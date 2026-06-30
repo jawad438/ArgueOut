@@ -97,7 +97,12 @@
 
 /* ── Reset ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+/* background + overflow-x set explicitly (not just on body) because the
+   mobile slide transition below animates a transform on <html> itself —
+   without its own background, the gap the slide reveals falls back to the
+   browser's default white canvas instead of the current theme, which read
+   as a white flash/glitch (especially visible in dark theme). */
+html { scroll-behavior: smooth; background: var(--bg-0); overflow-x: hidden; }
 
 body {
   font-family: 'Inter', sans-serif;
