@@ -349,6 +349,31 @@ async function flipCamera() {
   }
 }
 
+// "Establishing video..." had no way out if the opponent's track never
+// arrived (camera permission denied on their end, ICE/TURN negotiation
+// failure, etc.) - it just spun forever with no explanation. This bounds
+// it to a fixed wait and falls back to a clear, actionable message.
+let videoConnectTimer = null;
+
+function clearVideoConnectTimer() {
+  if (videoConnectTimer) { clearTimeout(videoConnectTimer); videoConnectTimer = null; }
+}
+
+function showVideoConnectIssue(message) {
+  const connTxt = document.getElementById('connectingText');
+  if (!connTxt) return;
+  connTxt.innerHTML =
+    `<span style="display:block;margin-bottom:6px">${message}</span>` +
+    `<button class="btn btn-sm btn-ghost" onclick="location.reload()" style="padding:4px 12px">Retry</button>`;
+}
+
+function armVideoConnectTimer() {
+  clearVideoConnectTimer();
+  videoConnectTimer = setTimeout(() => {
+    showVideoConnectIssue('Taking longer than expected to connect video. You can still use chat.');
+  }, 20000);
+}
+
 function createPeerConnection() {
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
@@ -357,6 +382,7 @@ function createPeerConnection() {
   };
 
   pc.ontrack = ({ streams }) => {
+    clearVideoConnectTimer();
     const opponentVideo = document.getElementById('opponentVideo');
     const noCam         = document.getElementById('opponentNoCam');
     const connTxt       = document.getElementById('connectingText');
@@ -371,7 +397,11 @@ function createPeerConnection() {
   };
 
   pc.oniceconnectionstatechange = () => {
-    if (pc.iceConnectionState === 'failed')       showToast('Connection failed. Try refreshing.', 'error');
+    if (pc.iceConnectionState === 'failed') {
+      showToast('Connection failed. Try refreshing.', 'error');
+      clearVideoConnectTimer();
+      showVideoConnectIssue('Couldn’t connect your opponent’s video. You can still use chat.');
+    }
     if (pc.iceConnectionState === 'disconnected') showToast('Opponent connection lost.', 'info');
   };
 
@@ -423,6 +453,7 @@ socket.on('start-webrtc', async ({ isInitiator, opponent: opp }) => {
   if (opp && !opponent) { opponent = opp; populateOpponentUI(); }
   const connTxt = document.getElementById('connectingText');
   if (connTxt) connTxt.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Establishing video...';
+  armVideoConnectTimer();
 
   await ensureLocalMedia();
   if (isInitiator) await startAsInitiator();
