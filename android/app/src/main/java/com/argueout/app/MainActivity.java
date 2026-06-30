@@ -161,8 +161,16 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == FILE_CHOOSER_RESULT_CODE) {
             if (filePathCallback == null) return;
             Uri[] results = null;
-            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
-                results = new Uri[]{data.getData()};
+            if (resultCode == RESULT_OK && data != null) {
+                if (data.getClipData() != null) {
+                    int count = data.getClipData().getItemCount();
+                    results = new Uri[count];
+                    for (int i = 0; i < count; i++) {
+                        results[i] = data.getClipData().getItemAt(i).getUri();
+                    }
+                } else if (data.getData() != null) {
+                    results = new Uri[]{data.getData()};
+                }
             }
             filePathCallback.onReceiveValue(results);
             filePathCallback = null;
