@@ -1,5 +1,5 @@
 /* ArgueOut Service Worker */
-const CACHE = 'argueout-v3';
+const CACHE = 'argueout-v4';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', e => {
@@ -23,9 +23,29 @@ self.addEventListener('fetch', e => {
 
   if (e.request.method !== 'GET') return;
 
-  // Network-first: always try network, fall back to cache, then to the
-  // offline page for full-page navigations (so a dead connection shows a
-  // proper screen instead of the browser's built-in dino/error page).
+  // Navigation requests (page loads): stale-while-revalidate.
+  // Serve cached HTML immediately if available so the app opens instantly
+  // even when the Render.com free-tier server is in a cold-start (30-60s).
+  // The network fetch runs in the background to refresh the cache.
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      caches.open(CACHE).then(cache =>
+        cache.match(e.request).then(cached => {
+          const networkFetch = fetch(e.request)
+            .then(res => {
+              if (res.ok) cache.put(e.request, res.clone());
+              return res;
+            })
+            .catch(() => cached || caches.match(OFFLINE_URL));
+          // Serve stale cache immediately; refresh silently in background.
+          return cached || networkFetch;
+        })
+      )
+    );
+    return;
+  }
+
+  // All other GET requests (JS, CSS, images): network-first with cache fallback.
   e.respondWith(
     fetch(e.request)
       .then(res => {
