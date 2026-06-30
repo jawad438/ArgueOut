@@ -425,10 +425,21 @@ socket.on('spectate-joined', data => {
 });
 
 socket.on('spectate-error', ({ error }) => {
-  document.getElementById('specConnecting').innerHTML =
-    `<svg style="width:40px;height:40px;fill:none;stroke:currentColor;stroke-width:1.5;opacity:0.3;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-     <span style="color:var(--text-2)">${esc(error)}</span>
-     <a href="/debates" style="color:var(--purple);font-size:0.85rem">← Back to Live Debates</a>`;
+  const el = document.getElementById('specConnecting');
+  if (!el) return;
+  el.style.padding = '24px';
+  el.style.gap = '0';
+  el.style.alignItems = 'center';
+  el.style.justifyContent = 'center';
+  el.style.textAlign = 'center';
+  el.innerHTML = `
+    <div style="width:56px;height:56px;margin:0 auto 18px;color:var(--text-3)">
+      <svg style="width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+    </div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text-1);margin:0 0 10px">This Debate Isn't Available</h1>
+    <p style="color:var(--text-2);line-height:1.6;max-width:340px;margin:0 0 22px">${esc(error)}</p>
+    <a href="/debates" class="btn btn-primary">Back to Live Debates</a>
+  `;
 });
 
 socket.on('spectator-kicked', ({ reason }) => {
@@ -529,8 +540,21 @@ socket.on('debate-ended', () => {
   }
   if (specInput) specInput.disabled = true;
   if (specSendBtn) specSendBtn.disabled = true;
-  showToast('This debate has ended.', 'info');
+
+  // Prominent overlay so it's seen even if a chat sheet is open/closed
+  const overlay = document.getElementById('specEndedOverlay');
+  if (overlay) overlay.style.display = 'flex';
 });
+
+(function setupEndedOverlay() {
+  const overlay  = document.getElementById('specEndedOverlay');
+  const closeBtn = document.getElementById('specEndedCloseBtn');
+  const stayBtn  = document.getElementById('specEndedStayBtn');
+  function dismiss() { if (overlay) overlay.style.display = 'none'; }
+  if (closeBtn) closeBtn.addEventListener('click', dismiss);
+  if (stayBtn)  stayBtn.addEventListener('click', dismiss);
+  if (overlay) overlay.addEventListener('click', e => { if (e.target === overlay) dismiss(); });
+})();
 
 // Branch events
 socket.on('branch-started', ({ branchId, question, members }) => {

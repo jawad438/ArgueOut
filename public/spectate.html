@@ -311,6 +311,28 @@
       font-size: 0.7rem; font-weight: 700; color: #fff;
     }
 
+    /* ── Debate-ended overlay — sits above both chat sheets so it's seen
+       regardless of which one (if any) is open ── */
+    #specEndedOverlay {
+      position: fixed; inset: 0; z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px);
+    }
+    .spec-ended-card {
+      position: relative; max-width: 360px; width: 100%; text-align: center;
+      background: var(--bg-0); border: 1px solid var(--border); border-radius: 18px;
+      padding: 32px 26px 26px; box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+      animation: ao-toast-slide-in 0.32s cubic-bezier(0.22,1,0.36,1) forwards;
+    }
+    .spec-ended-close {
+      position: absolute; top: 12px; right: 12px;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: none; border: 1px solid var(--border); color: var(--text-3);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 120ms, color 120ms;
+    }
+    .spec-ended-close:hover { background: rgba(255,255,255,0.06); color: var(--text-1); }
+
     /* ── Highlighted comment overlay — centered on screen ── */
     #specHighlightOverlay {
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -623,6 +645,24 @@
 
 <!-- Highlight overlay -->
 <div id="specHighlightOverlay"></div>
+
+<!-- Debate-ended overlay: shown prominently regardless of which chat sheet is open -->
+<div id="specEndedOverlay" style="display:none">
+  <div class="spec-ended-card">
+    <button class="spec-ended-close" id="specEndedCloseBtn" aria-label="Dismiss">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div style="width:52px;height:52px;margin:0 auto 14px;color:var(--purple)">
+      <svg style="width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M4 22V4a1 1 0 0 1 1-1h13.93a1 1 0 0 1 .91 1.41L17 10l2.84 5.59A1 1 0 0 1 18.93 17H5a1 1 0 0 0-1 1z"/></svg>
+    </div>
+    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.25rem;font-weight:800;color:var(--text-1);margin:0 0 8px">This Debate Has Ended</h2>
+    <p style="font-size:0.85rem;color:var(--text-3);margin:0 0 20px">You can keep reviewing the chat, or head back to find another live debate.</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" id="specEndedStayBtn">Stay &amp; Review</button>
+      <a href="/debates" class="btn btn-primary btn-sm">Back to Live Debates</a>
+    </div>
+  </div>
+</div>
 
 <div id="toast-container"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
