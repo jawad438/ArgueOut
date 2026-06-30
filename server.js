@@ -876,6 +876,7 @@ app.get('/api/debates', (req, res) => {
   const list = [];
   for (const [roomId, room] of rooms) {
     if (!room.startedAt) continue; // only list debates that have started
+    if (room.private) continue; // debaters agreed to keep this one off the public list
     list.push({
       roomId,
       question:       room.question || null,
@@ -1306,6 +1307,8 @@ const roomQuestionRequests = new Map();
 const roomTurnTimers = new Map();
 // roomId -> Set<userId> — who has requested free-debate mode
 const roomFreeRequests = new Map();
+// roomId -> Set<userId> — who has requested private mode (both must agree)
+const roomPrivateRequests = new Map();
 // "roomId:userId" -> Timeout — grace period before closing room on disconnect
 const roomDisconnectTimers = new Map();
 
@@ -1671,6 +1674,42 @@ io.on('connection', socket => {
     roomTurnTimers.delete(roomId);
     roomFreeRequests.delete(roomId);
     io.to(roomId).emit('debate-mode-free');
+  });
+
+  // -- Private debate (mutual agreement) -------------------------
+
+  socket.on('request-private-debate', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.private) return;
+    const me = socketUsers.get(socket.id);
+    if (!me) return;
+    if (!roomPrivateRequests.has(roomId)) roomPrivateRequests.set(roomId, new Set());
+    roomPrivateRequests.get(roomId).add(me.userId);
+    const other = room.users.find(u => u.socketId && u.socketId !== socket.id);
+    if (other) io.to(other.socketId).emit('private-debate-requested', { fromUsername: me.username });
+  });
+
+  socket.on('accept-private-debate', ({ roomId, accepted }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    if (!accepted) {
+      const other = room.users.find(u => u.socketId && u.socketId !== socket.id);
+      if (other) io.to(other.socketId).emit('private-debate-declined');
+      roomPrivateRequests.delete(roomId);
+      return;
+    }
+    room.private = true;
+    roomPrivateRequests.delete(roomId);
+    // Going private is for the debaters only — remove anyone currently watching
+    if (room.spectators && room.spectators.length) {
+      room.spectators.forEach(spec => {
+        io.to(spec.socketId).emit('spectator-kicked', { reason: 'private' });
+        const targetSock = io.sockets.sockets.get(spec.socketId);
+        if (targetSock) { targetSock.leave(roomId); targetSock.data.spectatingRoom = null; }
+      });
+      room.spectators = [];
+    }
+    io.to(roomId).emit('debate-mode-private');
   });
 
   // -- Challenge system -----------------------------------------
@@ -2118,6 +2157,7 @@ io.on('connection', socket => {
     const room = rooms.get(roomId);
     if (!room) { socket.emit('spectate-error', { error: 'This debate has ended or does not exist.' }); return; }
     if (!room.startedAt) { socket.emit('spectate-error', { error: 'This debate has not started yet.' }); return; }
+    if (room.private) { socket.emit('spectate-error', { error: 'This debate is private.' }); return; }
 
     let userId = null, username = 'Spectator';
     if (idToken) {
@@ -2481,6 +2521,7 @@ function closeRoom(roomId, bySocketId, reason) {
   clearTimeout(roomTurnTimers.get(roomId));
   roomTurnTimers.delete(roomId);
   roomFreeRequests.delete(roomId);
+  roomPrivateRequests.delete(roomId);
   // Cancel any pending disconnect grace-period timers for this room
   for (const key of roomDisconnectTimers.keys()) {
     if (key.startsWith(roomId + ':')) {

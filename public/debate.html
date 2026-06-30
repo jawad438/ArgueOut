@@ -426,6 +426,23 @@
     </div>
   </div>
 
+  <!-- Private-debate request panel -->
+  <div id="privateDebatePanel" class="challenge-notif" style="display:none;left:24px;right:auto">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex-shrink:0;color:var(--purple)"><svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <div style="flex:1">
+        <div id="privateDebatePanelText" style="font-size:0.88rem;font-weight:600;margin-bottom:10px;line-height:1.4"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="respondPrivateDebate(true)">Agree</button>
+          <button class="btn btn-ghost btn-sm" onclick="respondPrivateDebate(false)">Decline</button>
+        </div>
+      </div>
+      <button onclick="respondPrivateDebate(false)" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0" aria-label="Decline">
+        <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
   <!-- Video area -->
   <div class="video-area">
 
@@ -440,6 +457,10 @@
         <button id="turnPassBtn" class="btn btn-sm btn-ghost" onclick="passTurn()" style="display:none">Pass Turn</button>
         <button id="turnRequestBtn" class="btn btn-sm btn-ghost" onclick="requestToSpeak()" style="display:none">Request to Speak</button>
         <button id="freeDebateBtn" class="btn btn-sm btn-ghost" onclick="requestFreeDebate()">Free Debate</button>
+        <button id="privateDebateBtn" class="btn btn-sm btn-ghost" onclick="requestPrivateDebate()">
+          <svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-1px;margin-right:4px" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Go Private
+        </button>
       </div>
     </div>
 
@@ -458,6 +479,10 @@
           <button id="mobMenuFreeDebate" onclick="requestFreeDebate();document.getElementById('mobOverflowMenu').classList.remove('open')">
             <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Free Debate
+          </button>
+          <button id="mobMenuPrivate" onclick="requestPrivateDebate();document.getElementById('mobOverflowMenu').classList.remove('open')">
+            <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Go Private
           </button>
           <button class="mob-menu-danger" onclick="openDebateReport();document.getElementById('mobOverflowMenu').classList.remove('open')">
             <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>

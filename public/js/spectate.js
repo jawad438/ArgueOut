@@ -444,21 +444,26 @@ socket.on('spectate-error', ({ error }) => {
 
 socket.on('spectator-kicked', ({ reason }) => {
   socket.disconnect();
+  const iconColor = reason === 'ban' ? '#ef4444' : (reason === 'private' ? 'var(--purple)' : '#f97316');
+  let iconPath, title, body;
+  if (reason === 'ban') {
+    iconPath = '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>';
+    title = 'Removed from this debate';
+    body  = 'A debater has removed you and you cannot rejoin this debate.';
+  } else if (reason === 'private') {
+    iconPath = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
+    title = 'This Debate Went Private';
+    body  = 'Both debaters agreed to continue without spectators. Nothing you did caused this.';
+  } else {
+    iconPath = '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>';
+    title = 'You were kicked';
+    body  = 'A debater has removed you from watching this debate.';
+  }
   document.body.innerHTML = `
     <div style="min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;background:var(--bg-0)">
-      <svg style="width:52px;height:52px;fill:none;stroke:${reason==='ban'?'#ef4444':'#f97316'};stroke-width:1.5;opacity:0.7" viewBox="0 0 24 24">
-        ${reason === 'ban'
-          ? '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>'
-          : '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'}
-      </svg>
-      <h2 style="font-size:1.25rem;font-weight:800;color:var(--text-1);margin:0">
-        ${reason === 'ban' ? 'Removed from this debate' : 'You were kicked'}
-      </h2>
-      <p style="font-size:0.9rem;color:var(--text-3);margin:0;max-width:300px">
-        ${reason === 'ban'
-          ? 'A debater has removed you and you cannot rejoin this debate.'
-          : 'A debater has removed you from watching this debate.'}
-      </p>
+      <svg style="width:52px;height:52px;fill:none;stroke:${iconColor};stroke-width:1.5;opacity:0.7" viewBox="0 0 24 24">${iconPath}</svg>
+      <h2 style="font-size:1.25rem;font-weight:800;color:var(--text-1);margin:0">${title}</h2>
+      <p style="font-size:0.9rem;color:var(--text-3);margin:0;max-width:300px">${body}</p>
       <a href="/debates" style="margin-top:8px;padding:10px 22px;background:var(--purple);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:0.9rem">Browse Other Debates</a>
     </div>`;
 });

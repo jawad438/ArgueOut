@@ -1257,6 +1257,40 @@ socket.on('free-debate-declined', () => {
   showToast('Free debate request declined.', 'info');
 });
 
+const PRIVATE_BTN_ICON = '<svg style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-1px;margin-right:4px" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+
+function resetPrivateButtons(label) {
+  [document.getElementById('privateDebateBtn'), document.getElementById('mobMenuPrivate')].forEach(btn => {
+    if (btn) { btn.innerHTML = PRIVATE_BTN_ICON + label; btn.disabled = false; }
+  });
+}
+
+socket.on('private-debate-requested', ({ fromUsername }) => {
+  const panel = document.getElementById('privateDebatePanel');
+  const text  = document.getElementById('privateDebatePanelText');
+  if (text)  text.textContent = `${fromUsername} wants to make this debate private (no spectators)`;
+  if (panel) panel.style.display = 'block';
+  setTimeout(() => {
+    const p = document.getElementById('privateDebatePanel');
+    if (p && p.style.display !== 'none') respondPrivateDebate(false);
+  }, 30000);
+});
+
+socket.on('private-debate-declined', () => {
+  privateRequested = false;
+  resetPrivateButtons('Go Private');
+  showToast('Private debate request declined.', 'info');
+});
+
+socket.on('debate-mode-private', () => {
+  privateRequested = false;
+  resetPrivateButtons('Private');
+  [document.getElementById('privateDebateBtn'), document.getElementById('mobMenuPrivate')].forEach(btn => {
+    if (btn) btn.disabled = true;
+  });
+  showToast('This debate is now private — spectators can\'t join.', 'success');
+});
+
 function passTurn() {
   socket.emit('turn-pass', { roomId });
 }
@@ -1273,6 +1307,24 @@ function requestFreeDebate() {
 function respondFreeDebate(accepted) {
   socket.emit('accept-free-debate', { roomId, accepted });
   const panel = document.getElementById('freeDebatePanel');
+  if (panel) panel.style.display = 'none';
+}
+
+let privateRequested = false;
+
+function requestPrivateDebate() {
+  if (privateRequested) return;
+  privateRequested = true;
+  socket.emit('request-private-debate', { roomId });
+  showToast('Private debate request sent.', 'info');
+  [document.getElementById('privateDebateBtn'), document.getElementById('mobMenuPrivate')].forEach(btn => {
+    if (btn) { btn.textContent = 'Requested...'; btn.disabled = true; }
+  });
+}
+
+function respondPrivateDebate(accepted) {
+  socket.emit('accept-private-debate', { roomId, accepted });
+  const panel = document.getElementById('privateDebatePanel');
   if (panel) panel.style.display = 'none';
 }
 
