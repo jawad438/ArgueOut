@@ -5,6 +5,26 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
 
+/* ── Page transitions (View Transitions API) ───────────────────
+   navigation: auto enables a smooth transition on every cross-document
+   navigation — clicking a link, and the browser's back/forward — with
+   zero JS. Unsupported browsers just navigate normally (no error). */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+::view-transition-old(root) { animation-name: vt-fade-out; }
+::view-transition-new(root) { animation-name: vt-fade-in; }
+@keyframes vt-fade-out { to   { opacity: 0; transform: scale(0.99); } }
+@keyframes vt-fade-in  { from { opacity: 0; transform: scale(1.01); } }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+}
+
 /* ── Tokens ─────────────────────────────────────────────────── */
 :root {
   --bg-0:          #05050f;
