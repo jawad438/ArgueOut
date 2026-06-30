@@ -21,19 +21,27 @@
       overflow: hidden;
     }
     .spec-header {
-      display: flex; align-items: center; gap: 14px;
+      display: flex; align-items: center; gap: 10px;
       padding: 10px 20px; border-bottom: 1px solid var(--border);
       background: var(--bg-0); position: relative; z-index: 10; flex-shrink: 0;
     }
+    /* Equal flex-basis left/right wrappers keep the topic truly centered
+       regardless of how wide the back-link vs badge+theme group are. */
+    .spec-header-side {
+      flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 10px;
+    }
+    .spec-header-left { justify-content: flex-start; }
+    .spec-header-right { justify-content: flex-end; }
     .spec-back {
       display: inline-flex; align-items: center; gap: 6px;
       font-size: 0.82rem; font-weight: 600; color: var(--text-2);
       text-decoration: none; padding: 5px 10px; border-radius: 8px;
       border: 1px solid var(--border); transition: background 120ms;
+      flex-shrink: 0;
     }
     .spec-back:hover { background: rgba(139,92,246,0.07); }
     .spec-topic {
-      flex: 1; text-align: center; font-size: 0.9rem; font-weight: 700;
+      flex: 1 1 auto; min-width: 0; text-align: center; font-size: 0.9rem; font-weight: 700;
       color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       max-width: 420px;
     }
@@ -43,7 +51,7 @@
       font-size: 0.72rem; font-weight: 700; color: #ef4444;
       background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
       border-radius: 20px; padding: 3px 10px; letter-spacing: 0.05em;
-      text-transform: uppercase; margin-left: auto;
+      text-transform: uppercase; flex-shrink: 0;
     }
     .spec-live-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
@@ -283,7 +291,7 @@
       border-radius: 10px; overflow: hidden;
     }
     .spec-video-slot video {
-      width: 100%; height: 100%; object-fit: cover; display: block;
+      width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; display: block;
     }
     .spec-video-placeholder {
       position: absolute; inset: 0; display: flex;
@@ -379,9 +387,11 @@
         margin: 10px auto 2px; flex-shrink: 0;
       }
 
-      /* Floating toggle button to open/close the panel */
+      /* Floating toggle button to open/close the panel — kept clear of the
+         home-indicator / gesture bar on notched phones */
       #specSheetToggle {
-        display: flex; position: fixed; bottom: 20px; right: 16px; z-index: 110;
+        display: flex; position: fixed;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: 16px; z-index: 110;
         width: 50px; height: 50px; border-radius: 50%;
         background: var(--purple); color: #fff; border: none;
         align-items: center; justify-content: center;
@@ -400,6 +410,31 @@
 
       /* Action buttons — bigger touch targets */
       .spec-input-wrap, #specInputWrap, #specBranchInputWrap { padding: 10px; }
+
+      /* ── Header: tighten and keep the topic from crowding the badge/back link ── */
+      .spec-header { padding: 8px 12px; gap: 8px; }
+      .spec-back-label { display: none; }
+      .spec-back { padding: 7px; gap: 0; }
+      .spec-topic { font-size: 0.82rem; max-width: none; }
+      .spec-live-label { display: none; }
+      .spec-live-badge { padding: 5px; border-radius: 50%; }
+      .spec-live-dot { margin: 0; }
+
+      /* ── Debater video grid: taller portrait-leaning slots so phone-camera
+         streams (the common case) don't get crushed into a thin landscape
+         strip and crop out faces — see object-position above for framing. ── */
+      .spec-video-grid { gap: 6px; padding: 10px 10px 8px; }
+      .spec-video-slot { aspect-ratio: 3/4; }
+      .spec-video-initials { width: 38px; height: 38px; font-size: 0.95rem; }
+      .spec-video-label { font-size: 0.66rem; padding: 4px 7px; }
+
+      /* ── Debaters row: compact, never wraps awkwardly on narrow phones ── */
+      .spec-debaters { padding: 10px 12px 8px; gap: 8px; }
+      .spec-debater-name { font-size: 0.78rem; }
+      .spec-debater-pos { font-size: 0.64rem; padding: 1px 6px; }
+      .spec-vs { font-size: 0.68rem; }
+
+      .spec-debate-chat { padding: 12px 14px; }
       .spec-input { font-size: 0.9rem; padding: 10px 13px; }
       .spec-send-btn, .spec-branch-start-btn { padding: 10px 14px; }
 
@@ -417,21 +452,25 @@
 
 <div class="spec-layout">
   <header class="spec-header">
-    <a href="/debates" class="spec-back">
-      <svg style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      Live Debates
-    </a>
+    <div class="spec-header-side spec-header-left">
+      <a href="/debates" class="spec-back" aria-label="Back to Live Debates">
+        <svg style="width:13px;height:13px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        <span class="spec-back-label">Live Debates</span>
+      </a>
+    </div>
     <div class="spec-topic" id="specTopic"><span class="skel" style="display:inline-block;width:160px;height:13px;border-radius:6px;vertical-align:middle"></span></div>
-    <div class="spec-live-badge"><span class="spec-live-dot"></span>Live</div>
-    <div class="spec-theme-btn-wrap">
-      <div class="theme-switcher">
-        <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme">
-          <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
-        </button>
-        <div class="theme-menu" id="themeMenu" style="display:none">
-          <button class="theme-menu-item" data-t="system" onclick="applyTheme('system')">System</button>
-          <button class="theme-menu-item" data-t="light" onclick="applyTheme('light')">Light</button>
-          <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')">Dark</button>
+    <div class="spec-header-side spec-header-right">
+      <div class="spec-live-badge"><span class="spec-live-dot"></span><span class="spec-live-label">Live</span></div>
+      <div class="spec-theme-btn-wrap">
+        <div class="theme-switcher">
+          <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme">
+            <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
+          </button>
+          <div class="theme-menu" id="themeMenu" style="display:none">
+            <button class="theme-menu-item" data-t="system" onclick="applyTheme('system')">System</button>
+            <button class="theme-menu-item" data-t="light" onclick="applyTheme('light')">Light</button>
+            <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')">Dark</button>
+          </div>
         </div>
       </div>
     </div>
