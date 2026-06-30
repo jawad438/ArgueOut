@@ -1032,6 +1032,53 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
   padding: 7px 20px 9px;
   border-top: 1px solid rgba(139,92,246,0.12);
 }
+
+/* ── Topic reveal popup: shown to both users, flies into the spark banner ── */
+.topic-reveal {
+  position: fixed; inset: 0; z-index: 999;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: rgba(5,5,15,0.55);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+html[data-theme="light"] .topic-reveal { background: rgba(229,229,242,0.6); }
+.topic-reveal-card {
+  max-width: 560px; width: 100%;
+  background: var(--bg-2);
+  border: 1px solid rgba(139,92,246,0.45);
+  border-radius: var(--r-lg);
+  padding: 28px 32px;
+  box-shadow: 0 0 60px rgba(139,92,246,0.3), 0 20px 50px rgba(0,0,0,0.4);
+  text-align: center;
+  transform-origin: center center;
+  animation: topicPopIn 420ms cubic-bezier(0.2,0.9,0.3,1.3) both;
+  will-change: transform, opacity;
+}
+.topic-reveal-card.flying {
+  transition: transform 650ms cubic-bezier(0.5,0,0.2,1), opacity 600ms ease 50ms;
+}
+.topic-reveal-label {
+  display: block;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--purple); margin-bottom: 12px;
+}
+.topic-reveal-text {
+  display: block;
+  font-size: 1.35rem; font-weight: 700; line-height: 1.45;
+  color: var(--text-1);
+}
+@keyframes topicPopIn {
+  0%   { opacity: 0; transform: scale(0.7); }
+  60%  { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (max-width: 640px) {
+  .topic-reveal-card { padding: 22px 20px; }
+  .topic-reveal-text { font-size: 1.1rem; }
+}
 .spark-suggest-input {
   flex: 1;
   background: rgba(255,255,255,0.06);
@@ -1705,7 +1752,11 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
     transform: translateY(0);
   }
 
-  .challenge-notif { bottom: 16px; right: 16px; max-width: calc(100vw - 32px); }
+  .challenge-notif {
+    bottom: 16px; right: 16px; max-width: calc(100vw - 32px);
+    background: var(--bg-2);
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
 }
 
 @media (max-width: 768px) {
