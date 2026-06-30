@@ -29,14 +29,18 @@
     e.preventDefault();
     leaving = true;
     document.documentElement.classList.add('ao-page-leaving');
-    // Safety: if the Android WebView intercepts the URL (shouldOverrideUrlLoading)
-    // without actually navigating, the page stays stuck at opacity:0 and leaving=true
-    // forever, making every button appear frozen. Reset after 2s if we're still here.
-    var safetyTimer = setTimeout(function () {
+    // Safety reset: if the new page loads slowly (Render.com cold start) or the
+    // Android WebView intercepts the URL without navigating, ao-page-leaving's
+    // opacity:0 would otherwise leave the screen black indefinitely. We let this
+    // timer always run — if navigation succeeds the old page's JS context is
+    // destroyed automatically (timer auto-cancelled); if the page is still alive
+    // after 800ms the server is slow or the URL was blocked, so reveal the current
+    // page again so the user isn't stuck staring at a black screen.
+    setTimeout(function () {
       leaving = false;
       document.documentElement.classList.remove('ao-page-leaving');
-    }, 2000);
-    setTimeout(function () { clearTimeout(safetyTimer); location.href = url.href; }, 150);
+    }, 800);
+    setTimeout(function () { location.href = url.href; }, 150);
   }, true);
 
   function playEnter() {
