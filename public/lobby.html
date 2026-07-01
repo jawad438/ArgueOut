@@ -308,10 +308,30 @@
     <div class="how-card" id="directoryCard">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div class="how-title" style="margin-bottom:0">Online Now</div>
-        <span id="onlineCount" style="font-size:0.8rem;color:var(--text-3)">—</span>
+        <span id="onlineCount" class="skel" style="display:inline-block;width:52px;height:12px;border-radius:6px"></span>
       </div>
       <div id="directoryList" style="display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto">
-        <div style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:20px 0">No other users online</div>
+        <div class="directory-user-row" style="cursor:default">
+          <div class="skel directory-avatar" style="border-radius:50%"></div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+            <div class="skel" style="width:60%;height:12px;border-radius:6px"></div>
+            <div class="skel" style="width:40%;height:10px;border-radius:6px"></div>
+          </div>
+        </div>
+        <div class="directory-user-row" style="cursor:default">
+          <div class="skel directory-avatar" style="border-radius:50%"></div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+            <div class="skel" style="width:45%;height:12px;border-radius:6px"></div>
+            <div class="skel" style="width:32%;height:10px;border-radius:6px"></div>
+          </div>
+        </div>
+        <div class="directory-user-row" style="cursor:default">
+          <div class="skel directory-avatar" style="border-radius:50%"></div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+            <div class="skel" style="width:55%;height:12px;border-radius:6px"></div>
+            <div class="skel" style="width:36%;height:10px;border-radius:6px"></div>
+          </div>
+        </div>
       </div>
     </div>
 

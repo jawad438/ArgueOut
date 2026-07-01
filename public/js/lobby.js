@@ -579,7 +579,11 @@ function renderDirectory(users) {
   const uid    = currentUserId || localStorage.getItem('userId');
   const others = users.filter(u => u.userId !== uid);
 
-  if (count) count.textContent = `${others.length} user${others.length !== 1 ? 's' : ''}`;
+  if (count) {
+    count.textContent = `${others.length} user${others.length !== 1 ? 's' : ''}`;
+    count.classList.remove('skel');
+    ['width', 'height', 'display', 'border-radius'].forEach(p => count.style.removeProperty(p));
+  }
 
   if (others.length === 0) {
     list.innerHTML = '<div style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:20px 0">No other users online</div>';
