@@ -914,6 +914,43 @@ app.post('/api/verify-captcha', express.json(), async (req, res) => {
   }
 });
 
+// Cookie-consent compliance log. Public/unauthenticated (the banner can appear
+// before login), so identity is best-effort: attaches the signed-in uid when a
+// valid Firebase ID token is supplied, otherwise just the client-generated
+// anonId. No IP address is stored, consistent with the rest of the privacy
+// policy's minimal-retention stance.
+const CONSENT_VERSION = 1;
+app.post('/api/consent', strictLimiter, express.json(), async (req, res) => {
+  const { categories, version, timestamp, anonId, idToken } = req.body || {};
+  if (!categories || typeof categories !== 'object') return res.status(400).json({ error: 'Invalid categories' });
+  if (version !== CONSENT_VERSION) return res.status(400).json({ error: 'Unsupported consent version' });
+
+  let uid = null;
+  if (typeof idToken === 'string' && idToken.length <= 4096) {
+    const decoded = await verifyFirebaseToken(idToken);
+    if (decoded) uid = decoded.uid;
+  }
+
+  try {
+    await fstore.collection('consentLogs').add({
+      uid,
+      anonId: typeof anonId === 'string' ? anonId.slice(0, 100) : null,
+      version: CONSENT_VERSION,
+      categories: {
+        essential: true,
+        functional: !!categories.functional,
+        analytics: !!categories.analytics,
+        thirdParty: !!categories.thirdParty
+      },
+      clientTimestamp: typeof timestamp === 'number' ? timestamp : null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Returns the visitor's detected country code using ip-api.com (free tier)
 app.get('/api/my-country', async (req, res) => {
   const ip = getClientIp(req);

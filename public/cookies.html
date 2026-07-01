@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cookies — ArgueOut</title>
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');document.documentElement.style.background=(t==='light'||(t!=='dark'&&window.matchMedia('(prefers-color-scheme: light)').matches))?'#e5e5f2':'#05050f';if(typeof window.AndroidAuth!=='undefined'||window.matchMedia('(max-width:1024px)').matches)document.write('<style>@view-transition{navigation:none}</style>');}());</script>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <meta name="theme-color" content="#05050f" />
+  <meta name="robots" content="index, follow" />
+  <meta name="description" content="How ArgueOut uses cookies and local storage, and how to manage your preferences." />
+  <script src="/js/page-transitions.js" defer></script>
+  <script src="/js/instant-nav.js" defer></script>
+  <style>
+    .legal-wrap { max-width: 760px; margin: 0 auto; padding: 32px 24px 80px; }
+    .legal-h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 6px; color: var(--text-1); }
+    .legal-updated { font-size: 0.8rem; color: var(--text-3); margin-bottom: 24px; }
+    .legal-notice {
+      background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 10px; padding: 14px 18px; margin-bottom: 28px;
+      font-size: 0.82rem; color: var(--text-2); line-height: 1.6;
+    }
+    html[data-theme="light"] .legal-notice { background: rgba(139,92,246,0.06); }
+    .legal-section { margin-bottom: 28px; }
+    .legal-section h2 { font-size: 1rem; font-weight: 700; color: var(--text-1); margin-bottom: 10px; }
+    .legal-section p, .legal-section li { font-size: 0.9rem; color: var(--text-2); line-height: 1.7; }
+    .legal-section ul { padding-left: 20px; margin: 8px 0; }
+    .legal-section li { margin-bottom: 4px; }
+    .cookie-table {
+      width: 100%; border-collapse: collapse; margin: 10px 0 4px; font-size: 0.85rem;
+    }
+    .cookie-table th {
+      text-align: left; padding: 8px 10px; color: var(--text-1); font-weight: 700;
+      border-bottom: 1px solid var(--border-bright); white-space: nowrap;
+    }
+    .cookie-table td {
+      padding: 8px 10px; color: var(--text-2); border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .cookie-table code {
+      font-size: 0.82em; background: var(--bg-card-hover); padding: 1px 5px; border-radius: 4px;
+    }
+    @media (max-width: 640px) {
+      .legal-wrap { padding: 24px 16px 60px; }
+      .legal-h1 { font-size: 1.35rem; }
+      .cookie-table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <div class="nav-left">
+    <a href="#" class="nav-back-btn" aria-label="Back" onclick="event.preventDefault();if(document.referrer&&history.length>1){history.back()}else{location.href='/lobby'}">
+      <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </a>
+    <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+  </div>
+  <div class="nav-actions">
+    <div class="theme-switcher">
+      <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme" title="Switch theme">
+        <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
+      </button>
+      <div class="theme-menu" id="themeMenu" style="display:none">
+        <button class="theme-menu-item" data-t="system" onclick="applyTheme('system')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>System<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+        <button class="theme-menu-item" data-t="light" onclick="applyTheme('light')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>Light<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+        <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark<svg class="theme-check" style="width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;margin-left:auto;opacity:0" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+    </div>
+    <span id="nav-auth-cookies"></span>
+    <script>(function(){var el=document.getElementById('nav-auth-cookies');el.innerHTML=localStorage.getItem('userId')?'<a href="/lobby" class="btn btn-ghost btn-sm">Back to Lobby</a>':'<a href="/login" class="btn btn-ghost btn-sm">Sign In</a>';}());</script>
+  </div>
+</nav>
+
+<div class="legal-wrap">
+  <h1 class="legal-h1">Cookies &amp; Local Storage</h1>
+  <p class="legal-updated">Last updated: July 1, 2026</p>
+  <div class="legal-notice">
+    This page explains what ArgueOut stores on your device and why, in plain language. It supplements the <a href="/legal#privacy">Privacy Policy</a>. Whenever we say "cookies" below we also mean similar browser storage technologies ArgueOut actually uses, like <code>localStorage</code>.
+  </div>
+
+  <div class="legal-section">
+    <button class="btn btn-primary" onclick="if(window.CookieConsent)window.CookieConsent.openPreferences()">Manage Cookie Preferences</button>
+  </div>
+
+  <div class="legal-section">
+    <h2>Essential</h2>
+    <p>Required for the app to function. These can't be turned off — without them you can't stay signed in or connect to a debate.</p>
+    <table class="cookie-table">
+      <tr><th>Name</th><th>Purpose</th></tr>
+      <tr><td><code>Firebase Auth session</code></td><td>Keeps you signed in between visits.</td></tr>
+      <tr><td>Socket.io connection</td><td>The live connection your browser uses to reach the matchmaking/debate/chat server. Not persisted after you close the tab.</td></tr>
+      <tr><td><code>ao-consent-v1</code></td><td>Remembers your cookie preference choices themselves, so we don't ask again every visit.</td></tr>
+      <tr><td><code>ao-anon-id</code></td><td>A random ID (no personal data) used only to attach a consent choice to a compliance record if you're not signed in.</td></tr>
+      <tr><td><code>userId</code></td><td>Used by the interface to know whether to show "Sign In" or your logged-in navigation.</td></tr>
+    </table>
+  </div>
+
+  <div class="legal-section">
+    <h2>Functional</h2>
+    <p>Optional. These remember preferences so the app behaves the way you left it. You can turn these off — the app still works, it just won't remember these choices next time.</p>
+    <table class="cookie-table">
+      <tr><th>Name</th><th>Purpose</th></tr>
+      <tr><td><code>ao-theme</code></td><td>Your dark/light/system theme choice.</td></tr>
+      <tr><td><code>debateRoomId</code> / <code>debateOpponent</code> / <code>debateQuestion</code></td><td>Lets you rejoin an in-progress debate correctly if the page reloads.</td></tr>
+      <tr><td><code>avatarDataUrl</code></td><td>A cached copy of your profile picture so it loads instantly.</td></tr>
+      <tr><td>Saved account list</td><td>Lets you switch between multiple ArgueOut accounts on the same device without re-entering credentials.</td></tr>
+    </table>
+  </div>
+
+  <div class="legal-section">
+    <h2>Analytics</h2>
+    <p>ArgueOut does not run any analytics today — no Google Analytics, no Firebase Analytics, no usage tracking of any kind. This category exists in the preference center so that if we ever add privacy-respecting analytics in the future, it will already be off by default and require your explicit opt-in — nothing changes for you unless you turn it on.</p>
+  </div>
+
+  <div class="legal-section">
+    <h2>Third-Party</h2>
+    <p>ArgueOut runs no advertising or third-party tracking scripts. Two third-party <em>services</em> are used to operate core features, disclosed here for transparency even though neither is a tracker in your browser:</p>
+    <ul>
+      <li><strong>Google Firebase</strong> — authentication and profile storage. Required for the app to work (Essential).</li>
+      <li><strong>OpenRouter</strong> — an AI API called from our server (not your browser) to generate debate topic questions from your profile attributes. No cookie is set in your browser by this call.</li>
+    </ul>
+    <p>See the <a href="/legal#privacy">Privacy Policy</a> for full detail on both. This "Third-Party" toggle is reserved for any future genuinely third-party tracking/ad script — turning it off changes nothing about Firebase or OpenRouter, since those are essential-path services, not optional trackers.</p>
+  </div>
+
+  <div class="legal-section">
+    <h2>Do Not Track &amp; Global Privacy Control</h2>
+    <p>If your browser sends a Do Not Track or Global Privacy Control signal, ArgueOut detects it and defaults the Analytics and Third-Party toggles to off when the preference center first opens. You can still explicitly turn them on if you want.</p>
+  </div>
+
+  <div class="legal-section">
+    <h2>Re-consent</h2>
+    <p>Your saved preference is remembered for up to 12 months, and is automatically re-requested sooner if we materially change this cookie policy (tracked by a version number attached to your saved choice).</p>
+  </div>
+</div>
+
+<footer class="footer" style="margin-top:20px">
+  <div class="container" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px;position:relative;z-index:1">
+    <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+    <nav style="display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+      <a href="/help" class="footer-link">Help</a>
+      <a href="/legal" class="footer-link">Terms of Service</a>
+      <a href="/legal#privacy" class="footer-link">Privacy Policy</a>
+      <a href="/cookies" class="footer-link" style="color:var(--purple)">Cookies</a>
+    </nav>
+    <div style="color:var(--text-3);font-size:0.8rem">&copy; 2026 ArgueOut</div>
+  </div>
+</footer>
+<div id="toast-container"></div>
+<script src="/js/bg.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/cookie-consent.js" defer></script>
+<script src="/js/legal-footer.js"></script>
+</body>
+</html>
