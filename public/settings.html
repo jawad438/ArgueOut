@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="icon" href="/favicon.png" type="image/png" />
   <script src="/js/page-transitions.js" defer></script>
+  <script src="/js/instant-nav.js" defer></script>
   <style>
     body { background: var(--bg-0); min-height: 100dvh; }
     .s-page { max-width: 540px; margin: 0 auto; padding-bottom: 40px; }
@@ -128,10 +129,10 @@
 
   <!-- Profile card -->
   <a href="/edit-profile" class="s-profile-card" id="profileCard">
-    <div class="s-avatar" id="settingsAvatar">?</div>
+    <div class="s-avatar skel" id="settingsAvatar"></div>
     <div>
-      <div class="s-profile-name" id="settingsName">Loading…</div>
-      <div class="s-profile-user" id="settingsUsername"></div>
+      <div class="s-profile-name skel" id="settingsName" style="display:inline-block;width:120px;height:15px;border-radius:6px">Loading…</div>
+      <div class="s-profile-user skel" id="settingsUsername" style="display:inline-block;width:90px;height:12px;border-radius:6px;margin-top:6px"></div>
     </div>
     <span class="s-chevron">›</span>
   </a>
@@ -311,12 +312,22 @@ firebase.auth().onAuthStateChanged(function (user) {
 
   firebase.firestore().collection('users').doc(user.uid).get().then(function (doc) {
     var d = doc.data() || {};
-    document.getElementById('settingsName').textContent     = d.name     || user.displayName || 'User';
-    document.getElementById('settingsUsername').textContent = '@' + (d.username || '');
+    var nameEl = document.getElementById('settingsName');
+    var userEl = document.getElementById('settingsUsername');
+    var av     = document.getElementById('settingsAvatar');
+    nameEl.textContent = d.name || user.displayName || 'User';
+    userEl.textContent = '@' + (d.username || '');
     if (d.isAdmin) document.getElementById('adminSection').style.display = 'block';
-    var av = document.getElementById('settingsAvatar');
     if (d.avatarUrl) av.innerHTML = '<img src="' + d.avatarUrl + '" alt="">';
     else av.textContent = (d.name || d.username || '?')[0].toUpperCase();
+    // Strip skeleton placeholders now that real data is ready
+    [nameEl, userEl, av].forEach(function (el) {
+      el.classList.remove('skel');
+      el.style.removeProperty('width');
+      el.style.removeProperty('height');
+      el.style.removeProperty('display');
+      el.style.removeProperty('margin-top');
+    });
   });
 
   // Connect socket for invite generation

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="icon" href="/favicon.png" type="image/png" />
   <script src="/js/page-transitions.js" defer></script>
+  <script src="/js/instant-nav.js" defer></script>
   <style>
     body { background: var(--bg-0); min-height: 100dvh; }
     .notif-page { max-width: 540px; margin: 0 auto; padding: 0; min-height: 100dvh; display: flex; flex-direction: column; }
@@ -65,7 +66,11 @@
     <button class="notif-clear-all" id="clearAllBtn" style="display:none">Clear all</button>
   </div>
 
-  <div id="loadingState" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px;text-align:center;color:var(--text-3)"><div>Loading…</div></div>
+  <div id="loadingState">
+    <div class="notif-item"><div class="skel notif-dot" style="margin-top:5px"></div><div class="skel" style="flex:1;height:14px;border-radius:6px;width:80%"></div></div>
+    <div class="notif-item"><div class="skel notif-dot" style="margin-top:5px"></div><div class="skel" style="flex:1;height:14px;border-radius:6px;width:60%"></div></div>
+    <div class="notif-item"><div class="skel notif-dot" style="margin-top:5px"></div><div class="skel" style="flex:1;height:14px;border-radius:6px;width:40%"></div></div>
+  </div>
   <div class="notif-list-page" id="notifListPage" style="display:none"></div>
   <div class="notif-empty-state" id="emptyState" style="display:none">
     <div class="notif-empty-icon"><svg style="width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.5" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
@@ -185,12 +190,19 @@ function renderNotifs(items) {
   });
 }
 
+function notifSkeletonHtml() {
+  return [80, 60, 40].map(function (w) {
+    return '<div class="notif-item"><div class="skel notif-dot" style="margin-top:5px"></div>' +
+           '<div class="skel" style="flex:1;height:14px;border-radius:6px;width:' + w + '%"></div></div>';
+  }).join('');
+}
+
 function loadNotifs() {
   var user = firebase.auth().currentUser;
   if (!user) return;
   var loadEl = document.getElementById('loadingState');
-  loadEl.style.display = 'flex';
-  loadEl.innerHTML = '<div>Loading…</div>';
+  loadEl.style.display = 'block';
+  loadEl.innerHTML = notifSkeletonHtml();
   document.getElementById('notifListPage').style.display = 'none';
   document.getElementById('emptyState').style.display = 'none';
   user.getIdToken().then(function (token) {
@@ -202,8 +214,10 @@ function loadNotifs() {
     renderNotifs(data.items || []);
   }).catch(function () {
     loadEl.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px;text-align:center;color:var(--text-3)">' +
       '<div>Could not load notifications.</div>' +
-      '<button onclick="loadNotifs()" style="margin-top:8px;padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-1);cursor:pointer;font-size:0.85rem">Try again</button>';
+      '<button onclick="loadNotifs()" style="padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-1);cursor:pointer;font-size:0.85rem">Try again</button>' +
+      '</div>';
   });
 }
 
