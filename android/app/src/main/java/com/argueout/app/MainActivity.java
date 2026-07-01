@@ -94,6 +94,16 @@ public class MainActivity extends AppCompatActivity {
         String ua = s.getUserAgentString();
         s.setUserAgentString(ua.replace("; wv)", ")"));
 
+        // WebView's own background defaults to white. During a full-page navigation
+        // there is a real gap between the old page unloading and the new page's
+        // first paint, and in that gap Android draws this raw background color --
+        // that is the "split-second white screen" between pages, and it happened
+        // regardless of the (dark) page content because nothing had painted over it
+        // yet. Default to the app's dark color so that gap is dark immediately;
+        // syncWebViewBackgroundToTheme() below then keeps it matched to whichever
+        // theme the user actually has selected (dark or light) after each load.
+        webView.setBackgroundColor(Color.parseColor("#05050f"));
+
         webView.addJavascriptInterface(new AndroidAuth(), "AndroidAuth");
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -102,6 +112,7 @@ public class MainActivity extends AppCompatActivity {
                 // Ignore blank/intermediate loads; only nudge real page loads.
                 if (url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
                     forceRepaint(view);
+                    syncWebViewBackgroundToTheme(view);
                 }
             }
         });
@@ -171,6 +182,23 @@ public class MainActivity extends AppCompatActivity {
                 view.invalidate();
             }
         }, 32);
+    }
+
+    // Reads the page's resolved theme (mirrors the same localStorage/media-query
+    // logic every page's inline <head> script uses) and matches the WebView's own
+    // background to it, so the next navigation's white-flash gap paints the right
+    // color for whichever theme -- dark or light -- the user actually has active.
+    private void syncWebViewBackgroundToTheme(final WebView view) {
+        String js = "(function(){try{var t=localStorage.getItem('ao-theme');" +
+                "return (t==='light'||(t!=='dark'&&window.matchMedia('(prefers-color-scheme: light)').matches))?'light':'dark';" +
+                "}catch(e){return 'dark';}})()";
+        view.evaluateJavascript(js, new ValueCallback<String>() {
+            @Override
+            public void onReceiveValue(String value) {
+                boolean light = value != null && value.contains("light");
+                view.setBackgroundColor(Color.parseColor(light ? "#e5e5f2" : "#05050f"));
+            }
+        });
     }
 
     // Called from JavaScript with the Firebase web OAuth client ID
