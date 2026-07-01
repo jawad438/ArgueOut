@@ -1740,9 +1740,15 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
 .cookie-banner-text { flex: 1 1 320px; font-size: 0.85rem; color: var(--text-2); line-height: 1.55; }
 .cookie-banner-link { color: var(--purple); }
 .cookie-banner-actions { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+/* .btn has overflow:hidden (for its hover shine effect), which per the flexbox
+   spec makes its automatic min-width resolve to 0 instead of the text's real
+   min-content width. That let flex:1 here squeeze "Manage Preferences" and
+   "Reject Non-Essential" narrower than their (white-space:nowrap) label,
+   clipping the text. Stack full-width instead so each button always gets the
+   full banner width to fit its own label, regardless of screen size. */
 @media (max-width: 640px) {
-  .cookie-banner-actions { width: 100%; }
-  .cookie-banner-actions .btn { flex: 1; }
+  .cookie-banner-actions { width: 100%; flex-direction: column; }
+  .cookie-banner-actions .btn { width: 100%; }
 }
 
 .cookie-modal-overlay { z-index: 9001; }
