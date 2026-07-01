@@ -1751,8 +1751,24 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   .cookie-banner-actions .btn { width: 100%; }
 }
 
-.cookie-modal-overlay { z-index: 9001; }
-.cookie-modal { max-width: 480px; }
+.cookie-modal-overlay {
+  z-index: 9001;
+  animation: fadeIn 200ms ease both;
+}
+.cookie-modal {
+  max-width: 480px;
+  /* .modal-card's shared background (var(--bg-card)) is only ~3.5% white --
+     meant to be seen through the overlay's backdrop-filter blur, which is
+     disabled on mobile widths (Android WebView paint-freeze fix), leaving the
+     busy page content behind showing through almost unblurred. Give this
+     modal its own solid-ish background instead of touching the shared class
+     used by every other modal in the app. */
+  background: var(--bg-1);
+  animation: scaleIn 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cookie-modal-overlay, .cookie-modal { animation: none; }
+}
 .cookie-category-row {
   display: flex; align-items: flex-start; gap: 14px;
   padding: 12px 0; border-top: 1px solid var(--border);
