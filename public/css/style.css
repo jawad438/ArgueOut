@@ -32,18 +32,29 @@
    rather than <body> since body already owns the light-theme hue animation. */
 @media (max-width: 1024px) {
   html.ao-page-enter { animation: ao-slide-in 320ms cubic-bezier(0.16, 1, 0.3, 1); }
+  /* Tap feedback that a navigation was registered, while the real (possibly
+     slow) page fetch happens underneath. This animation's end state is
+     DELIBERATELY never fully hidden (opacity 0.4, not 0) and is pure CSS
+     with `forwards` fill — it just holds there once finished, with no JS
+     timer required to "reveal" it again. That's the fix for the earlier
+     freeze/black-screen bug: that version drove all the way to opacity:0,
+     so a slow network (cold Render.com start, weak connection) left the
+     page invisible-but-still-tappable for however long the fetch took, with
+     nothing left to bring it back. This version can never render worse than
+     "dimmed and shifted a bit" no matter how long navigation takes. */
+  html.ao-page-leaving { animation: ao-slide-out 180ms cubic-bezier(0.4, 0, 1, 1) forwards; }
 }
 @keyframes ao-slide-in {
   from { transform: translateX(20px); opacity: 0; }
   55%  { opacity: 1; }
   to   { transform: translateX(0); opacity: 1; }
 }
-/* Safety: never let a stale ao-page-leaving class (from an older cached build)
-   hold the page at opacity:0 — the slide-out transition was removed because it
-   blanked the screen during slow navigations. Force it back to visible. */
-html.ao-page-leaving { opacity: 1 !important; animation: none !important; }
+@keyframes ao-slide-out {
+  from { transform: translateX(0);       opacity: 1; }
+  to   { transform: translateX(-22px);   opacity: 0.4; }
+}
 @media (prefers-reduced-motion: reduce) {
-  html.ao-page-enter { animation: none !important; }
+  html.ao-page-enter, html.ao-page-leaving { animation: none !important; }
 }
 
 /* ── Tokens ─────────────────────────────────────────────────── */

@@ -1,24 +1,61 @@
-/* page-transitions.js — slide-IN page transitions on mobile widths.
+/* page-transitions.js — slide page transitions on mobile widths.
 
-   Plays a short slide-in on every page arrival (link nav, back/forward,
-   JS redirect). Animates <html> via the .ao-page-enter class in style.css.
+   Plays a slide-OUT the instant a same-origin link is tapped (immediate tap
+   feedback — see the "1-2 second freeze" complaint this fixes), then a
+   slide-IN on every page arrival (link nav, back/forward, JS redirect).
+   Animates <html> via the .ao-page-enter/.ao-page-leaving classes in
+   style.css.
 
-   IMPORTANT: this intentionally does NOT intercept link clicks to play a
-   slide-OUT before navigating. An earlier version did, applying opacity:0
-   to the whole page and then calling location.href. On a slow connection or
-   a cold-starting server the new page can take several seconds to load, and
-   during that time the old page stayed held at opacity:0 — a black screen
-   that still received taps, which read as the app "freezing". Letting links
-   navigate normally keeps the current page fully visible until the next one
-   is ready; the slide-in on arrival is enough to feel like a transition. */
+   SAFETY NOTE — read before changing the exit animation: an earlier version
+   of this file drove the leaving page to opacity:0 (fully hidden) and relied
+   on navigation completing soon after to reveal the next page. On a slow
+   connection or a cold-starting Render.com server, that left the old page
+   invisible-but-still-tappable for however long the fetch took, with no
+   timer to bring it back — this is what read as the app "freezing"/going
+   black. The current ao-slide-out keyframe (style.css) never goes below
+   opacity 0.4 and is a pure CSS animation with `forwards` fill, so no matter
+   how long navigation takes, the worst case is "dimmed and shifted a bit" —
+   never invisible, never stuck, no JS reveal-timer required. Do not change
+   the exit keyframe's end state back to opacity:0. */
 
 (function () {
   function isMobile() { return window.matchMedia('(max-width: 1024px)').matches; }
 
+  // Once a navigation is committed to, ignore further taps — without this,
+  // an impatient double-tap on a slow device could queue a second
+  // location.href change that fires while the first is already unloading,
+  // occasionally landing on the wrong page or showing two overlapping slides.
+  var leaving = false;
+
+  document.addEventListener('click', function (e) {
+    if (leaving || !isMobile() || e.defaultPrevented || e.button !== 0 ||
+        e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    if (a.target && a.target !== '' && a.target !== '_self') return;
+    if (a.hasAttribute('download')) return;
+    var href = a.getAttribute('href');
+    if (!href || href.charAt(0) === '#' || /^(javascript:|mailto:|tel:)/i.test(href)) return;
+    var url;
+    try { url = new URL(href, location.href); } catch (err) { return; }
+    if (url.origin !== location.origin) return;
+    if (url.href.split('#')[0] === location.href.split('#')[0]) return;
+
+    e.preventDefault();
+    leaving = true;
+    document.documentElement.classList.add('ao-page-leaving');
+    // Give the exit animation a moment to actually play before the browser
+    // starts tearing the page down for the real navigation. instant-nav.js
+    // has likely already prefetched this URL on touchstart, so by the time
+    // this fires the destination is usually already cache-warm — this delay
+    // is mostly just "let the slide be visible", not "wait on the network".
+    setTimeout(function () { location.href = url.href; }, 130);
+  }, true);
+
   function playEnter() {
+    leaving = false;
     if (!isMobile()) return;
     var html = document.documentElement;
-    // Defensive: clear any stale leaving class left by an older cached build.
     html.classList.remove('ao-page-leaving');
     html.classList.add('ao-page-enter');
     var done = false;
@@ -31,7 +68,7 @@
     html.addEventListener('animationend', cleanup);
     // Fallback in case the animation never fires (e.g. prefers-reduced-motion
     // sets animation:none), so the class can never get stuck on <html>.
-    setTimeout(cleanup, 280);
+    setTimeout(cleanup, 350);
   }
 
   if (document.readyState === 'loading') {
