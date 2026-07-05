@@ -638,6 +638,27 @@ h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15
 }
 
 /* Features section */
+/* ── Landing page "The Divide" teaser (logged-out visitors only — the
+   Android app never loads this page at all, it opens straight to /lobby,
+   so no extra guard is needed here) ────────────────────────────────────── */
+.divide-teaser { padding: 60px 0 80px; }
+.divide-teaser-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px;
+}
+.divide-teaser-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 20px;
+}
+.divide-teaser-question { font-size: 0.95rem; font-weight: 700; color: var(--text-1); margin-bottom: 14px; line-height: 1.4; min-height: 2.8em; }
+.divide-teaser-bar-row { margin-bottom: 10px; }
+.divide-teaser-bar-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-2); margin-bottom: 4px; }
+.divide-teaser-bar-track { height: 8px; border-radius: 99px; background: var(--bg-1); overflow: hidden; }
+.divide-teaser-bar-fill { height: 100%; border-radius: 99px; transition: width 500ms var(--ease-out); }
+.divide-teaser-cta { text-align: center; margin-top: 36px; }
+@media (max-width: 900px) {
+  .divide-teaser-grid { grid-template-columns: 1fr; }
+}
+
 .features { padding: 80px 0; }
 .section-label {
   font-size: 0.8rem;

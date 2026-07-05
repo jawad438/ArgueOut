@@ -100,6 +100,25 @@
   </div>
 </section>
 
+<!-- The Divide teaser -->
+<section class="divide-teaser">
+  <div class="container">
+    <div class="text-center z-1" style="position:relative">
+      <div class="section-label">The Divide</div>
+      <h2 class="section-title">Where does the room stand?</h2>
+      <p class="section-sub">Vote on hot-button questions, see the split in real time, and challenge someone who disagrees to debate it live.</p>
+    </div>
+    <div class="divide-teaser-grid z-1" style="position:relative" id="divideTeaserGrid">
+      <div class="divide-teaser-card"><div class="skel" style="height:16px;width:85%;border-radius:6px;margin-bottom:14px"></div><div class="skel" style="height:8px;border-radius:99px;margin-bottom:10px"></div><div class="skel" style="height:8px;border-radius:99px;opacity:0.6"></div></div>
+      <div class="divide-teaser-card"><div class="skel" style="height:16px;width:70%;border-radius:6px;margin-bottom:14px"></div><div class="skel" style="height:8px;border-radius:99px;margin-bottom:10px;opacity:0.8"></div><div class="skel" style="height:8px;border-radius:99px;opacity:0.5"></div></div>
+      <div class="divide-teaser-card"><div class="skel" style="height:16px;width:90%;border-radius:6px;margin-bottom:14px"></div><div class="skel" style="height:8px;border-radius:99px;margin-bottom:10px;opacity:0.7"></div><div class="skel" style="height:8px;border-radius:99px;opacity:0.4"></div></div>
+    </div>
+    <div class="divide-teaser-cta z-1" style="position:relative">
+      <a href="/register" class="btn btn-debate btn-lg">Sign up to vote &amp; debate</a>
+    </div>
+  </div>
+</section>
+
 <!-- Features -->
 <section class="features">
   <div class="container">
@@ -346,6 +365,30 @@
     requestAnimationFrame(draw);
   }
   draw();
+})();
+</script>
+<script>
+(function () {
+  var COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4'];
+  function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  fetch('/api/polls/featured').then(function (r) { return r.json(); }).then(function (data) {
+    var grid = document.getElementById('divideTeaserGrid');
+    var polls = data.polls || [];
+    if (!grid || !polls.length) { if (grid) grid.parentElement.parentElement.style.display = 'none'; return; }
+    grid.innerHTML = polls.map(function (p) {
+      var bars = p.options.map(function (opt, i) {
+        var pct = p.totalVotes ? Math.round((p.votes[i] / p.totalVotes) * 100) : 0;
+        return '<div class="divide-teaser-bar-row">' +
+          '<div class="divide-teaser-bar-label"><span>' + escapeHtml(opt) + '</span><span>' + pct + '%</span></div>' +
+          '<div class="divide-teaser-bar-track"><div class="divide-teaser-bar-fill" style="width:' + pct + '%;background:' + COLORS[i % COLORS.length] + '"></div></div>' +
+        '</div>';
+      }).join('');
+      return '<div class="divide-teaser-card"><div class="divide-teaser-question">' + escapeHtml(p.question) + '</div>' + bars + '</div>';
+    }).join('');
+  }).catch(function () {
+    var grid = document.getElementById('divideTeaserGrid');
+    if (grid) grid.parentElement.parentElement.style.display = 'none';
+  });
 })();
 </script>
 <script src="/js/bg.js"></script>

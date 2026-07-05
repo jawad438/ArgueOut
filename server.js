@@ -893,6 +893,263 @@ app.get('/api/debates', (req, res) => {
   res.json(list);
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// THE DIVIDE — poll-based debate matchmaking
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Data model (Firestore):
+//   polls/{pollId}                    { question, options:string[], votes:{"0":n,"1":n,...},
+//                                        createdBy, createdAt, status:'active'|'closed', commentCount }
+//   polls/{pollId}/votes/{userId}     { optionIndex, votedAt }  — doc ID = userId locks one vote/user
+//   polls/{pollId}/comments/{id}      { text, authorId, authorUsername, authorAvatarUrl, parentId,
+//                                        createdAt, reactions:{sharp,fairPoint,sourceNeeded} }
+//   polls/{pollId}/comments/{id}/reactorFlags/{userId}  { sharp, fairPoint, sourceNeeded } (booleans)
+//   challenges/{challengeId}          { pollId, question, challengerId, challengerUsername,
+//                                        challengedId, challengedUsername, status, createdAt, expiresAt,
+//                                        debateRoomId }
+//
+// Votes are counted via a map keyed by string index (votes.0, votes.1, ...) so
+// FieldValue.increment() can update a single option's count without ever
+// reading the poll first — safe under concurrent voting, same principle as
+// the plan's original two-option votesA/votesB design, generalised to N options.
+const DIVIDE_MAX_OPTIONS = 6;
+const DIVIDE_MAX_INCOMING_PENDING = 3;
+const DIVIDE_CHALLENGE_TTL_MS = 15 * 60 * 1000;
+
+function pollDocToJson(doc) {
+  const d = doc.data();
+  const options = Array.isArray(d.options) ? d.options : [];
+  const votes = options.map((_, i) => (d.votes && d.votes[String(i)]) || 0);
+  return {
+    id: doc.id,
+    question: d.question,
+    options,
+    votes,
+    totalVotes: votes.reduce((a, b) => a + b, 0),
+    status: d.status || 'active',
+    commentCount: d.commentCount || 0,
+    createdAt: d.createdAt ? d.createdAt.toMillis() : null
+  };
+}
+
+// Counts of currently-online users per option, for the "N online on this side"
+// UI and to know up front whether a challenge has anyone to match against.
+function pollOnlineCounts(pollVoterMap, options) {
+  const counts = options.map(() => 0);
+  for (const u of onlineUsers.values()) {
+    const idx = pollVoterMap.get(u.userId);
+    if (idx != null) counts[idx]++;
+  }
+  return counts;
+}
+
+app.get('/api/polls/featured', async (req, res) => {
+  try {
+    const snap = await fstore.collection('polls').where('status', '==', 'active').limit(50).get();
+    const polls = snap.docs.map(pollDocToJson)
+      .sort((a, b) => b.totalVotes - a.totalVotes)
+      .slice(0, 3);
+    res.json({ polls });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.get('/api/polls', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    // Sorted in JS instead of an .orderBy() combined with the equality filter
+    // above, which would need a manual composite index (status + createdAt)
+    // created in the Firebase console before the query would work at all. At
+    // this scale (a few dozen active polls) an in-memory sort costs nothing.
+    const snap = await fstore.collection('polls').where('status', '==', 'active').limit(50).get();
+    const sortedDocs = snap.docs.sort((a, b) => (b.data().createdAt?.toMillis() || 0) - (a.data().createdAt?.toMillis() || 0));
+
+    const polls = [];
+    for (const doc of sortedDocs) {
+      const poll = pollDocToJson(doc);
+      const votesSnap = await fstore.collection('polls').doc(doc.id).collection('votes').limit(2000).get();
+      const voterMap = new Map(); // userId -> optionIndex
+      votesSnap.docs.forEach(v => voterMap.set(v.id, v.data().optionIndex));
+      poll.onlineCounts = pollOnlineCounts(voterMap, poll.options);
+      poll.myVote = voterMap.has(decoded.uid) ? voterMap.get(decoded.uid) : null;
+      polls.push(poll);
+    }
+    res.json({ polls });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/polls', async (req, res) => {
+  const decoded = await verifyAdminBearer(req);
+  if (!decoded) return res.status(403).json({ error: 'Forbidden' });
+  const question = safeStr(req.body?.question, 300);
+  const options = Array.isArray(req.body?.options)
+    ? req.body.options.map(o => safeStr(o, 120)).filter(Boolean)
+    : [];
+  if (!question) return res.status(400).json({ error: 'Question is required' });
+  if (options.length < 2 || options.length > DIVIDE_MAX_OPTIONS)
+    return res.status(400).json({ error: `Provide 2-${DIVIDE_MAX_OPTIONS} options` });
+
+  try {
+    const votes = {};
+    options.forEach((_, i) => { votes[String(i)] = 0; });
+    const ref = await fstore.collection('polls').add({
+      question, options, votes, status: 'active', commentCount: 0,
+      createdBy: decoded.uid, createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    res.json({ ok: true, id: ref.id });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.get('/api/admin/polls', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const snap = await fstore.collection('polls').orderBy('createdAt', 'desc').limit(100).get();
+    res.json({ polls: snap.docs.map(pollDocToJson) });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/polls/:pollId/close', async (req, res) => {
+  const decoded = await verifyAdminBearer(req);
+  if (!decoded) return res.status(403).json({ error: 'Forbidden' });
+  const pollId = safeId(req.params.pollId);
+  if (!pollId) return res.status(400).json({ error: 'Invalid poll' });
+  try {
+    await fstore.collection('polls').doc(pollId).update({ status: 'closed' });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/polls/:pollId/vote', strictLimiter, async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const pollId = safeId(req.params.pollId);
+  const optionIndex = safeInt(req.body?.optionIndex, 0, DIVIDE_MAX_OPTIONS - 1);
+  if (!pollId || optionIndex === null) return res.status(400).json({ error: 'Invalid request' });
+
+  const pollRef = fstore.collection('polls').doc(pollId);
+  const voteRef = pollRef.collection('votes').doc(decoded.uid);
+  try {
+    const [pollDoc, existingVote] = await Promise.all([pollRef.get(), voteRef.get()]);
+    if (!pollDoc.exists) return res.status(404).json({ error: 'Poll not found' });
+    if (pollDoc.data().status !== 'active') return res.status(400).json({ error: 'This poll is closed' });
+    if (existingVote.exists) return res.status(409).json({ error: 'You already voted on this poll' });
+    const options = pollDoc.data().options || [];
+    if (optionIndex >= options.length) return res.status(400).json({ error: 'Invalid option' });
+
+    const batch = fstore.batch();
+    batch.set(voteRef, { optionIndex, votedAt: admin.firestore.FieldValue.serverTimestamp() });
+    batch.update(pollRef, { [`votes.${optionIndex}`]: admin.firestore.FieldValue.increment(1) });
+    await batch.commit();
+
+    const updatedDoc = await pollRef.get();
+    const json = pollDocToJson(updatedDoc);
+    io.emit('poll-vote-update', { pollId, votes: json.votes, totalVotes: json.totalVotes });
+    res.json({ ok: true, votes: json.votes });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// -- Comments (flat collection + parentId; client builds the reply tree) --
+
+app.get('/api/polls/:pollId/comments', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const pollId = safeId(req.params.pollId);
+  if (!pollId) return res.status(400).json({ error: 'Invalid poll' });
+  try {
+    const snap = await fstore.collection('polls').doc(pollId).collection('comments')
+      .orderBy('createdAt', 'asc').limit(500).get();
+    const myReactions = {};
+    await Promise.all(snap.docs.map(async d => {
+      const flag = await d.ref.collection('reactorFlags').doc(decoded.uid).get();
+      if (flag.exists) myReactions[d.id] = flag.data();
+    }));
+    const comments = snap.docs.map(d => {
+      const c = d.data();
+      return {
+        id: d.id,
+        text: c.text,
+        authorId: c.authorId,
+        authorUsername: c.authorUsername,
+        authorAvatarUrl: c.authorAvatarUrl || null,
+        parentId: c.parentId || null,
+        createdAt: c.createdAt ? c.createdAt.toMillis() : null,
+        reactions: c.reactions || { sharp: 0, fairPoint: 0, sourceNeeded: 0 },
+        myReactions: myReactions[d.id] || { sharp: false, fairPoint: false, sourceNeeded: false }
+      };
+    });
+    res.json({ comments });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/polls/:pollId/comments', strictLimiter, async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const pollId = safeId(req.params.pollId);
+  const text = safeStr(req.body?.text, 500);
+  const parentId = req.body?.parentId ? safeId(req.body.parentId) : null;
+  if (!pollId || !text) return res.status(400).json({ error: 'Comment text is required' });
+
+  try {
+    const userDoc = await fstore.collection('users').doc(decoded.uid).get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    const u = userDoc.data();
+
+    const pollRef = fstore.collection('polls').doc(pollId);
+    const commentRef = pollRef.collection('comments').doc();
+    const payload = {
+      text, authorId: decoded.uid, authorUsername: u.username,
+      authorAvatarUrl: u.avatarUrl || null, parentId: parentId || null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      reactions: { sharp: 0, fairPoint: 0, sourceNeeded: 0 }
+    };
+    const batch = fstore.batch();
+    batch.set(commentRef, payload);
+    batch.update(pollRef, { commentCount: admin.firestore.FieldValue.increment(1) });
+    await batch.commit();
+
+    const comment = {
+      id: commentRef.id, text, authorId: decoded.uid, authorUsername: u.username,
+      authorAvatarUrl: u.avatarUrl || null, parentId: parentId || null,
+      createdAt: Date.now(), reactions: { sharp: 0, fairPoint: 0, sourceNeeded: 0 },
+      myReactions: { sharp: false, fairPoint: false, sourceNeeded: false }
+    };
+    io.emit('poll-comment-new', { pollId, comment });
+    res.json({ ok: true, comment });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+const DIVIDE_REACTION_TYPES = ['sharp', 'fairPoint', 'sourceNeeded'];
+
+app.post('/api/polls/:pollId/comments/:commentId/react', strictLimiter, async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const pollId = safeId(req.params.pollId);
+  const commentId = safeId(req.params.commentId);
+  const type = req.body?.type;
+  if (!pollId || !commentId || !DIVIDE_REACTION_TYPES.includes(type))
+    return res.status(400).json({ error: 'Invalid request' });
+
+  const commentRef = fstore.collection('polls').doc(pollId).collection('comments').doc(commentId);
+  const flagRef = commentRef.collection('reactorFlags').doc(decoded.uid);
+  try {
+    const result = await fstore.runTransaction(async tx => {
+      const [commentDoc, flagDoc] = await Promise.all([tx.get(commentRef), tx.get(flagRef)]);
+      if (!commentDoc.exists) throw new Error('not-found');
+      const flags = flagDoc.exists ? flagDoc.data() : { sharp: false, fairPoint: false, sourceNeeded: false };
+      const nextValue = !flags[type];
+      tx.set(flagRef, { ...flags, [type]: nextValue }, { merge: true });
+      tx.update(commentRef, { [`reactions.${type}`]: admin.firestore.FieldValue.increment(nextValue ? 1 : -1) });
+      const reactions = commentDoc.data().reactions || { sharp: 0, fairPoint: 0, sourceNeeded: 0 };
+      reactions[type] = Math.max(0, reactions[type] + (nextValue ? 1 : -1));
+      return { reactions, active: nextValue };
+    });
+    io.emit('poll-comment-reaction', { pollId, commentId, reactions: result.reactions });
+    res.json({ ok: true, reactions: result.reactions, active: result.active });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Cloudflare Turnstile server-side verification
 app.post('/api/verify-captcha', express.json(), async (req, res) => {
   const token  = (req.body || {}).token;
@@ -1390,6 +1647,28 @@ function advanceTurn(roomId) {
 setInterval(() => {
   const now = Date.now();
   for (const [t, d] of inviteTokens) if (d.expiresAt < now) inviteTokens.delete(t);
+
+  // The Divide: sweep pending challenges past their 15-minute window. A
+  // Firestore scheduled Cloud Function would run independent of this
+  // process's uptime, but this app has no Functions deployment at all today
+  // (firebase-admin only) — piggybacking on the keep-alive-adjacent 60s loop
+  // that already exists here is the pragmatic match for the current infra.
+  // Filtered by status only (a single equality filter needs no manual
+  // composite index); the expiresAt < now check runs in JS afterward — an
+  // .where('expiresAt','<',now) combined with the status filter would need
+  // one, and this feature doesn't have enough concurrent pending challenges
+  // to justify that setup step.
+  fstore.collection('challenges').where('status', '==', 'pending')
+    .limit(500).get().then(snap => {
+      snap.docs.filter(d => d.data().expiresAt < now).forEach(d => {
+        d.ref.update({ status: 'expired' }).then(() => {
+          notifyDivideChallenger(
+            { ...d.data(), id: d.id },
+            `They may not have seen it — challenge someone new?`
+          );
+        }).catch(() => {});
+      });
+    }).catch(err => console.error('[divide-challenge sweep] error:', err.message));
 }, 60000);
 
 function broadcastOnlineUsers() {
@@ -1415,6 +1694,35 @@ function broadcastOnlineUsers() {
     inDebate:   u.inDebate || false
   }));
   io.emit('online-users', list);
+}
+
+// -- The Divide: challenge-expiry helpers (top-level so the sweep interval
+// below can call them without needing a live socket connection) -----------
+
+async function notifyDivideChallenger(challenge, message) {
+  fstore.collection('notifications').doc(challenge.challengerId).collection('items').add({
+    type: 'divide-challenge-update', message, read: false,
+    pollId: challenge.pollId, createdAt: admin.firestore.FieldValue.serverTimestamp()
+  }).catch(() => {});
+  const entry = [...onlineUsers.entries()].find(([, u]) => u.userId === challenge.challengerId);
+  if (entry) io.to(entry[0]).emit('divide-challenge-update', { challengeId: challenge.id, pollId: challenge.pollId, message });
+}
+
+// Expires a user's own pending INCOMING divide challenges the moment they
+// enter a different debate (queue match, direct challenge, invite, etc.)
+// rather than making challengers wait out the full 15-minute timer.
+async function expireIncomingDivideChallengesForUser(userId) {
+  try {
+    const snap = await fstore.collection('challenges')
+      .where('challengedId', '==', userId).where('status', '==', 'pending').limit(50).get();
+    await Promise.all(snap.docs.map(async d => {
+      await d.ref.update({ status: 'expired' });
+      notifyDivideChallenger(
+        { ...d.data(), id: d.id },
+        `${d.data().challengedUsername} joined another debate before responding — challenge someone new?`
+      );
+    }));
+  } catch (err) { console.error('[expireIncomingDivideChallengesForUser] error:', err.message); }
 }
 
 // Per-IP socket connection rate limiting (max 20 connections per IP per minute)
@@ -1582,7 +1890,7 @@ io.on('connection', socket => {
     if (matchNotif) socket.emit('match-notification', { notification: matchNotif, topic: room.question });
 
     const entry = onlineUsers.get(socket.id);
-    if (entry) { entry.inDebate = true; broadcastOnlineUsers(); }
+    if (entry) { entry.inDebate = true; broadcastOnlineUsers(); expireIncomingDivideChallengesForUser(decoded.uid); }
 
     const connected = room.users.filter(u => u.socketId !== null);
     if (connected.length === 2) {
@@ -1853,6 +2161,151 @@ io.on('connection', socket => {
       fstore.collection('notifications').doc(me.userId).collection('items').doc(String(notifId))
         .update({ read: true }).catch(() => {});
     }
+  });
+
+  // -- The Divide: poll-based challenge system -------------------
+  // Unlike the direct challenge system above (client picks the target,
+  // ephemeral in-memory pendingQuestions map, no timeout), Divide challenges
+  // are server-picked (never client-selected, to prevent gaming) and persist
+  // to Firestore with a 15-minute expiry so they survive across reconnects
+  // and can be swept/expired even if nobody is actively connected to see it
+  // happen — see the sweep job further down piggybacked on the existing
+  // 60s cleanup interval.
+
+  function createDebateRoomForDivideChallenge(userA, userB, question, s1, s2) {
+    const roomId = uuidv4();
+    rooms.set(roomId, {
+      users: [
+        { userId: userA.userId, username: userA.username, politicalX: userA.politicalX, politicalY: userA.politicalY, socketId: null },
+        { userId: userB.userId, username: userB.username, politicalX: userB.politicalX, politicalY: userB.politicalY, socketId: null }
+      ],
+      spectators: [], bannedSpectators: new Set(), question: null, startedAt: null
+    });
+    addDebated(userA.userId, userB.userId);
+    s1.emit('divide-challenge-accepted', { roomId, question, opponent: { username: userB.username, politicalX: userB.politicalX, politicalY: userB.politicalY } });
+    s2.emit('divide-challenge-accepted', { roomId, question, opponent: { username: userA.username, politicalX: userA.politicalX, politicalY: userA.politicalY } });
+    return roomId;
+  }
+
+  socket.on('divide-challenge', async ({ pollId }) => {
+    if (!socketAllow(socket.id, 'divide-challenge', 6)) return;
+    const me = onlineUsers.get(socket.id);
+    const cleanPollId = safeId(pollId);
+    if (!me || !cleanPollId) return;
+
+    try {
+      const pollRef = fstore.collection('polls').doc(cleanPollId);
+      const [pollDoc, myVoteDoc] = await Promise.all([
+        pollRef.get(), pollRef.collection('votes').doc(me.userId).get()
+      ]);
+      if (!pollDoc.exists) { socket.emit('divide-challenge-error', { error: 'Poll not found.' }); return; }
+      if (!myVoteDoc.exists) { socket.emit('divide-challenge-error', { error: 'Vote on this poll first.' }); return; }
+      const myOption = myVoteDoc.data().optionIndex;
+
+      // Find who's already got too many incoming pending challenges, so they're excluded as candidates.
+      const pendingSnap = await fstore.collection('challenges')
+        .where('pollId', '==', cleanPollId).where('status', '==', 'pending').limit(500).get();
+      const incomingCounts = new Map();
+      pendingSnap.docs.forEach(d => {
+        const cid = d.data().challengedId;
+        incomingCounts.set(cid, (incomingCounts.get(cid) || 0) + 1);
+      });
+
+      const votesSnap = await pollRef.collection('votes').limit(2000).get();
+      const candidates = [];
+      votesSnap.docs.forEach(v => {
+        const uid = v.id;
+        if (uid === me.userId) return;
+        if (v.data().optionIndex === myOption) return; // must have voted differently
+        const onlineEntry = [...onlineUsers.values()].find(u => u.userId === uid);
+        if (!onlineEntry || onlineEntry.inDebate) return;
+        if ((incomingCounts.get(uid) || 0) >= DIVIDE_MAX_INCOMING_PENDING) return;
+        candidates.push(onlineEntry);
+      });
+
+      if (!candidates.length) {
+        socket.emit('divide-challenge-error', { error: 'No one available to challenge right now — try again soon.' });
+        return;
+      }
+      const opponent = candidates[Math.floor(Math.random() * candidates.length)];
+      const now = Date.now();
+      const challengeRef = await fstore.collection('challenges').add({
+        pollId: cleanPollId, question: pollDoc.data().question,
+        challengerId: me.userId, challengerUsername: me.username,
+        challengedId: opponent.userId, challengedUsername: opponent.username,
+        status: 'pending', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: now + DIVIDE_CHALLENGE_TTL_MS, debateRoomId: null
+      });
+
+      const opponentEntry = [...onlineUsers.entries()].find(([, u]) => u.userId === opponent.userId);
+      const payload = {
+        challengeId: challengeRef.id, pollId: cleanPollId, question: pollDoc.data().question,
+        challengerId: me.userId, challengerUsername: me.username, expiresAt: now + DIVIDE_CHALLENGE_TTL_MS
+      };
+      if (opponentEntry) io.to(opponentEntry[0]).emit('divide-challenge-received', payload);
+      fstore.collection('notifications').doc(opponent.userId).collection('items').add({
+        type: 'divide-challenge', message: `${me.username} challenged you to debate "${pollDoc.data().question}"`,
+        read: false, pollId: cleanPollId, challengeId: challengeRef.id,
+        fromUserId: me.userId, fromUsername: me.username, question: pollDoc.data().question,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      }).catch(() => {});
+
+      socket.emit('divide-challenge-sent', { challengeId: challengeRef.id, challengedUsername: opponent.username });
+    } catch (err) {
+      console.error('[divide-challenge] error:', err.message);
+      socket.emit('divide-challenge-error', { error: 'Something went wrong. Try again.' });
+    }
+  });
+
+  socket.on('divide-challenge-accept', async ({ challengeId }) => {
+    const me = onlineUsers.get(socket.id);
+    const cleanId = safeId(challengeId);
+    if (!me || !cleanId) return;
+    const ref = fstore.collection('challenges').doc(cleanId);
+    try {
+      const doc = await ref.get();
+      if (!doc.exists) { socket.emit('divide-challenge-error', { error: 'This challenge no longer exists.' }); return; }
+      const c = doc.data();
+      if (c.challengedId !== me.userId) return;
+      if (c.status !== 'pending') { socket.emit('divide-challenge-error', { error: 'This challenge is no longer available.' }); return; }
+      if (c.expiresAt < Date.now()) {
+        await ref.update({ status: 'expired' });
+        socket.emit('divide-challenge-error', { error: 'This challenge has expired.' });
+        return;
+      }
+
+      const challengerEntry = [...onlineUsers.entries()].find(([, u]) => u.userId === c.challengerId);
+      if (!challengerEntry) {
+        await ref.update({ status: 'expired' });
+        socket.emit('divide-challenge-error', { error: 'The challenger is no longer online.' });
+        return;
+      }
+      const s1 = io.sockets.sockets.get(challengerEntry[0]);
+      const s2 = socket;
+      if (!s1) { socket.emit('divide-challenge-error', { error: 'The challenger is no longer online.' }); return; }
+
+      const roomId = createDebateRoomForDivideChallenge(challengerEntry[1], me, c.question, s1, s2);
+      await ref.update({ status: 'accepted', debateRoomId: roomId });
+    } catch (err) {
+      console.error('[divide-challenge-accept] error:', err.message);
+      socket.emit('divide-challenge-error', { error: 'Something went wrong. Try again.' });
+    }
+  });
+
+  socket.on('divide-challenge-decline', async ({ challengeId }) => {
+    const me = onlineUsers.get(socket.id);
+    const cleanId = safeId(challengeId);
+    if (!me || !cleanId) return;
+    const ref = fstore.collection('challenges').doc(cleanId);
+    try {
+      const doc = await ref.get();
+      if (!doc.exists || doc.data().challengedId !== me.userId || doc.data().status !== 'pending') return;
+      await ref.update({ status: 'declined' });
+      notifyDivideChallenger(
+        { ...doc.data(), id: cleanId },
+        `${me.username} declined your Divide challenge — try someone else?`
+      );
+    } catch {}
   });
 
   // -- Invite links ---------------------------------------------

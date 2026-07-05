@@ -155,6 +155,7 @@
       <button class="admin-tab" onclick="switchTab('appeals')">Appeals<span id="appealsBadge" style="display:none;margin-left:6px;background:rgba(239,68,68,0.18);color:var(--red);font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:99px"></span></button>
       <button class="admin-tab" onclick="switchTab('notify')">Notify</button>
       <button class="admin-tab" onclick="switchTab('whitelist')">Whitelist</button>
+      <button class="admin-tab" onclick="switchTab('divide')">The Divide</button>
     </div>
 
     <!-- Reports tab -->
@@ -253,6 +254,38 @@
             <button class="btn btn-primary" id="sendNotifBtn" onclick="sendNotification()">Send Notification</button>
             <div id="notifSendStatus" style="font-size:0.82rem;margin-top:8px"></div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- The Divide tab: poll creation + management -->
+    <div class="admin-pane" id="pane-divide">
+      <div class="admin-card">
+        <div style="font-size:0.95rem;font-weight:700;margin-bottom:16px">Create Poll</div>
+        <div style="display:flex;flex-direction:column;gap:12px;max-width:560px">
+          <div>
+            <label class="form-label" for="pollQuestionInput">Question</label>
+            <textarea class="form-input" id="pollQuestionInput" placeholder="What should people vote on?" maxlength="300" style="min-height:64px;resize:vertical"></textarea>
+          </div>
+          <div>
+            <label class="form-label">Options (2&ndash;6)</label>
+            <div id="pollOptionsList" style="display:flex;flex-direction:column;gap:8px"></div>
+            <button class="btn btn-ghost btn-sm" id="addPollOptionBtn" onclick="addPollOptionRow()" style="margin-top:8px">+ Add option</button>
+          </div>
+          <div>
+            <button class="btn btn-primary" onclick="createPoll()">Create Poll</button>
+            <div id="pollCreateStatus" style="font-size:0.82rem;margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="admin-card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:0.88rem;font-weight:700">All Polls</span>
+          <button class="btn btn-ghost btn-sm" onclick="loadDividePolls()">&#8635; Refresh</button>
+        </div>
+        <div id="dividePollsList" style="padding:12px 16px">
+          <div class="skel" style="height:60px;border-radius:10px;margin-bottom:8px"></div>
+          <div class="skel" style="height:60px;border-radius:10px;margin-bottom:8px;opacity:0.55"></div>
         </div>
       </div>
     </div>

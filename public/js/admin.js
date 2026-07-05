@@ -132,7 +132,7 @@ function switchTab(name) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   const pane = document.getElementById(`pane-${name}`);
   const tabs = document.querySelectorAll('.admin-tab');
-  const tabNames = ['reports','users','appeals','notify','whitelist'];
+  const tabNames = ['reports','users','appeals','notify','whitelist','divide'];
   if (pane) pane.classList.add('active');
   const idx = tabNames.indexOf(name);
   if (tabs[idx]) tabs[idx].classList.add('active');
@@ -140,6 +140,7 @@ function switchTab(name) {
   if (name === 'users') { loadAllUsers(); loadDeletionRequests(); }
   if (name === 'appeals') loadAppeals(currentAppealFilter);
   if (name === 'whitelist') loadWhitelist();
+  if (name === 'divide') { resetPollOptionRows(); loadDividePolls(); }
 }
 
 // ── Whitelist ──────────────────────────────────────────────────
@@ -695,3 +696,110 @@ auth.onAuthStateChanged(async user => {
     window.location.href = '/lobby';
   }
 });
+
+// ── The Divide: poll creation + management ────────────────────
+const POLL_MAX_OPTIONS = 6;
+
+function resetPollOptionRows() {
+  const list = document.getElementById('pollOptionsList');
+  if (!list || list.children.length) return; // don't clobber in-progress typing on tab re-entry
+  list.innerHTML = '';
+  addPollOptionRow();
+  addPollOptionRow();
+}
+
+function addPollOptionRow() {
+  const list = document.getElementById('pollOptionsList');
+  if (!list || list.children.length >= POLL_MAX_OPTIONS) return;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;align-items:center';
+  const idx = list.children.length + 1;
+  row.innerHTML =
+    `<input class="form-input poll-option-input" type="text" placeholder="Option ${idx}" maxlength="120" style="flex:1">` +
+    `<button type="button" class="btn btn-ghost btn-sm" onclick="this.parentElement.remove()" aria-label="Remove option">&times;</button>`;
+  list.appendChild(row);
+  const addBtn = document.getElementById('addPollOptionBtn');
+  if (addBtn) addBtn.style.display = list.children.length >= POLL_MAX_OPTIONS ? 'none' : '';
+}
+
+async function createPoll() {
+  const questionEl = document.getElementById('pollQuestionInput');
+  const question = (questionEl?.value || '').trim();
+  const options = [...document.querySelectorAll('.poll-option-input')]
+    .map(i => i.value.trim()).filter(Boolean);
+  const statusEl = document.getElementById('pollCreateStatus');
+
+  if (!question) { statusEl.textContent = 'Question is required.'; statusEl.style.color = 'var(--red)'; return; }
+  if (options.length < 2) { statusEl.textContent = 'Provide at least 2 options.'; statusEl.style.color = 'var(--red)'; return; }
+
+  statusEl.textContent = 'Creating…';
+  statusEl.style.color = 'var(--text-3)';
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/polls', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, options })
+    });
+    const data = await res.json();
+    if (!res.ok) { statusEl.textContent = data.error || 'Error creating poll.'; statusEl.style.color = 'var(--red)'; return; }
+    statusEl.textContent = 'Poll created!';
+    statusEl.style.color = 'var(--green)';
+    questionEl.value = '';
+    document.getElementById('pollOptionsList').innerHTML = '';
+    addPollOptionRow(); addPollOptionRow();
+    loadDividePolls();
+    showToast('Poll created.', 'success');
+  } catch {
+    statusEl.textContent = 'Network error.';
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+async function loadDividePolls() {
+  const list = document.getElementById('dividePollsList');
+  list.innerHTML = '<div class="admin-empty">Loading…</div>';
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/admin/polls', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    renderDividePolls(data.polls || []);
+  } catch {
+    list.innerHTML = '<div class="admin-empty">Error loading polls.</div>';
+  }
+}
+
+function renderDividePolls(polls) {
+  const list = document.getElementById('dividePollsList');
+  if (!polls.length) { list.innerHTML = '<div class="admin-empty">No polls yet. Create one above.</div>'; return; }
+  list.innerHTML = polls.map(p => `
+    <div class="user-row" id="poll-row-${p.id}" style="align-items:flex-start">
+      <div class="user-row-info">
+        <div class="user-row-name">${escapeHtml(p.question)}</div>
+        <div class="user-row-sub" style="margin-top:4px">
+          ${p.options.map((o, i) => `${escapeHtml(o)} (${p.votes[i] || 0})`).join('  ·  ')}
+        </div>
+        <div class="user-row-sub" style="margin-top:2px">${p.totalVotes} total votes &nbsp;·&nbsp; ${p.commentCount} comments</div>
+      </div>
+      <div class="user-row-actions">
+        ${p.status === 'active'
+          ? `<span class="ban-chip" style="background:rgba(34,197,94,0.12);color:var(--green);border-color:rgba(34,197,94,0.25)">ACTIVE</span>
+             <button class="btn btn-sm" style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2)" onclick="closePoll('${p.id}')">Close</button>`
+          : `<span class="ban-chip">CLOSED</span>`}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function closePoll(pollId) {
+  if (!confirm('Close this poll? It will stop accepting votes and challenges.')) return;
+  try {
+    const token = await adminToken();
+    const res = await fetch(`/api/polls/${pollId}/close`, {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { showToast('Failed to close poll.', 'error'); return; }
+    showToast('Poll closed.', 'success');
+    loadDividePolls();
+  } catch { showToast('Network error.', 'error'); }
+}

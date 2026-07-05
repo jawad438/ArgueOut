@@ -1,5 +1,5 @@
 /* ArgueOut Service Worker */
-const CACHE = 'argueout-v6';
+const CACHE = 'argueout-v7';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', e => {

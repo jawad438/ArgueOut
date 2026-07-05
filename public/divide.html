@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Divide — ArgueOut</title>
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');document.documentElement.style.background=(t==='light'||(t!=='dark'&&window.matchMedia('(prefers-color-scheme: light)').matches))?'#e5e5f2':'#05050f';if(typeof window.AndroidAuth!=='undefined'||window.matchMedia('(max-width:1024px)').matches)document.write('<style>@view-transition{navigation:none}</style>');}());</script>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <meta name="theme-color" content="#05050f" />
+  <meta name="robots" content="index, follow" />
+  <meta name="description" content="The Divide — vote on hot-button questions, see where the room stands, and challenge someone who disagrees to a live debate." />
+  <script src="/js/page-transitions.js" defer></script>
+  <script src="/js/instant-nav.js" defer></script>
+  <script src="/js/cookie-consent.js" defer></script>
+  <style>
+    .divide-wrap { max-width: 760px; margin: 0 auto; padding: 88px 24px 100px; }
+    .divide-hero { margin-bottom: 32px; text-align: center; }
+    .divide-hero h1 {
+      font-size: 2rem; font-weight: 800; font-family: 'Space Grotesk', sans-serif;
+      background: var(--grad-debate); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 8px;
+    }
+    .divide-hero p { font-size: 0.95rem; color: var(--text-2); max-width: 480px; margin: 0 auto; }
+
+    .poll-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 22px; margin-bottom: 18px;
+    }
+    .poll-question { font-size: 1.05rem; font-weight: 700; color: var(--text-1); margin-bottom: 16px; line-height: 1.45; }
+    .poll-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .poll-option-btn {
+      position: relative; display: block; width: 100%; text-align: left;
+      padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--border);
+      background: var(--bg-1); color: var(--text-1); cursor: pointer; overflow: hidden;
+      font-family: inherit; font-size: 0.9rem; font-weight: 600; transition: border-color 150ms;
+    }
+    .poll-option-btn:hover:not(:disabled) { border-color: var(--border-bright); }
+    .poll-option-btn:disabled { cursor: default; }
+    .poll-option-fill {
+      position: absolute; inset: 0; z-index: 0; transition: width 400ms var(--ease-out);
+      opacity: 0.22;
+    }
+    .poll-option-label { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 10px; }
+    .poll-option-pct { color: var(--text-3); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .poll-option-btn.voted-mine { border-color: var(--purple); box-shadow: 0 0 0 1px var(--purple) inset; }
+    .poll-option-online { font-size: 0.7rem; color: var(--text-3); font-weight: 500; margin-top: 2px; }
+
+    .poll-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 0.78rem; color: var(--text-3); margin-bottom: 14px; }
+    .poll-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .poll-comments-section { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; display: none; }
+    .poll-comments-section.open { display: block; }
+    .comment-composer { display: flex; gap: 8px; margin-bottom: 14px; }
+    .comment-composer textarea {
+      flex: 1; min-height: 40px; max-height: 140px; resize: vertical; padding: 9px 12px;
+      border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-1);
+      color: var(--text-1); font-family: inherit; font-size: 0.86rem; outline: none;
+    }
+    .comment-composer textarea:focus { border-color: var(--purple); }
+    .comment-list { display: flex; flex-direction: column; gap: 12px; }
+    .comment-item { display: flex; gap: 10px; }
+    .comment-avatar {
+      width: 30px; height: 30px; border-radius: 50%; background: var(--grad-brand); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
+      font-size: 0.8rem; overflow: hidden;
+    }
+    .comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .comment-body { flex: 1; min-width: 0; }
+    .comment-author { font-size: 0.82rem; font-weight: 700; color: var(--text-1); }
+    .comment-time { font-size: 0.7rem; color: var(--text-3); margin-left: 6px; font-weight: 400; }
+    .comment-text { font-size: 0.87rem; color: var(--text-2); line-height: 1.5; margin: 3px 0 6px; word-wrap: break-word; }
+    .comment-actions { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+    .reaction-btn {
+      display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 99px;
+      border: 1px solid var(--border); background: none; color: var(--text-3); cursor: pointer;
+      font-size: 0.74rem; font-weight: 600; transition: background 120ms, border-color 120ms, color 120ms;
+    }
+    .reaction-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .reaction-btn:hover { border-color: var(--border-bright); }
+    .reaction-btn.active { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.4); color: var(--purple); }
+    .reply-btn {
+      background: none; border: none; color: var(--text-3); font-size: 0.74rem; font-weight: 600;
+      cursor: pointer; padding: 4px 6px;
+    }
+    .reply-btn:hover { color: var(--text-1); }
+    /* Indentation is applied per-comment via an inline style capped at a max
+       depth (see divide.js) rather than stacking additively here — nested
+       replies-of-replies-of-replies would otherwise squeeze the text column
+       down to nothing on a phone by the 5th or 6th level. */
+    .comment-replies { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .comment-item { border-left: 2px solid transparent; padding-left: 10px; margin-left: -10px; }
+    .comment-item.is-reply { border-left-color: var(--border); }
+    .reply-composer { display: none; gap: 8px; margin-top: 8px; }
+    .reply-composer.open { display: flex; }
+    .reply-composer textarea {
+      flex: 1; min-height: 34px; max-height: 100px; resize: vertical; padding: 7px 10px;
+      border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-1);
+      color: var(--text-1); font-family: inherit; font-size: 0.82rem; outline: none;
+    }
+    .comments-empty { text-align: center; padding: 20px; color: var(--text-3); font-size: 0.85rem; }
+
+    .divide-empty { text-align: center; padding: 60px 24px; color: var(--text-3); }
+    .divide-empty svg { opacity: 0.3; margin-bottom: 14px; }
+
+    #divideChallengeNotif { max-width: 340px; }
+    .dcn-countdown { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--purple); }
+
+    @media (max-width: 640px) {
+      .divide-wrap { padding: 88px 16px 90px; }
+      .divide-hero h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <a href="/lobby" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+  <div class="nav-actions">
+    <div class="theme-switcher">
+      <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme" title="Switch theme">
+        <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
+      </button>
+      <div class="theme-menu" id="themeMenu" style="display:none">
+        <button class="theme-menu-item" data-t="system" onclick="applyTheme('system')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>System</button>
+        <button class="theme-menu-item" data-t="light" onclick="applyTheme('light')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>Light</button>
+        <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark</button>
+      </div>
+    </div>
+    <a href="/lobby" class="btn btn-ghost btn-sm">Lobby</a>
+  </div>
+</nav>
+
+<div class="divide-wrap">
+  <div class="divide-hero">
+    <h1>The Divide</h1>
+    <p>Vote on where you stand, see who disagrees, and challenge them to a live debate.</p>
+  </div>
+
+  <div id="pollsList">
+    <div class="poll-card"><div class="skel" style="height:20px;width:70%;border-radius:6px;margin-bottom:16px"></div>
+      <div class="skel" style="height:44px;border-radius:10px;margin-bottom:8px"></div>
+      <div class="skel" style="height:44px;border-radius:10px;margin-bottom:8px;opacity:0.6"></div>
+    </div>
+    <div class="poll-card"><div class="skel" style="height:20px;width:55%;border-radius:6px;margin-bottom:16px"></div>
+      <div class="skel" style="height:44px;border-radius:10px;margin-bottom:8px;opacity:0.7"></div>
+      <div class="skel" style="height:44px;border-radius:10px;margin-bottom:8px;opacity:0.4"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Divide challenge received: accept/decline card -->
+<div class="challenge-notif" id="divideChallengeNotif">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex-shrink:0;color:var(--purple)">
+      <svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+    </div>
+    <div style="flex:1">
+      <div id="divideChallengeText" style="font-size:0.88rem;font-weight:600;margin-bottom:4px;line-height:1.4"></div>
+      <div style="font-size:0.78rem;color:var(--text-3);margin-bottom:10px">Expires in <span class="dcn-countdown" id="divideChallengeCountdown">15:00</span></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="acceptDivideChallenge()">Accept</button>
+        <button class="btn btn-ghost btn-sm" onclick="declineDivideChallenge()">Decline</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/mobile-bridge.js"></script>
+<script src="/js/bg.js"></script>
+<script src="/js/theme.js"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="/js/divide.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+<script src="/js/legal-footer.js"></script>
+</body>
+</html>
