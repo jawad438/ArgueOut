@@ -1125,21 +1125,24 @@ app.get('/api/polls/:pollId/comments', async (req, res) => {
       const flag = await d.ref.collection('reactorFlags').doc(decoded.uid).get();
       if (flag.exists) myReactions[d.id] = flag.data();
     }));
+    const isAdmin = (await fstore.collection('users').doc(decoded.uid).get()).data()?.isAdmin === true;
     const comments = snap.docs.map(d => {
       const c = d.data();
       return {
         id: d.id,
-        text: c.text,
+        text: c.deleted ? '[deleted]' : c.text,
+        deleted: !!c.deleted,
         authorId: c.authorId,
         authorUsername: c.authorUsername,
         authorAvatarUrl: c.authorAvatarUrl || null,
         parentId: c.parentId || null,
         createdAt: c.createdAt ? c.createdAt.toMillis() : null,
         reactions: c.reactions || { sharp: 0, fairPoint: 0, sourceNeeded: 0 },
-        myReactions: myReactions[d.id] || { sharp: false, fairPoint: false, sourceNeeded: false }
+        myReactions: myReactions[d.id] || { sharp: false, fairPoint: false, sourceNeeded: false },
+        canDelete: !c.deleted && (c.authorId === decoded.uid || isAdmin)
       };
     });
-    res.json({ comments });
+    res.json({ comments, isAdmin });
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -1167,10 +1170,10 @@ app.post('/api/polls/:pollId/comments', strictLimiter, async (req, res) => {
     await commentRef.set(payload);
 
     const comment = {
-      id: commentRef.id, text, authorId: decoded.uid, authorUsername: u.username,
+      id: commentRef.id, text, deleted: false, authorId: decoded.uid, authorUsername: u.username,
       authorAvatarUrl: u.avatarUrl || null, parentId: parentId || null,
       createdAt: Date.now(), reactions: { sharp: 0, fairPoint: 0, sourceNeeded: 0 },
-      myReactions: { sharp: false, fairPoint: false, sourceNeeded: false }
+      myReactions: { sharp: false, fairPoint: false, sourceNeeded: false }, canDelete: true
     };
     io.emit('poll-comment-new', { pollId, comment });
     res.json({ ok: true, comment });
@@ -1207,6 +1210,34 @@ app.post('/api/polls/:pollId/comments/:commentId/react', strictLimiter, async (r
   } catch {
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// Soft-delete only — a hard delete would orphan any replies underneath a
+// deleted comment (buildCommentTree on the client falls back to showing an
+// orphan as a top-level comment, which reads as a random disconnected reply
+// with no context). Replacing the text and keeping the doc in place keeps
+// the reply thread intact, matching how every other threaded-comment UI
+// (Reddit, etc.) handles this.
+app.delete('/api/polls/:pollId/comments/:commentId', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const pollId = safeId(req.params.pollId);
+  const commentId = safeId(req.params.commentId);
+  if (!pollId || !commentId) return res.status(400).json({ error: 'Invalid request' });
+
+  const commentRef = fstore.collection('polls').doc(pollId).collection('comments').doc(commentId);
+  try {
+    const doc = await commentRef.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Comment not found' });
+    const c = doc.data();
+    if (c.authorId !== decoded.uid) {
+      const isAdmin = (await fstore.collection('users').doc(decoded.uid).get()).data()?.isAdmin === true;
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+    }
+    await commentRef.update({ deleted: true, text: '[deleted]' });
+    io.emit('poll-comment-deleted', { pollId, commentId });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
 // Cloudflare Turnstile server-side verification
@@ -2283,50 +2314,101 @@ io.on('connection', socket => {
     return roomId;
   }
 
-  socket.on('divide-challenge', async ({ pollId }) => {
-    if (!socketAllow(socket.id, 'divide-challenge', 6)) return;
+  // Finds online users who voted differently than `challengerUserId` on this
+  // poll, are not already in a debate, and aren't already sitting at the
+  // incoming-pending-challenge cap. Shared by both divide-recommend (initial
+  // pick, and any "find someone else" reroll) and divide-send-challenge
+  // (re-validated right before actually committing, since time may have
+  // passed since the candidate was first recommended and they may no longer
+  // be eligible).
+  async function findDivideCandidates(pollId, challengerUserId, excludeUserIds) {
+    const pollRef = fstore.collection('polls').doc(pollId);
+    const [pollDoc, myVoteDoc] = await Promise.all([
+      pollRef.get(), pollRef.collection('votes').doc(challengerUserId).get()
+    ]);
+    if (!pollDoc.exists) return { error: 'Poll not found.' };
+    if (!myVoteDoc.exists) return { error: 'Vote on this poll first.' };
+    const myOption = myVoteDoc.data().optionIndex;
+
+    const pendingSnap = await fstore.collection('challenges')
+      .where('pollId', '==', pollId).where('status', '==', 'pending').limit(500).get();
+    const incomingCounts = new Map();
+    pendingSnap.docs.forEach(d => {
+      const cid = d.data().challengedId;
+      incomingCounts.set(cid, (incomingCounts.get(cid) || 0) + 1);
+    });
+
+    const votesSnap = await pollRef.collection('votes').limit(2000).get();
+    const candidates = [];
+    votesSnap.docs.forEach(v => {
+      const uid = v.id;
+      if (uid === challengerUserId) return;
+      if (excludeUserIds && excludeUserIds.includes(uid)) return;
+      if (v.data().optionIndex === myOption) return; // must have voted differently
+      const onlineEntry = [...onlineUsers.values()].find(u => u.userId === uid);
+      if (!onlineEntry || onlineEntry.inDebate) return;
+      if ((incomingCounts.get(uid) || 0) >= DIVIDE_MAX_INCOMING_PENDING) return;
+      candidates.push(onlineEntry);
+    });
+    return { candidates, question: pollDoc.data().question };
+  }
+
+  function opponentPayload(u) {
+    return {
+      userId: u.userId, username: u.username, name: u.name || u.username,
+      avatarUrl: u.avatarUrl || null, politicalX: u.politicalX || 0, politicalY: u.politicalY || 0
+    };
+  }
+
+  // Step 1 of 2: just picks and returns a candidate. Does NOT create a
+  // challenge doc or notify anyone — the challenger reviews who got picked
+  // and explicitly confirms via divide-send-challenge, or asks for someone
+  // else (client resends divide-recommend with the shown candidate added to
+  // excludeUserIds).
+  socket.on('divide-recommend', async ({ pollId, excludeUserIds }) => {
+    if (!socketAllow(socket.id, 'divide-recommend', 15)) return;
     const me = onlineUsers.get(socket.id);
     const cleanPollId = safeId(pollId);
     if (!me || !cleanPollId) return;
-
     try {
-      const pollRef = fstore.collection('polls').doc(cleanPollId);
-      const [pollDoc, myVoteDoc] = await Promise.all([
-        pollRef.get(), pollRef.collection('votes').doc(me.userId).get()
-      ]);
-      if (!pollDoc.exists) { socket.emit('divide-challenge-error', { error: 'Poll not found.' }); return; }
-      if (!myVoteDoc.exists) { socket.emit('divide-challenge-error', { error: 'Vote on this poll first.' }); return; }
-      const myOption = myVoteDoc.data().optionIndex;
-
-      // Find who's already got too many incoming pending challenges, so they're excluded as candidates.
-      const pendingSnap = await fstore.collection('challenges')
-        .where('pollId', '==', cleanPollId).where('status', '==', 'pending').limit(500).get();
-      const incomingCounts = new Map();
-      pendingSnap.docs.forEach(d => {
-        const cid = d.data().challengedId;
-        incomingCounts.set(cid, (incomingCounts.get(cid) || 0) + 1);
-      });
-
-      const votesSnap = await pollRef.collection('votes').limit(2000).get();
-      const candidates = [];
-      votesSnap.docs.forEach(v => {
-        const uid = v.id;
-        if (uid === me.userId) return;
-        if (v.data().optionIndex === myOption) return; // must have voted differently
-        const onlineEntry = [...onlineUsers.values()].find(u => u.userId === uid);
-        if (!onlineEntry || onlineEntry.inDebate) return;
-        if ((incomingCounts.get(uid) || 0) >= DIVIDE_MAX_INCOMING_PENDING) return;
-        candidates.push(onlineEntry);
-      });
-
+      const clean = Array.isArray(excludeUserIds) ? excludeUserIds.map(safeId).filter(Boolean) : [];
+      const { error, candidates } = await findDivideCandidates(cleanPollId, me.userId, clean);
+      if (error) { socket.emit('divide-challenge-error', { error }); return; }
       if (!candidates.length) {
-        socket.emit('divide-challenge-error', { error: 'No one available to challenge right now — try again soon.' });
+        socket.emit('divide-challenge-error', { error: 'No one else available to challenge right now — try again soon.' });
         return;
       }
-      const opponent = candidates[Math.floor(Math.random() * candidates.length)];
+      const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+      socket.emit('divide-recommendation', { pollId: cleanPollId, opponent: opponentPayload(candidate) });
+    } catch (err) {
+      console.error('[divide-recommend] error:', err.message);
+      socket.emit('divide-challenge-error', { error: 'Something went wrong. Try again.' });
+    }
+  });
+
+  // Step 2 of 2: the challenger explicitly confirmed the recommended
+  // opponent. Re-validates eligibility (they could have gone offline, joined
+  // a debate, or hit the incoming cap in the time since being recommended)
+  // before actually creating the persisted challenge and notifying them.
+  socket.on('divide-send-challenge', async ({ pollId, targetUserId }) => {
+    if (!socketAllow(socket.id, 'divide-send-challenge', 6)) return;
+    const me = onlineUsers.get(socket.id);
+    const cleanPollId = safeId(pollId);
+    const cleanTarget = safeId(targetUserId);
+    if (!me || !cleanPollId || !cleanTarget) return;
+
+    try {
+      const { error, candidates, question } = await findDivideCandidates(cleanPollId, me.userId, []);
+      if (error) { socket.emit('divide-challenge-error', { error }); return; }
+      const opponent = candidates.find(c => c.userId === cleanTarget);
+      if (!opponent) {
+        socket.emit('divide-challenge-error', { error: 'They’re no longer available — try recommending someone else.' });
+        return;
+      }
+
       const now = Date.now();
       const challengeRef = await fstore.collection('challenges').add({
-        pollId: cleanPollId, question: pollDoc.data().question,
+        pollId: cleanPollId, question,
         challengerId: me.userId, challengerUsername: me.username,
         challengedId: opponent.userId, challengedUsername: opponent.username,
         status: 'pending', createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -2335,26 +2417,20 @@ io.on('connection', socket => {
 
       const opponentEntry = [...onlineUsers.entries()].find(([, u]) => u.userId === opponent.userId);
       const payload = {
-        challengeId: challengeRef.id, pollId: cleanPollId, question: pollDoc.data().question,
+        challengeId: challengeRef.id, pollId: cleanPollId, question,
         challengerId: me.userId, challengerUsername: me.username, expiresAt: now + DIVIDE_CHALLENGE_TTL_MS
       };
       if (opponentEntry) io.to(opponentEntry[0]).emit('divide-challenge-received', payload);
       fstore.collection('notifications').doc(opponent.userId).collection('items').add({
-        type: 'divide-challenge', message: `${me.username} challenged you to debate "${pollDoc.data().question}"`,
+        type: 'divide-challenge', message: `${me.username} challenged you to debate "${question}"`,
         read: false, pollId: cleanPollId, challengeId: challengeRef.id,
-        fromUserId: me.userId, fromUsername: me.username, question: pollDoc.data().question,
+        fromUserId: me.userId, fromUsername: me.username, question,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
 
-      socket.emit('divide-challenge-sent', {
-        challengeId: challengeRef.id,
-        opponent: {
-          userId: opponent.userId, username: opponent.username, name: opponent.name || opponent.username,
-          avatarUrl: opponent.avatarUrl || null, politicalX: opponent.politicalX || 0, politicalY: opponent.politicalY || 0
-        }
-      });
+      socket.emit('divide-challenge-sent', { challengeId: challengeRef.id, opponent: opponentPayload(opponent) });
     } catch (err) {
-      console.error('[divide-challenge] error:', err.message);
+      console.error('[divide-send-challenge] error:', err.message);
       socket.emit('divide-challenge-error', { error: 'Something went wrong. Try again.' });
     }
   });

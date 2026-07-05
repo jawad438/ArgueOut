@@ -66,8 +66,13 @@
     }
     .poll-option-btn:hover:not(:disabled) { border-color: var(--border-bright); }
     .poll-option-btn:disabled { cursor: default; }
+    /* Deliberate tap feedback (press down slightly) since the browser's own
+       default tap-highlight is suppressed globally now — without this an
+       option button would give zero feedback on tap until the vote result
+       animation kicks in a moment later. */
+    .poll-option-btn:not(:disabled):active { transform: scale(0.97); border-color: var(--purple); }
     .poll-option-btn.just-voted { animation: voteFlash 480ms var(--ease-spring); }
-    @keyframes voteFlash { 0% { transform: scale(1); } 35% { transform: scale(1.03); } 100% { transform: scale(1); } }
+    @keyframes voteFlash { 0% { transform: scale(1); } 35% { transform: scale(1.05); } 100% { transform: scale(1); } }
     .poll-option-fill {
       position: absolute; inset: 0; z-index: 0; transition: width 500ms var(--ease-out);
       opacity: 0.22;
@@ -129,6 +134,8 @@
       cursor: pointer; padding: 4px 6px;
     }
     .reply-btn:hover { color: var(--text-1); }
+    .comment-delete-btn:hover { color: var(--red); }
+    .comment-deleted-text { font-style: italic; color: var(--text-3); }
     /* Indentation is applied per-comment via an inline style capped at a max
        depth (see divide.js) rather than stacking additively here — nested
        replies-of-replies-of-replies would otherwise squeeze the text column
@@ -149,6 +156,8 @@
     .divide-empty svg { opacity: 0.3; margin-bottom: 14px; }
 
     #divideChallengeNotif { max-width: 340px; }
+    .divide-rec-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .divide-rec-actions .btn { flex: 1; }
     .dcn-countdown { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--purple); }
 
     @media (max-width: 640px) {
@@ -227,11 +236,13 @@
   </div>
 </div>
 
-<!-- Challenge sent: shows who the server picked, so it doesn't feel like a black box -->
+<!-- Challenge recommendation: shows who the server picked *before* anything is
+     sent, so the challenger can confirm or ask for someone else rather than a
+     challenge firing off automatically the instant the button is tapped -->
 <div class="suggest-card" id="divideRecCard" style="display:none">
   <div class="suggest-header">
-    <span class="suggest-label">You challenged</span>
-    <button class="suggest-close" onclick="document.getElementById('divideRecCard').style.display='none'" aria-label="Dismiss">
+    <span class="suggest-label" id="divideRecLabel">Recommended opponent</span>
+    <button class="suggest-close" onclick="dismissRecommendation()" aria-label="Dismiss">
       <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
@@ -243,7 +254,11 @@
     </div>
   </div>
   <div class="suggest-tags" id="divideRecTags"></div>
-  <div class="suggest-reason">Waiting for them to respond — you'll be notified the moment they accept or decline.</div>
+  <div class="suggest-reason" id="divideRecReason">Send them a challenge, or find someone else who voted differently.</div>
+  <div class="divide-rec-actions" id="divideRecActions">
+    <button class="btn btn-primary btn-sm" onclick="sendRecommendedChallenge()">Send Challenge</button>
+    <button class="btn btn-ghost btn-sm" onclick="findAnotherRecommendation()">Find Another</button>
+  </div>
 </div>
 
 <!-- Commenter profile (read-only view — reuses the shared .up-card design

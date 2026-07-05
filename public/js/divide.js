@@ -94,8 +94,16 @@ function getQuadrantInfo(px, py) {
   return map[`${social}-${econ}`] || { label: 'Centrist', badge: 'badge-purple' };
 }
 
-socket.on('divide-challenge-sent', ({ opponent }) => {
-  showToast(`Challenge sent to ${opponent.username}!`, 'success');
+// -- Recommend-then-send challenge flow ----------------------------------
+// Clicking "Challenge a debater" no longer fires a challenge immediately —
+// the server picks a candidate and sends it back as a recommendation the
+// challenger reviews first, and can either send or reroll ("find another")
+// before anything is actually created/sent to the other person.
+let currentRecommendation = null; // { pollId, opponent }
+let recommendExcludeIds = [];
+
+function renderRecommendationCard(pollId, opponent) {
+  currentRecommendation = { pollId, opponent };
   const card = document.getElementById('divideRecCard');
   const av   = document.getElementById('divideRecAvatar');
   if (av) {
@@ -105,6 +113,12 @@ socket.on('divide-challenge-sent', ({ opponent }) => {
   const nameEl = document.getElementById('divideRecName');
   const userEl = document.getElementById('divideRecUsername');
   const tagsEl = document.getElementById('divideRecTags');
+  const label  = document.getElementById('divideRecLabel');
+  const reason = document.getElementById('divideRecReason');
+  const actions = document.getElementById('divideRecActions');
+  if (label)  label.textContent  = 'Recommended opponent';
+  if (reason) reason.textContent = 'Send them a challenge, or find someone else who voted differently.';
+  if (actions) actions.style.display = 'flex';
   if (nameEl) nameEl.textContent = opponent.name || opponent.username;
   if (userEl) userEl.textContent = '@' + opponent.username;
   if (tagsEl) {
@@ -112,8 +126,68 @@ socket.on('divide-challenge-sent', ({ opponent }) => {
     tagsEl.innerHTML = `<span class="suggest-tag">${escapeHtml(info.label)}</span>`;
   }
   if (card) { card.style.display = 'block'; card.classList.remove('suggest-hiding'); card.classList.add('suggest-visible'); }
+}
+
+function resetChallengeButton(pollId) {
+  const btn = document.getElementById(`challengeBtn-${pollId}`);
+  if (btn) { btn.disabled = false; btn.textContent = 'Challenge a debater'; }
+}
+
+socket.on('divide-recommendation', ({ pollId, opponent }) => {
+  pendingRecommendPollId = null;
+  renderRecommendationCard(pollId, opponent);
 });
-socket.on('divide-challenge-error', ({ error }) => showToast(error, 'error'));
+
+function sendRecommendedChallenge() {
+  if (!currentRecommendation) return;
+  const actions = document.getElementById('divideRecActions');
+  if (actions) actions.style.display = 'none';
+  const reason = document.getElementById('divideRecReason');
+  if (reason) reason.textContent = 'Sending…';
+  socket.emit('divide-send-challenge', { pollId: currentRecommendation.pollId, targetUserId: currentRecommendation.opponent.userId });
+}
+
+function findAnotherRecommendation() {
+  if (!currentRecommendation) return;
+  recommendExcludeIds.push(currentRecommendation.opponent.userId);
+  const reason = document.getElementById('divideRecReason');
+  if (reason) reason.textContent = 'Finding someone else…';
+  pendingRecommendPollId = currentRecommendation.pollId;
+  socket.emit('divide-recommend', { pollId: currentRecommendation.pollId, excludeUserIds: recommendExcludeIds });
+  setTimeout(() => {
+    if (pendingRecommendPollId === currentRecommendation?.pollId) { pendingRecommendPollId = null; dismissRecommendation(); }
+  }, 6000);
+}
+
+function dismissRecommendation() {
+  const pollId = currentRecommendation?.pollId;
+  document.getElementById('divideRecCard').style.display = 'none';
+  currentRecommendation = null;
+  recommendExcludeIds = [];
+  if (pollId) resetChallengeButton(pollId);
+}
+
+socket.on('divide-challenge-sent', ({ opponent }) => {
+  showToast(`Challenge sent to ${opponent.username}!`, 'success');
+  const pollId = currentRecommendation?.pollId;
+  document.getElementById('divideRecCard').style.display = 'none';
+  currentRecommendation = null;
+  recommendExcludeIds = [];
+  if (pollId) resetChallengeButton(pollId);
+});
+
+socket.on('divide-challenge-error', ({ error }) => {
+  showToast(error, 'error');
+  // Falls back to pendingRecommendPollId for the case where this error
+  // arrives before any recommendation was ever shown (e.g. "vote on this
+  // poll first"), where currentRecommendation is still null.
+  const pollId = currentRecommendation?.pollId || pendingRecommendPollId;
+  pendingRecommendPollId = null;
+  document.getElementById('divideRecCard').style.display = 'none';
+  currentRecommendation = null;
+  recommendExcludeIds = [];
+  if (pollId) resetChallengeButton(pollId);
+});
 socket.on('divide-challenge-update', ({ message }) => showToast(message, 'info'));
 
 // Fired for users the server's relevance algorithm picked out for a
@@ -170,11 +244,21 @@ function declineDivideChallenge() {
   activeDivideChallenge = null;
 }
 
+// Tracks which poll is waiting on a divide-recommendation/-error reply, so
+// the safety timeout below only resets the button if nothing ever came back
+// (e.g. the request got lost) rather than fighting an already-open, still-
+// in-progress recommendation card.
+let pendingRecommendPollId = null;
+
 function triggerChallenge(pollId) {
   const btn = document.getElementById(`challengeBtn-${pollId}`);
   if (btn) { btn.disabled = true; btn.textContent = 'Finding opponent…'; }
-  socket.emit('divide-challenge', { pollId });
-  setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = 'Challenge a debater'; } }, 2500);
+  recommendExcludeIds = [];
+  pendingRecommendPollId = pollId;
+  socket.emit('divide-recommend', { pollId, excludeUserIds: [] });
+  setTimeout(() => {
+    if (pendingRecommendPollId === pollId) { pendingRecommendPollId = null; resetChallengeButton(pollId); }
+  }, 6000);
 }
 
 // -- Poll fetch/render ----------------------------------------------------
@@ -403,20 +487,27 @@ function renderComment(pollId, node, depth) {
     ? `<div class="comment-replies">${node.children.map(c => renderComment(pollId, c, depth + 1)).join('')}</div>`
     : '';
 
+  // A deleted comment keeps its slot in the tree (so replies underneath it
+  // stay properly nested) but loses reactions/reply/delete controls — there's
+  // nothing left to react or reply to the actual content of.
+  const actionsHtml = node.deleted ? '' : `
+        <div class="comment-actions">
+          ${reactionsHtml}
+          <button class="reply-btn" onclick="toggleReplyComposer('${node.id}')">Reply</button>
+          ${node.canDelete ? `<button class="reply-btn comment-delete-btn" onclick="deleteComment('${pollId}', '${node.id}')">Delete</button>` : ''}
+        </div>
+        <div class="reply-composer" id="replyComposer-${node.id}">
+          <textarea id="replyInput-${node.id}" placeholder="Write a reply…" maxlength="500"></textarea>
+          <button class="btn btn-primary btn-sm" onclick="submitComment('${pollId}', '${node.id}')" style="flex-shrink:0;align-self:flex-end">Reply</button>
+        </div>`;
+
   return `
     <div class="comment-item ${depth > 0 ? 'is-reply' : ''}" style="margin-left:${visualDepth * 16}px" id="comment-${node.id}">
       <div class="comment-avatar" onclick="openDivideProfile('${node.authorId}')">${avatarHtml}</div>
       <div class="comment-body">
         <span class="comment-author" onclick="openDivideProfile('${node.authorId}')">${escapeHtml(node.authorUsername)}</span><span class="comment-time">${timeAgo(node.createdAt)}</span>
-        <div class="comment-text">${escapeHtml(node.text)}</div>
-        <div class="comment-actions">
-          ${reactionsHtml}
-          <button class="reply-btn" onclick="toggleReplyComposer('${node.id}')">Reply</button>
-        </div>
-        <div class="reply-composer" id="replyComposer-${node.id}">
-          <textarea id="replyInput-${node.id}" placeholder="Write a reply…" maxlength="500"></textarea>
-          <button class="btn btn-primary btn-sm" onclick="submitComment('${pollId}', '${node.id}')" style="flex-shrink:0;align-self:flex-end">Reply</button>
-        </div>
+        <div class="comment-text ${node.deleted ? 'comment-deleted-text' : ''}">${escapeHtml(node.text)}</div>
+        ${actionsHtml}
         ${childrenHtml}
       </div>
     </div>`;
@@ -506,6 +597,33 @@ socket.on('poll-comment-reaction', ({ pollId, commentId, reactions }) => {
   node.reactions = reactions;
   if (openCommentPolls.has(pollId)) renderCommentTree(pollId);
 });
+
+async function deleteComment(pollId, commentId) {
+  if (!confirm('Delete this comment? This can\'t be undone.')) return;
+  try {
+    const res = await fetch(`/api/polls/${pollId}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + currentIdToken }
+    });
+    if (!res.ok) { const data = await res.json().catch(() => ({})); showToast(data.error || 'Could not delete comment.', 'error'); return; }
+    applyLocalCommentDelete(pollId, commentId);
+  } catch { showToast('Network error.', 'error'); }
+}
+
+// Shared by the deleter's own optimistic update and the real-time broadcast
+// that reaches everyone else currently viewing the same poll's comments.
+function applyLocalCommentDelete(pollId, commentId) {
+  const list = commentsCache[pollId];
+  if (!list) return;
+  const node = list.find(c => c.id === commentId);
+  if (!node) return;
+  node.deleted = true;
+  node.text = '[deleted]';
+  node.canDelete = false;
+  if (openCommentPolls.has(pollId)) renderCommentTree(pollId);
+}
+
+socket.on('poll-comment-deleted', ({ pollId, commentId }) => applyLocalCommentDelete(pollId, commentId));
 
 // -- Bootstrap: Firebase auth -> profile checks -> connect socket ---------
 

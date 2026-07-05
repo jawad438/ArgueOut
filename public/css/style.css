@@ -103,6 +103,14 @@ html.ao-page-leaving { opacity: 1 !important; animation: none !important; }
 
 /* ── Reset ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Mobile browsers/WebView paint a translucent tap-highlight rectangle on any
+   tappable element by default (shows up as a reddish/grayish flash over this
+   dark theme) since nothing here ever suppressed it. Every interactive
+   element gets its own deliberate :active feedback instead (see .btn,
+   .poll-option-btn, etc.), so the browser's default flash is just visual
+   noise on top of that, not a feature. */
+*, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+a, button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 /* background + overflow-x set explicitly (not just on body) because the
    mobile slide transition below animates a transform on <html> itself —
    without its own background, the gap the slide reveals falls back to the
