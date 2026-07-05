@@ -81,11 +81,49 @@ socket.on('auth-error', ({ error }) => { showToast(error, 'error'); });
 
 // -- Divide challenge real-time flow ------------------------------------
 
-socket.on('divide-challenge-sent', ({ challengedUsername }) => {
-  showToast(`Challenge sent to ${challengedUsername}!`, 'success');
+function getQuadrantInfo(px, py) {
+  if (Math.sqrt(px * px + py * py) < 0.3) return { label: 'Centrist', badge: 'badge-purple' };
+  const econ   = px >= 0 ? 'Right' : 'Left';
+  const social = py >= 0 ? 'Authoritarian' : 'Libertarian';
+  const map = {
+    'Authoritarian-Left':  { label: 'Auth-Left',  badge: 'badge-red'   },
+    'Authoritarian-Right': { label: 'Auth-Right', badge: 'badge-blue'  },
+    'Libertarian-Left':    { label: 'Lib-Left',   badge: 'badge-green' },
+    'Libertarian-Right':   { label: 'Lib-Right',  badge: 'badge-amber' },
+  };
+  return map[`${social}-${econ}`] || { label: 'Centrist', badge: 'badge-purple' };
+}
+
+socket.on('divide-challenge-sent', ({ opponent }) => {
+  showToast(`Challenge sent to ${opponent.username}!`, 'success');
+  const card = document.getElementById('divideRecCard');
+  const av   = document.getElementById('divideRecAvatar');
+  if (av) {
+    if (opponent.avatarUrl) { av.style.backgroundImage = `url(${opponent.avatarUrl})`; av.style.backgroundSize = 'cover'; av.textContent = ''; }
+    else { av.style.backgroundImage = ''; av.textContent = (opponent.name || opponent.username || '?')[0].toUpperCase(); }
+  }
+  const nameEl = document.getElementById('divideRecName');
+  const userEl = document.getElementById('divideRecUsername');
+  const tagsEl = document.getElementById('divideRecTags');
+  if (nameEl) nameEl.textContent = opponent.name || opponent.username;
+  if (userEl) userEl.textContent = '@' + opponent.username;
+  if (tagsEl) {
+    const info = getQuadrantInfo(opponent.politicalX, opponent.politicalY);
+    tagsEl.innerHTML = `<span class="suggest-tag">${escapeHtml(info.label)}</span>`;
+  }
+  if (card) { card.style.display = 'block'; card.classList.remove('suggest-hiding'); card.classList.add('suggest-visible'); }
 });
 socket.on('divide-challenge-error', ({ error }) => showToast(error, 'error'));
 socket.on('divide-challenge-update', ({ message }) => showToast(message, 'info'));
+
+// Fired for users the server's relevance algorithm picked out for a
+// newly-created poll (see notifyRelevantUsersForNewPoll in server.js) — only
+// reaches users currently connected; everyone else picks it up from their
+// notification history next time they check it.
+socket.on('divide-poll-notification', ({ message }) => {
+  showToast(message, 'info');
+  fetchPolls(); // pick up the new poll without requiring a manual refresh
+});
 
 socket.on('divide-challenge-received', (payload) => {
   activeDivideChallenge = payload;
@@ -141,23 +179,48 @@ function triggerChallenge(pollId) {
 
 // -- Poll fetch/render ----------------------------------------------------
 
+let allPollIds = [];
+let currentCategoryFilter = 'all';
+
 async function fetchPolls() {
   try {
     const res = await fetch('/api/polls', { headers: { 'Authorization': 'Bearer ' + currentIdToken } });
     if (!res.ok) throw new Error();
     const data = await res.json();
+    allPollIds = (data.polls || []).map(p => p.id);
     (data.polls || []).forEach(p => { pollsCache[p.id] = p; });
-    renderPolls(data.polls || []);
+    applyDivideFilters();
   } catch {
     document.getElementById('pollsList').innerHTML =
       '<div class="divide-empty">Could not load polls. <button class="btn btn-ghost btn-sm" onclick="fetchPolls()">Retry</button></div>';
   }
 }
 
-function renderPolls(polls) {
+function applyDivideFilters() {
+  const term = (document.getElementById('divideSearchInput')?.value || '').toLowerCase().trim();
+  const filtered = allPollIds
+    .map(id => pollsCache[id])
+    .filter(Boolean)
+    .filter(p => currentCategoryFilter === 'all' || p.category === currentCategoryFilter)
+    .filter(p => !term || (p.question + ' ' + (p.tags || []).join(' ')).toLowerCase().includes(term));
+  renderPolls(filtered, term || currentCategoryFilter !== 'all');
+}
+
+function setCategoryFilter(cat) {
+  currentCategoryFilter = cat;
+  document.querySelectorAll('.divide-chip').forEach(c => c.classList.toggle('active', c.dataset.cat === cat));
+  applyDivideFilters();
+}
+
+function renderPolls(polls, isFiltered) {
   const list = document.getElementById('pollsList');
   if (!polls.length) {
-    list.innerHTML = `<div class="divide-empty">
+    list.innerHTML = isFiltered
+      ? `<div class="divide-empty">
+          <h2 style="font-size:1.05rem;font-weight:700;color:var(--text-2);margin-bottom:6px">No polls match</h2>
+          <p style="font-size:0.85rem">Try a different search term or category.</p>
+        </div>`
+      : `<div class="divide-empty">
       <svg style="width:48px;height:48px;fill:none;stroke:currentColor;stroke-width:1.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       <h2 style="font-size:1.05rem;font-weight:700;color:var(--text-2);margin-bottom:6px">No polls yet</h2>
       <p style="font-size:0.85rem">Check back soon — new questions post regularly.</p>
@@ -167,15 +230,15 @@ function renderPolls(polls) {
   list.innerHTML = polls.map(renderPollCard).join('');
 }
 
-function renderPollCard(poll) {
+function renderPollOptions(poll, justVotedIndex) {
   const myVote = poll.myVote;
   const hasVoted = myVote != null;
-  const optionsHtml = poll.options.map((opt, i) => {
+  return poll.options.map((opt, i) => {
     const pct = poll.totalVotes ? Math.round((poll.votes[i] / poll.totalVotes) * 100) : 0;
     const color = OPTION_COLORS[i % OPTION_COLORS.length];
     const online = (poll.onlineCounts && poll.onlineCounts[i]) || 0;
     return `
-      <button class="poll-option-btn ${myVote === i ? 'voted-mine' : ''}" ${hasVoted ? 'disabled' : ''}
+      <button class="poll-option-btn ${myVote === i ? 'voted-mine' : ''} ${justVotedIndex === i ? 'just-voted' : ''}" ${hasVoted ? 'disabled' : ''}
         onclick="voteOnPoll('${poll.id}', ${i})">
         ${hasVoted ? `<span class="poll-option-fill" style="width:${pct}%;background:${color}"></span>` : ''}
         <span class="poll-option-label">
@@ -185,19 +248,43 @@ function renderPollCard(poll) {
         ${hasVoted ? `<div class="poll-option-online">${online} online who voted this</div>` : ''}
       </button>`;
   }).join('');
+}
 
+// This only ever rewrites the vote bars/count — never the whole card, and
+// critically never .poll-comments-section — since a live poll-vote-update
+// from another user's vote used to blow away an already-open, already-
+// fetched comment thread back to a "Loading…" placeholder that nothing then
+// re-populated.
+function updatePollVoteDisplay(pollId, justVotedIndex) {
+  const poll = pollsCache[pollId];
+  if (!poll) return;
+  const optionsEl = document.getElementById(`pollOptions-${pollId}`);
+  if (optionsEl) optionsEl.innerHTML = renderPollOptions(poll, justVotedIndex);
+  const countEl = document.getElementById(`voteCountText-${pollId}`);
+  if (countEl) countEl.textContent = `${poll.totalVotes} vote${poll.totalVotes === 1 ? '' : 's'}`;
+}
+
+function renderPollCard(poll) {
+  const myVote = poll.myVote;
+  const hasVoted = myVote != null;
   const canChallenge = hasVoted && poll.status === 'active';
   const opened = openCommentPolls.has(poll.id);
 
+  const tagsHtml = (poll.tags || []).map(t => `<span class="poll-tag">#${escapeHtml(t)}</span>`).join('');
+
   return `
     <div class="poll-card" id="poll-${poll.id}">
-      <div class="poll-question">${escapeHtml(poll.question)}</div>
-      <div class="poll-options">${optionsHtml}</div>
-      <div class="poll-meta">
-        <span>${poll.totalVotes} vote${poll.totalVotes === 1 ? '' : 's'}</span>
-        <span>${poll.commentCount || 0} comment${poll.commentCount === 1 ? '' : 's'}</span>
+      <div class="poll-card-top">
+        <span class="poll-category-badge">${escapeHtml(poll.categoryLabel || 'General')}</span>
+        ${tagsHtml}
       </div>
-      <div class="poll-actions">
+      <div class="poll-question">${escapeHtml(poll.question)}</div>
+      <div class="poll-options" id="pollOptions-${poll.id}">${renderPollOptions(poll, null)}</div>
+      <div class="poll-meta">
+        <span id="voteCountText-${poll.id}">${poll.totalVotes} vote${poll.totalVotes === 1 ? '' : 's'}</span>
+        <span id="commentCountText-${poll.id}">${poll.commentCount || 0} comment${poll.commentCount === 1 ? '' : 's'}</span>
+      </div>
+      <div class="poll-actions" id="pollActions-${poll.id}">
         ${canChallenge
           ? `<button class="btn btn-primary btn-sm" id="challengeBtn-${poll.id}" onclick="triggerChallenge('${poll.id}')">Challenge a debater</button>`
           : (hasVoted ? '' : `<span style="font-size:0.8rem;color:var(--text-3)">Vote to unlock challenges</span>`)}
@@ -227,8 +314,14 @@ async function voteOnPoll(pollId, optionIndex) {
     pollsCache[pollId].myVote = optionIndex;
     pollsCache[pollId].votes = data.votes;
     pollsCache[pollId].totalVotes = data.votes.reduce((a, b) => a + b, 0);
-    document.getElementById(`poll-${pollId}`).outerHTML = renderPollCard(pollsCache[pollId]);
-    if (openCommentPolls.has(pollId)) fetchComments(pollId);
+    updatePollVoteDisplay(pollId, optionIndex);
+    const actionsEl = document.getElementById(`pollActions-${pollId}`);
+    if (actionsEl) {
+      const opened = openCommentPolls.has(pollId);
+      actionsEl.innerHTML =
+        `<button class="btn btn-primary btn-sm" id="challengeBtn-${pollId}" onclick="triggerChallenge('${pollId}')">Challenge a debater</button>` +
+        `<button class="btn btn-ghost btn-sm" onclick="toggleComments('${pollId}')">${opened ? 'Hide discussion' : 'Discuss'}</button>`;
+    }
   } catch { showToast('Network error.', 'error'); }
 }
 
@@ -237,8 +330,7 @@ socket.on('poll-vote-update', ({ pollId, votes, totalVotes }) => {
   if (!poll) return;
   poll.votes = votes;
   poll.totalVotes = totalVotes;
-  const el = document.getElementById(`poll-${pollId}`);
-  if (el) el.outerHTML = renderPollCard(poll);
+  updatePollVoteDisplay(pollId, null);
 });
 
 // -- Comments: fetch, thread, render --------------------------------------
@@ -288,6 +380,7 @@ function renderCommentTree(pollId) {
   if (!flat.length) { list.innerHTML = '<div class="comments-empty">No comments yet — start the discussion.</div>'; return; }
   const tree = buildCommentTree(flat);
   list.innerHTML = tree.map(node => renderComment(pollId, node, 0)).join('');
+  lastPoppedReaction = null; // one-shot — consumed by this render pass
 }
 
 function renderComment(pollId, node, depth) {
@@ -299,8 +392,9 @@ function renderComment(pollId, node, depth) {
   const reactionsHtml = REACTION_META.map(r => {
     const count = (node.reactions && node.reactions[r.key]) || 0;
     const active = node.myReactions && node.myReactions[r.key];
+    const justPopped = lastPoppedReaction && lastPoppedReaction.commentId === node.id && lastPoppedReaction.type === r.key;
     return `
-      <button class="reaction-btn ${active ? 'active' : ''}" title="${r.label}" onclick="toggleReaction('${pollId}', '${node.id}', '${r.key}')">
+      <button class="reaction-btn ${active ? 'active' : ''} ${justPopped ? 'pop' : ''}" data-reaction="${r.key}" title="${r.label}" onclick="toggleReaction(this, '${pollId}', '${node.id}', '${r.key}')">
         ${r.icon}<span>${count > 0 ? count : ''}</span>
       </button>`;
   }).join('');
@@ -311,9 +405,9 @@ function renderComment(pollId, node, depth) {
 
   return `
     <div class="comment-item ${depth > 0 ? 'is-reply' : ''}" style="margin-left:${visualDepth * 16}px" id="comment-${node.id}">
-      <div class="comment-avatar">${avatarHtml}</div>
+      <div class="comment-avatar" onclick="openDivideProfile('${node.authorId}')">${avatarHtml}</div>
       <div class="comment-body">
-        <span class="comment-author">${escapeHtml(node.authorUsername)}</span><span class="comment-time">${timeAgo(node.createdAt)}</span>
+        <span class="comment-author" onclick="openDivideProfile('${node.authorId}')">${escapeHtml(node.authorUsername)}</span><span class="comment-time">${timeAgo(node.createdAt)}</span>
         <div class="comment-text">${escapeHtml(node.text)}</div>
         <div class="comment-actions">
           ${reactionsHtml}
@@ -353,8 +447,20 @@ async function submitComment(pollId, parentId) {
     if (!commentsCache[pollId]) commentsCache[pollId] = [];
     if (!commentsCache[pollId].some(c => c.id === data.comment.id)) commentsCache[pollId].push(data.comment);
     renderCommentTree(pollId);
-    if (pollsCache[pollId]) pollsCache[pollId].commentCount = (pollsCache[pollId].commentCount || 0) + 1;
+    updateCommentCountDisplay(pollId);
   } catch { showToast('Network error.', 'error'); }
+}
+
+// Always derived from the actual length of the fetched comment list, never
+// hand-incremented — an incrementing counter is exactly what caused the
+// count to drift from the real number in testing (showed 4 for 2 real
+// comments). Only updates the poll-meta text node directly rather than
+// re-rendering the whole card, so an open comment thread doesn't collapse.
+function updateCommentCountDisplay(pollId) {
+  const count = (commentsCache[pollId] || []).length;
+  if (pollsCache[pollId]) pollsCache[pollId].commentCount = count;
+  const el = document.getElementById(`commentCountText-${pollId}`);
+  if (el) el.textContent = `${count} comment${count === 1 ? '' : 's'}`;
 }
 
 socket.on('poll-comment-new', ({ pollId, comment }) => {
@@ -362,10 +468,16 @@ socket.on('poll-comment-new', ({ pollId, comment }) => {
   if (commentsCache[pollId].some(c => c.id === comment.id)) return;
   commentsCache[pollId].push(comment);
   if (openCommentPolls.has(pollId)) renderCommentTree(pollId);
-  if (pollsCache[pollId]) pollsCache[pollId].commentCount = (pollsCache[pollId].commentCount || 0) + 1;
+  updateCommentCountDisplay(pollId);
 });
 
-async function toggleReaction(pollId, commentId, type) {
+// renderCommentTree rebuilds the whole subtree's innerHTML each time, so a
+// class added directly to the clicked <button> would just get thrown away —
+// track "which button should pop" for the next render pass instead, then
+// clear it once applied.
+let lastPoppedReaction = null; // { commentId, type }
+
+async function toggleReaction(btn, pollId, commentId, type) {
   try {
     const res = await fetch(`/api/polls/${pollId}/comments/${commentId}/react`, {
       method: 'POST',
@@ -381,6 +493,7 @@ async function toggleReaction(pollId, commentId, type) {
       node.myReactions = node.myReactions || {};
       node.myReactions[type] = data.active;
     }
+    lastPoppedReaction = { commentId, type };
     renderCommentTree(pollId);
   } catch {}
 }
@@ -418,3 +531,102 @@ auth.onAuthStateChanged(async (user) => {
     showToast('Could not load profile. Check your connection.', 'error');
   }
 });
+
+// -- Commenter profile viewer ----------------------------------------------
+
+function drawMiniCompass(canvas, px, py) {
+  const ctx  = canvas.getContext('2d');
+  const SIZE = canvas.width;
+  ctx.clearRect(0, 0, SIZE, SIZE);
+  ctx.fillStyle = 'rgba(239,68,68,0.09)';  ctx.fillRect(0,      0,      SIZE/2, SIZE/2);
+  ctx.fillStyle = 'rgba(59,130,246,0.09)'; ctx.fillRect(SIZE/2, 0,      SIZE/2, SIZE/2);
+  ctx.fillStyle = 'rgba(34,197,94,0.09)';  ctx.fillRect(0,      SIZE/2, SIZE/2, SIZE/2);
+  ctx.fillStyle = 'rgba(245,158,11,0.09)'; ctx.fillRect(SIZE/2, SIZE/2, SIZE/2, SIZE/2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(SIZE/2, 0); ctx.lineTo(SIZE/2, SIZE); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, SIZE/2); ctx.lineTo(SIZE, SIZE/2); ctx.stroke();
+  const cx = (px + 1) / 2 * SIZE;
+  const cy = (1 - (py + 1) / 2) * SIZE;
+  const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 18);
+  grd.addColorStop(0, 'rgba(139,92,246,0.5)');
+  grd.addColorStop(1, 'rgba(139,92,246,0)');
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(cx, cy, 18, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#8b5cf6';
+  ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2); ctx.fill();
+}
+
+async function openDivideProfile(userId) {
+  const modal = document.getElementById('divideProfileModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  const card = document.getElementById('divideProfileCard');
+  if (card) {
+    card.classList.remove('entering', 'closing');
+    void card.offsetWidth;
+    card.classList.add('entering');
+  }
+  try {
+    const res = await fetch(`/api/users/${userId}/public-profile`, { headers: { 'Authorization': 'Bearer ' + currentIdToken } });
+    if (!res.ok) { showToast('Could not load profile.', 'error'); closeDivideProfile(); return; }
+    const u = await res.json();
+
+    const heroBg = document.getElementById('dpHeroBg');
+    if (heroBg) heroBg.style.backgroundImage = u.avatarUrl ? `url(${JSON.stringify(u.avatarUrl)})` : '';
+
+    const avatar = document.getElementById('dpAvatar');
+    if (avatar) {
+      avatar.innerHTML = u.avatarUrl
+        ? `<img src="${escapeHtml(u.avatarUrl)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
+        : escapeHtml((u.username || 'U')[0].toUpperCase());
+    }
+
+    const nameEl = document.getElementById('dpName');
+    const userEl = document.getElementById('dpUsername');
+    if (nameEl) nameEl.textContent = u.name || u.username;
+    if (userEl) userEl.textContent = '@' + u.username;
+
+    const info = getQuadrantInfo(u.politicalX || 0, u.politicalY || 0);
+    const badgesEl = document.getElementById('dpBadges');
+    if (badgesEl) badgesEl.innerHTML = `<span class="badge ${info.badge}">${escapeHtml(info.label)}</span>`;
+
+    const compass = document.getElementById('dpCompass');
+    if (compass) setTimeout(() => drawMiniCompass(compass, u.politicalX || 0, u.politicalY || 0), 60);
+
+    const bioEl = document.getElementById('dpBio');
+    if (bioEl) {
+      if (u.bio) { bioEl.textContent = u.bio; bioEl.style.display = 'block'; }
+      else bioEl.style.display = 'none';
+    }
+
+    const _cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+    const tags = [];
+    if (u.age) tags.push(`${u.age} yrs`);
+    if (u.gender && u.gender !== 'prefer_not_to_say') tags.push(_cap(u.gender.replace('_', ' ')));
+    if (u.religion && u.religion !== 'prefer_not_to_say') tags.push(_cap(u.religion));
+    const tagsEl = document.getElementById('dpTags');
+    if (tagsEl) tagsEl.innerHTML = tags.map(t => `<span class="profile-tag">${escapeHtml(t)}</span>`).join('');
+
+    const countryRow = document.getElementById('dpCountryRow');
+    const countryEl  = document.getElementById('dpCountry');
+    if (countryRow && countryEl) {
+      if (u.country) { countryEl.textContent = u.country; countryRow.style.display = 'flex'; }
+      else countryRow.style.display = 'none';
+    }
+  } catch {
+    showToast('Could not load profile.', 'error');
+  }
+}
+
+function closeDivideProfile() {
+  const card = document.getElementById('divideProfileCard');
+  if (card) { card.classList.remove('entering'); card.classList.add('closing'); }
+  setTimeout(() => {
+    const modal = document.getElementById('divideProfileModal');
+    if (modal) modal.style.display = 'none';
+    if (card) card.classList.remove('closing');
+  }, 180);
+}

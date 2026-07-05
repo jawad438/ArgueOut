@@ -273,6 +273,21 @@
             <button class="btn btn-ghost btn-sm" id="addPollOptionBtn" onclick="addPollOptionRow()" style="margin-top:8px">+ Add option</button>
           </div>
           <div>
+            <label class="form-label" for="pollCategorySelect">Category</label>
+            <select class="form-input" id="pollCategorySelect">
+              <option value="general">General</option>
+              <option value="economic">Economic</option>
+              <option value="social">Social</option>
+              <option value="foreign">Foreign Policy</option>
+              <option value="culture">Culture</option>
+            </select>
+            <div style="font-size:0.72rem;color:var(--text-3);margin-top:4px">Used to target new-poll notifications — Economic/Social match users by how strong their compass lean is on that axis.</div>
+          </div>
+          <div>
+            <label class="form-label" for="pollTagsInput">Tags (comma-separated, optional)</label>
+            <input class="form-input" id="pollTagsInput" type="text" placeholder="e.g. immigration, taxes, healthcare" maxlength="200" />
+          </div>
+          <div>
             <button class="btn btn-primary" onclick="createPoll()">Create Poll</button>
             <div id="pollCreateStatus" style="font-size:0.82rem;margin-top:8px"></div>
           </div>

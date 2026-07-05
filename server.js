@@ -877,6 +877,38 @@ app.get('/.well-known/assetlinks.json', (_, res) => {
   }]);
 });
 
+// Public profile lookup by userId — works for offline users too (the
+// existing online-users directory only carries currently-connected users'
+// info, which isn't enough to view e.g. a comment author who has since
+// logged off). Returns the same field set already broadcast to any logged-in
+// user via 'online-users' (username, name, avatar, position, age, gender,
+// religion, country, bio) — nothing more sensitive than what's already
+// exposed there today.
+app.get('/api/users/:userId/public-profile', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = safeId(req.params.userId);
+  if (!userId) return res.status(400).json({ error: 'Invalid user' });
+  try {
+    const doc = await fstore.collection('users').doc(userId).get();
+    if (!doc.exists) return res.status(404).json({ error: 'User not found' });
+    const d = doc.data();
+    res.json({
+      userId,
+      username: d.username,
+      name: d.name || d.username,
+      avatarUrl: d.avatarUrl || null,
+      politicalX: d.politicalX || 0,
+      politicalY: d.politicalY || 0,
+      age: d.age || null,
+      gender: d.gender || null,
+      religion: d.religion || null,
+      country: d.country || '',
+      bio: d.bio || ''
+    });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
 app.get('/api/debates', (req, res) => {
   const list = [];
   for (const [roomId, room] of rooms) {
@@ -899,7 +931,9 @@ app.get('/api/debates', (req, res) => {
 //
 // Data model (Firestore):
 //   polls/{pollId}                    { question, options:string[], votes:{"0":n,"1":n,...},
-//                                        createdBy, createdAt, status:'active'|'closed', commentCount }
+//                                        createdBy, createdAt, status:'active'|'closed' }
+//                                      (commentCount is NOT stored — always read live via a
+//                                       count() aggregation on the comments subcollection)
 //   polls/{pollId}/votes/{userId}     { optionIndex, votedAt }  — doc ID = userId locks one vote/user
 //   polls/{pollId}/comments/{id}      { text, authorId, authorUsername, authorAvatarUrl, parentId,
 //                                        createdAt, reactions:{sharp,fairPoint,sourceNeeded} }
@@ -915,11 +949,31 @@ app.get('/api/debates', (req, res) => {
 const DIVIDE_MAX_OPTIONS = 6;
 const DIVIDE_MAX_INCOMING_PENDING = 3;
 const DIVIDE_CHALLENGE_TTL_MS = 15 * 60 * 1000;
+const DIVIDE_MAX_TAGS = 8;
+// 'economic'/'social' map onto the two compass axes already collected at
+// onboarding, so the new-poll notification algorithm below can target users
+// whose compass position suggests they'd actually have an opinion — 'foreign'/
+// 'culture'/'general' don't have a dedicated axis, so they fall back to
+// overall engagement (how far from dead-center a user is on either axis).
+const DIVIDE_CATEGORIES = {
+  economic: 'Economic',
+  social:   'Social',
+  foreign:  'Foreign Policy',
+  culture:  'Culture',
+  general:  'General'
+};
 
-function pollDocToJson(doc) {
+// commentCount is read live via a count() aggregation query rather than the
+// stored denormalized field on the poll doc — a hand-incremented counter
+// drifted from the real number in testing (showed 4 for 2 actual comments),
+// and a count() query is cheap (billed as a single read regardless of how
+// many comments exist) so there's no real reason to trust a value that can
+// silently go stale instead of just asking Firestore for the truth.
+async function pollDocToJson(doc) {
   const d = doc.data();
   const options = Array.isArray(d.options) ? d.options : [];
   const votes = options.map((_, i) => (d.votes && d.votes[String(i)]) || 0);
+  const countSnap = await doc.ref.collection('comments').count().get();
   return {
     id: doc.id,
     question: d.question,
@@ -927,7 +981,10 @@ function pollDocToJson(doc) {
     votes,
     totalVotes: votes.reduce((a, b) => a + b, 0),
     status: d.status || 'active',
-    commentCount: d.commentCount || 0,
+    category: d.category || 'general',
+    categoryLabel: DIVIDE_CATEGORIES[d.category] || DIVIDE_CATEGORIES.general,
+    tags: Array.isArray(d.tags) ? d.tags : [],
+    commentCount: countSnap.data().count,
     createdAt: d.createdAt ? d.createdAt.toMillis() : null
   };
 }
@@ -946,7 +1003,7 @@ function pollOnlineCounts(pollVoterMap, options) {
 app.get('/api/polls/featured', async (req, res) => {
   try {
     const snap = await fstore.collection('polls').where('status', '==', 'active').limit(50).get();
-    const polls = snap.docs.map(pollDocToJson)
+    const polls = (await Promise.all(snap.docs.map(pollDocToJson)))
       .sort((a, b) => b.totalVotes - a.totalVotes)
       .slice(0, 3);
     res.json({ polls });
@@ -966,7 +1023,7 @@ app.get('/api/polls', async (req, res) => {
 
     const polls = [];
     for (const doc of sortedDocs) {
-      const poll = pollDocToJson(doc);
+      const poll = await pollDocToJson(doc);
       const votesSnap = await fstore.collection('polls').doc(doc.id).collection('votes').limit(2000).get();
       const voterMap = new Map(); // userId -> optionIndex
       votesSnap.docs.forEach(v => voterMap.set(v.id, v.data().optionIndex));
@@ -985,6 +1042,10 @@ app.post('/api/polls', async (req, res) => {
   const options = Array.isArray(req.body?.options)
     ? req.body.options.map(o => safeStr(o, 120)).filter(Boolean)
     : [];
+  const category = DIVIDE_CATEGORIES[req.body?.category] ? req.body.category : 'general';
+  const tags = Array.isArray(req.body?.tags)
+    ? req.body.tags.map(t => safeStr(t, 30)).filter(Boolean).slice(0, DIVIDE_MAX_TAGS)
+    : [];
   if (!question) return res.status(400).json({ error: 'Question is required' });
   if (options.length < 2 || options.length > DIVIDE_MAX_OPTIONS)
     return res.status(400).json({ error: `Provide 2-${DIVIDE_MAX_OPTIONS} options` });
@@ -993,9 +1054,10 @@ app.post('/api/polls', async (req, res) => {
     const votes = {};
     options.forEach((_, i) => { votes[String(i)] = 0; });
     const ref = await fstore.collection('polls').add({
-      question, options, votes, status: 'active', commentCount: 0,
+      question, options, votes, status: 'active', category, tags,
       createdBy: decoded.uid, createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
+    notifyRelevantUsersForNewPoll(ref.id, question, category);
     res.json({ ok: true, id: ref.id });
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
@@ -1004,7 +1066,7 @@ app.get('/api/admin/polls', async (req, res) => {
   if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
   try {
     const snap = await fstore.collection('polls').orderBy('createdAt', 'desc').limit(100).get();
-    res.json({ polls: snap.docs.map(pollDocToJson) });
+    res.json({ polls: await Promise.all(snap.docs.map(pollDocToJson)) });
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -1102,10 +1164,7 @@ app.post('/api/polls/:pollId/comments', strictLimiter, async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       reactions: { sharp: 0, fairPoint: 0, sourceNeeded: 0 }
     };
-    const batch = fstore.batch();
-    batch.set(commentRef, payload);
-    batch.update(pollRef, { commentCount: admin.firestore.FieldValue.increment(1) });
-    await batch.commit();
+    await commentRef.set(payload);
 
     const comment = {
       id: commentRef.id, text, authorId: decoded.uid, authorUsername: u.username,
@@ -1725,6 +1784,43 @@ async function expireIncomingDivideChallengesForUser(userId) {
   } catch (err) { console.error('[expireIncomingDivideChallengesForUser] error:', err.message); }
 }
 
+// Targeted new-poll notifications: rather than blasting every user for every
+// poll, score each user's likely interest from data we actually already
+// collect (their compass position) and only notify the most-relevant slice.
+// - 'economic' polls -> ranked by |politicalX| (strength of economic lean)
+// - 'social' polls    -> ranked by |politicalY| (strength of social lean)
+// - other categories  -> ranked by overall distance from center on both axes
+// (general engagement, since there's no dedicated axis for those topics)
+const DIVIDE_NOTIFY_TOP_N = 30;
+
+async function notifyRelevantUsersForNewPoll(pollId, question, category) {
+  try {
+    const usersSnap = await fstore.collection('users').limit(500).get();
+    const scored = [];
+    usersSnap.docs.forEach(doc => {
+      const d = doc.data();
+      if (!d.compassSet) return; // no compass position to score against
+      const x = d.politicalX || 0, y = d.politicalY || 0;
+      const score = category === 'economic' ? Math.abs(x)
+                  : category === 'social'   ? Math.abs(y)
+                  : Math.abs(x) + Math.abs(y);
+      scored.push({ userId: doc.id, score });
+    });
+    scored.sort((a, b) => b.score - a.score);
+    const targets = scored.slice(0, DIVIDE_NOTIFY_TOP_N);
+    const message = `New poll: "${question}" — where do you stand?`;
+
+    await Promise.all(targets.map(async t => {
+      fstore.collection('notifications').doc(t.userId).collection('items').add({
+        type: 'new-poll', message, pollId, read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      }).catch(() => {});
+      const entry = [...onlineUsers.entries()].find(([, u]) => u.userId === t.userId);
+      if (entry) io.to(entry[0]).emit('divide-poll-notification', { pollId, question, message });
+    }));
+  } catch (err) { console.error('[notifyRelevantUsersForNewPoll] error:', err.message); }
+}
+
 // Per-IP socket connection rate limiting (max 20 connections per IP per minute)
 const _socketConnectCounts = new Map();
 setInterval(() => _socketConnectCounts.clear(), 60000);
@@ -2250,7 +2346,13 @@ io.on('connection', socket => {
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
 
-      socket.emit('divide-challenge-sent', { challengeId: challengeRef.id, challengedUsername: opponent.username });
+      socket.emit('divide-challenge-sent', {
+        challengeId: challengeRef.id,
+        opponent: {
+          userId: opponent.userId, username: opponent.username, name: opponent.name || opponent.username,
+          avatarUrl: opponent.avatarUrl || null, politicalX: opponent.politicalX || 0, politicalY: opponent.politicalY || 0
+        }
+      });
     } catch (err) {
       console.error('[divide-challenge] error:', err.message);
       socket.emit('divide-challenge-error', { error: 'Something went wrong. Try again.' });

@@ -727,6 +727,9 @@ async function createPoll() {
   const question = (questionEl?.value || '').trim();
   const options = [...document.querySelectorAll('.poll-option-input')]
     .map(i => i.value.trim()).filter(Boolean);
+  const category = document.getElementById('pollCategorySelect')?.value || 'general';
+  const tags = (document.getElementById('pollTagsInput')?.value || '')
+    .split(',').map(t => t.trim()).filter(Boolean);
   const statusEl = document.getElementById('pollCreateStatus');
 
   if (!question) { statusEl.textContent = 'Question is required.'; statusEl.style.color = 'var(--red)'; return; }
@@ -739,17 +742,18 @@ async function createPoll() {
     const res = await fetch('/api/polls', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, options })
+      body: JSON.stringify({ question, options, category, tags })
     });
     const data = await res.json();
     if (!res.ok) { statusEl.textContent = data.error || 'Error creating poll.'; statusEl.style.color = 'var(--red)'; return; }
     statusEl.textContent = 'Poll created!';
     statusEl.style.color = 'var(--green)';
     questionEl.value = '';
+    document.getElementById('pollTagsInput').value = '';
     document.getElementById('pollOptionsList').innerHTML = '';
     addPollOptionRow(); addPollOptionRow();
     loadDividePolls();
-    showToast('Poll created.', 'success');
+    showToast('Poll created — notifications sent to the most relevant users.', 'success');
   } catch {
     statusEl.textContent = 'Network error.';
     statusEl.style.color = 'var(--red)';
@@ -775,11 +779,15 @@ function renderDividePolls(polls) {
   list.innerHTML = polls.map(p => `
     <div class="user-row" id="poll-row-${p.id}" style="align-items:flex-start">
       <div class="user-row-info">
-        <div class="user-row-name">${escapeHtml(p.question)}</div>
+        <div class="user-row-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${escapeHtml(p.question)}
+          <span style="font-size:0.65rem;font-weight:700;background:rgba(139,92,246,0.12);color:var(--purple);border-radius:99px;padding:1px 8px;border:1px solid rgba(139,92,246,0.25)">${escapeHtml(p.categoryLabel || 'General')}</span>
+        </div>
         <div class="user-row-sub" style="margin-top:4px">
           ${p.options.map((o, i) => `${escapeHtml(o)} (${p.votes[i] || 0})`).join('  ·  ')}
         </div>
         <div class="user-row-sub" style="margin-top:2px">${p.totalVotes} total votes &nbsp;·&nbsp; ${p.commentCount} comments</div>
+        ${(p.tags || []).length ? `<div class="user-row-sub" style="margin-top:4px">${p.tags.map(t => `<span style="background:rgba(255,255,255,0.05);border-radius:6px;padding:1px 7px;margin-right:4px;font-size:0.7rem">#${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       </div>
       <div class="user-row-actions">
         ${p.status === 'active'

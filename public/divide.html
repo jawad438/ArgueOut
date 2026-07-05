@@ -25,22 +25,51 @@
     }
     .divide-hero p { font-size: 0.95rem; color: var(--text-2); max-width: 480px; margin: 0 auto; }
 
+    .divide-filters { margin-bottom: 24px; }
+    #divideSearchInput { width: 100%; margin-bottom: 12px; box-sizing: border-box; }
+    .divide-category-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+    .divide-chip {
+      padding: 6px 14px; border-radius: 99px; border: 1px solid var(--border);
+      background: none; color: var(--text-2); font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: background 130ms, border-color 130ms, color 130ms;
+    }
+    .divide-chip:hover { border-color: var(--border-bright); }
+    .divide-chip.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+
     .poll-card {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg);
       padding: 22px; margin-bottom: 18px;
+      animation: pollCardIn 420ms var(--ease-out) both;
     }
+    @keyframes pollCardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    #pollsList .poll-card:nth-child(1) { animation-delay: 0ms; }
+    #pollsList .poll-card:nth-child(2) { animation-delay: 60ms; }
+    #pollsList .poll-card:nth-child(3) { animation-delay: 120ms; }
+    #pollsList .poll-card:nth-child(4) { animation-delay: 180ms; }
+    #pollsList .poll-card:nth-child(n+5) { animation-delay: 220ms; }
+    @media (prefers-reduced-motion: reduce) { .poll-card { animation: none; } }
+    .poll-card-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .poll-category-badge {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+      background: rgba(139,92,246,0.12); color: var(--purple); border: 1px solid rgba(139,92,246,0.25);
+      border-radius: 99px; padding: 2px 9px;
+    }
+    .poll-tag { font-size: 0.72rem; color: var(--text-3); background: var(--bg-1); border-radius: 6px; padding: 2px 8px; }
     .poll-question { font-size: 1.05rem; font-weight: 700; color: var(--text-1); margin-bottom: 16px; line-height: 1.45; }
     .poll-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
     .poll-option-btn {
       position: relative; display: block; width: 100%; text-align: left;
       padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--border);
       background: var(--bg-1); color: var(--text-1); cursor: pointer; overflow: hidden;
-      font-family: inherit; font-size: 0.9rem; font-weight: 600; transition: border-color 150ms;
+      font-family: inherit; font-size: 0.9rem; font-weight: 600;
+      transition: border-color 150ms, transform 150ms var(--ease-spring);
     }
     .poll-option-btn:hover:not(:disabled) { border-color: var(--border-bright); }
     .poll-option-btn:disabled { cursor: default; }
+    .poll-option-btn.just-voted { animation: voteFlash 480ms var(--ease-spring); }
+    @keyframes voteFlash { 0% { transform: scale(1); } 35% { transform: scale(1.03); } 100% { transform: scale(1); } }
     .poll-option-fill {
-      position: absolute; inset: 0; z-index: 0; transition: width 400ms var(--ease-out);
+      position: absolute; inset: 0; z-index: 0; transition: width 500ms var(--ease-out);
       opacity: 0.22;
     }
     .poll-option-label { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 10px; }
@@ -61,12 +90,17 @@
     }
     .comment-composer textarea:focus { border-color: var(--purple); }
     .comment-list { display: flex; flex-direction: column; gap: 12px; }
-    .comment-item { display: flex; gap: 10px; }
+    .comment-item { display: flex; gap: 10px; animation: commentIn 300ms var(--ease-out) both; }
+    @keyframes commentIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .comment-item { animation: none; } }
     .comment-avatar {
       width: 30px; height: 30px; border-radius: 50%; background: var(--grad-brand); flex-shrink: 0;
       display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
-      font-size: 0.8rem; overflow: hidden;
+      font-size: 0.8rem; overflow: hidden; cursor: pointer; transition: transform 150ms;
     }
+    .comment-avatar:hover { transform: scale(1.08); }
+    .comment-author { cursor: pointer; }
+    .comment-author:hover { text-decoration: underline; }
     .comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .comment-body { flex: 1; min-width: 0; }
     .comment-author { font-size: 0.82rem; font-weight: 700; color: var(--text-1); }
@@ -78,9 +112,18 @@
       border: 1px solid var(--border); background: none; color: var(--text-3); cursor: pointer;
       font-size: 0.74rem; font-weight: 600; transition: background 120ms, border-color 120ms, color 120ms;
     }
-    .reaction-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .reaction-btn svg { width: 13px; height: 13px; flex-shrink: 0; transition: transform 200ms var(--ease-spring); }
     .reaction-btn:hover { border-color: var(--border-bright); }
-    .reaction-btn.active { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.4); color: var(--purple); }
+    /* Each reaction gets its own color so they read as distinct signals at a
+       glance, not just "reacted / not reacted" — amber for a sharp/precise
+       hit, blue for a calm "makes me reconsider", red as the visual cue for
+       "needs backup" (a citation ask, not a compliment). */
+    .reaction-btn.active[data-reaction="sharp"]        { background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.45); color: var(--amber); }
+    .reaction-btn.active[data-reaction="fairPoint"]     { background: rgba(59,130,246,0.14); border-color: rgba(59,130,246,0.45); color: var(--blue); }
+    .reaction-btn.active[data-reaction="sourceNeeded"]  { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.45); color: var(--red); }
+    .reaction-btn.active svg { transform: scale(1.1); }
+    .reaction-btn.pop svg { animation: reactionPop 380ms var(--ease-spring); }
+    @keyframes reactionPop { 0% { transform: scale(1); } 45% { transform: scale(1.5) rotate(-8deg); } 100% { transform: scale(1.1); } }
     .reply-btn {
       background: none; border: none; color: var(--text-3); font-size: 0.74rem; font-weight: 600;
       cursor: pointer; padding: 4px 6px;
@@ -143,6 +186,18 @@
     <p>Vote on where you stand, see who disagrees, and challenge them to a live debate.</p>
   </div>
 
+  <div class="divide-filters">
+    <input type="text" id="divideSearchInput" class="form-input" placeholder="Search polls…" oninput="applyDivideFilters()" />
+    <div class="divide-category-chips" id="divideCategoryChips">
+      <button class="divide-chip active" data-cat="all" onclick="setCategoryFilter('all')">All</button>
+      <button class="divide-chip" data-cat="economic" onclick="setCategoryFilter('economic')">Economic</button>
+      <button class="divide-chip" data-cat="social" onclick="setCategoryFilter('social')">Social</button>
+      <button class="divide-chip" data-cat="foreign" onclick="setCategoryFilter('foreign')">Foreign Policy</button>
+      <button class="divide-chip" data-cat="culture" onclick="setCategoryFilter('culture')">Culture</button>
+      <button class="divide-chip" data-cat="general" onclick="setCategoryFilter('general')">General</button>
+    </div>
+  </div>
+
   <div id="pollsList">
     <div class="poll-card"><div class="skel" style="height:20px;width:70%;border-radius:6px;margin-bottom:16px"></div>
       <div class="skel" style="height:44px;border-radius:10px;margin-bottom:8px"></div>
@@ -167,6 +222,59 @@
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary btn-sm" onclick="acceptDivideChallenge()">Accept</button>
         <button class="btn btn-ghost btn-sm" onclick="declineDivideChallenge()">Decline</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Challenge sent: shows who the server picked, so it doesn't feel like a black box -->
+<div class="suggest-card" id="divideRecCard" style="display:none">
+  <div class="suggest-header">
+    <span class="suggest-label">You challenged</span>
+    <button class="suggest-close" onclick="document.getElementById('divideRecCard').style.display='none'" aria-label="Dismiss">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="suggest-opponent">
+    <div class="suggest-avatar" id="divideRecAvatar"></div>
+    <div class="suggest-info">
+      <div class="suggest-name" id="divideRecName"></div>
+      <div class="suggest-username" id="divideRecUsername"></div>
+    </div>
+  </div>
+  <div class="suggest-tags" id="divideRecTags"></div>
+  <div class="suggest-reason">Waiting for them to respond — you'll be notified the moment they accept or decline.</div>
+</div>
+
+<!-- Commenter profile (read-only view — reuses the shared .up-card design
+     from lobby.html's profile modal, minus the challenge/report actions
+     which don't apply to a possibly-offline commenter here) -->
+<div class="modal-overlay" id="divideProfileModal" style="display:none" onclick="if(event.target===this)closeDivideProfile()">
+  <div class="up-card" id="divideProfileCard">
+    <div class="up-hero">
+      <div class="up-hero-bg" id="dpHeroBg"></div>
+      <div class="up-hero-fade"></div>
+      <button class="up-close-btn" onclick="closeDivideProfile()" aria-label="Close">
+        <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="up-avatar-wrap"><div class="up-avatar" id="dpAvatar">?</div></div>
+    <div class="up-body">
+      <div class="up-name" id="dpName">—</div>
+      <div class="up-username" id="dpUsername">@—</div>
+      <div class="up-badges" id="dpBadges"></div>
+      <div class="up-section">
+        <div class="up-section-label">Political Position</div>
+        <div class="up-compass-wrap"><canvas id="dpCompass" width="240" height="240"></canvas></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <span style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;color:rgba(239,68,68,0.65)">◄ LEFT</span>
+          <span style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;color:rgba(59,130,246,0.65)">RIGHT ►</span>
+        </div>
+      </div>
+      <div class="up-bio" id="dpBio" style="display:none"></div>
+      <div class="up-tags" id="dpTags"></div>
+      <div id="dpCountryRow" style="display:none;align-items:center;gap:6px;margin-top:6px;margin-bottom:4px">
+        <span id="dpCountry" style="font-size:0.85rem;color:var(--text-2)"></span>
       </div>
     </div>
   </div>
