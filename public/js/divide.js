@@ -417,6 +417,15 @@ socket.on('poll-vote-update', ({ pollId, votes, totalVotes }) => {
   updatePollVoteDisplay(pollId, null);
 });
 
+socket.on('poll-deleted', ({ pollId }) => {
+  delete pollsCache[pollId];
+  delete commentsCache[pollId];
+  openCommentPolls.delete(pollId);
+  const card = document.getElementById(`poll-${pollId}`);
+  if (card) card.remove();
+  showToast('A poll was removed by an admin.', 'info');
+});
+
 // -- Comments: fetch, thread, render --------------------------------------
 
 function toggleComments(pollId) {

@@ -44,12 +44,17 @@
     e.preventDefault();
     leaving = true;
     document.documentElement.classList.add('ao-page-leaving');
-    // Give the exit animation a moment to actually play before the browser
-    // starts tearing the page down for the real navigation. instant-nav.js
-    // has likely already prefetched this URL on touchstart, so by the time
-    // this fires the destination is usually already cache-warm — this delay
-    // is mostly just "let the slide be visible", not "wait on the network".
-    setTimeout(function () { location.href = url.href; }, 130);
+    // Wait for the FULL exit animation (180ms, matches the ao-slide-out
+    // duration in style.css) before handing off to the real navigation.
+    // Navigating mid-animation is what read as "freezing mid-run" — the
+    // browser starts tearing the current page down for the new document
+    // load while the slide-out is still playing, so the animation visibly
+    // stalls partway through instead of completing. Letting it finish first
+    // gives three clean beats instead: full slide-out plays out, THEN the
+    // browser shows a blank tab while it loads the destination (already
+    // usually cache-warm via instant-nav.js's touchstart prefetch), THEN the
+    // destination's static skeleton HTML paints and its own slide-in plays.
+    setTimeout(function () { location.href = url.href; }, 180);
   }, true);
 
   function playEnter() {

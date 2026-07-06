@@ -1081,6 +1081,34 @@ app.post('/api/polls/:pollId/close', async (req, res) => {
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
+async function deleteCollection(collectionRef, batchSize = 200) {
+  const snap = await collectionRef.limit(batchSize).get();
+  if (snap.empty) return;
+  const batch = fstore.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+  if (snap.size >= batchSize) await deleteCollection(collectionRef, batchSize);
+}
+
+app.delete('/api/polls/:pollId', async (req, res) => {
+  const decoded = await verifyAdminBearer(req);
+  if (!decoded) return res.status(403).json({ error: 'Forbidden' });
+  const pollId = safeId(req.params.pollId);
+  if (!pollId) return res.status(400).json({ error: 'Invalid poll' });
+  const pollRef = fstore.collection('polls').doc(pollId);
+  try {
+    const doc = await pollRef.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Poll not found' });
+    const commentsSnap = await pollRef.collection('comments').get();
+    await Promise.all(commentsSnap.docs.map(d => deleteCollection(d.ref.collection('reactorFlags'))));
+    await deleteCollection(pollRef.collection('comments'));
+    await deleteCollection(pollRef.collection('votes'));
+    await pollRef.delete();
+    io.emit('poll-deleted', { pollId });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
 app.post('/api/polls/:pollId/vote', strictLimiter, async (req, res) => {
   const decoded = await getAuthUser(req);
   if (!decoded) return res.status(401).json({ error: 'Unauthorized' });

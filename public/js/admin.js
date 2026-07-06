@@ -794,6 +794,7 @@ function renderDividePolls(polls) {
           ? `<span class="ban-chip" style="background:rgba(34,197,94,0.12);color:var(--green);border-color:rgba(34,197,94,0.25)">ACTIVE</span>
              <button class="btn btn-sm" style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2)" onclick="closePoll('${p.id}')">Close</button>`
           : `<span class="ban-chip">CLOSED</span>`}
+        <button class="btn btn-sm" style="background:rgba(239,68,68,0.18);color:var(--red);border:1px solid rgba(239,68,68,0.35)" onclick="deletePoll('${p.id}')">Delete</button>
       </div>
     </div>
   `).join('');
@@ -808,6 +809,19 @@ async function closePoll(pollId) {
     });
     if (!res.ok) { showToast('Failed to close poll.', 'error'); return; }
     showToast('Poll closed.', 'success');
+    loadDividePolls();
+  } catch { showToast('Network error.', 'error'); }
+}
+
+async function deletePoll(pollId) {
+  if (!confirm('Permanently delete this poll, along with all its votes and comments? This cannot be undone.')) return;
+  try {
+    const token = await adminToken();
+    const res = await fetch(`/api/polls/${pollId}`, {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { showToast('Failed to delete poll.', 'error'); return; }
+    showToast('Poll deleted.', 'success');
     loadDividePolls();
   } catch { showToast('Network error.', 'error'); }
 }
