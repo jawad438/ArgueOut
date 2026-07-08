@@ -262,55 +262,80 @@ function triggerChallenge(pollId) {
 }
 
 // -- Poll fetch/render ----------------------------------------------------
+//
+// The server ranks polls by interaction (votes+comments) and only ever
+// returns one page (POLLS_PAGE_SIZE polls) per request — it does the
+// per-poll "who's online on each side" lookup just for that page, not the
+// whole active-poll set, so the request stays cheap as the poll count grows.
+// Scrolling near the bottom (IntersectionObserver on a sentinel) fetches and
+// appends the next page from the server; changing the search/category filter
+// resets to page one and re-fetches (the filter is applied server-side too,
+// since only one page of matching polls is ever loaded client-side).
 
+const POLLS_PAGE_SIZE = 5;
 let allPollIds = [];
 let currentCategoryFilter = 'all';
+let divideOffset = 0;
+let divideHasMore = true;
+let divideLoading = false;
+let pollsScrollObserver = null;
+let divideSearchDebounce = null;
 
-async function fetchPolls() {
+async function fetchPolls(reset = true) {
+  if (divideLoading) return;
+  if (!reset && !divideHasMore) return;
+  divideLoading = true;
+  if (reset) { divideOffset = 0; divideHasMore = true; }
+
+  const term = (document.getElementById('divideSearchInput')?.value || '').trim();
+  const params = new URLSearchParams({ offset: String(divideOffset), limit: String(POLLS_PAGE_SIZE) });
+  if (currentCategoryFilter !== 'all') params.set('category', currentCategoryFilter);
+  if (term) params.set('search', term);
+
   try {
-    const res = await fetch('/api/polls', { headers: { 'Authorization': 'Bearer ' + currentIdToken } });
+    const res = await fetch(`/api/polls?${params}`, { headers: { 'Authorization': 'Bearer ' + currentIdToken } });
     if (!res.ok) throw new Error();
     const data = await res.json();
-    allPollIds = (data.polls || []).map(p => p.id);
-    (data.polls || []).forEach(p => { pollsCache[p.id] = p; });
-    applyDivideFilters();
-  } catch {
-    document.getElementById('pollsList').innerHTML =
-      '<div class="divide-empty">Could not load polls. <button class="btn btn-ghost btn-sm" onclick="fetchPolls()">Retry</button></div>';
-  }
-}
+    const polls = data.polls || [];
+    polls.forEach(p => { pollsCache[p.id] = p; });
 
-function applyDivideFilters() {
-  const term = (document.getElementById('divideSearchInput')?.value || '').toLowerCase().trim();
-  const filtered = allPollIds
-    .map(id => pollsCache[id])
-    .filter(Boolean)
-    .filter(p => currentCategoryFilter === 'all' || p.category === currentCategoryFilter)
-    .filter(p => !term || (p.question + ' ' + (p.tags || []).join(' ')).toLowerCase().includes(term));
-  renderPolls(filtered, term || currentCategoryFilter !== 'all');
+    if (reset) allPollIds = [];
+    allPollIds.push(...polls.map(p => p.id));
+    divideOffset += polls.length;
+    divideHasMore = !!data.hasMore;
+
+    renderPolls(reset, polls, term || currentCategoryFilter !== 'all');
+  } catch {
+    if (reset) {
+      document.getElementById('pollsList').innerHTML =
+        '<div class="divide-empty">Could not load polls. <button class="btn btn-ghost btn-sm" onclick="fetchPolls()">Retry</button></div>';
+    } else {
+      showToast('Could not load more polls.', 'error');
+    }
+  } finally {
+    divideLoading = false;
+  }
 }
 
 function setCategoryFilter(cat) {
   currentCategoryFilter = cat;
   document.querySelectorAll('.divide-chip').forEach(c => c.classList.toggle('active', c.dataset.cat === cat));
-  applyDivideFilters();
+  fetchPolls(true);
 }
 
-// Polls are ranked by interaction server-side (most votes+comments first),
-// but the full ranked list is still fetched in one request so search/category
-// filtering has something to filter against. Rendering all of them into the
-// DOM at once is what's slow, so cards are appended in small batches as the
-// user scrolls near the bottom, via an IntersectionObserver on a sentinel.
-const POLLS_PAGE_SIZE = 5;
-let currentFilteredPolls = [];
-let renderedPollCount = 0;
-let pollsScrollObserver = null;
+// oninput fires on every keystroke — debounced so search doesn't hit the
+// server on each character typed.
+function onDivideSearchInput() {
+  clearTimeout(divideSearchDebounce);
+  divideSearchDebounce = setTimeout(() => fetchPolls(true), 300);
+}
 
-function renderPolls(polls, isFiltered) {
+function renderPolls(reset, newPolls, isFiltered) {
   const list = document.getElementById('pollsList');
-  currentFilteredPolls = polls;
-  renderedPollCount = 0;
-  if (!polls.length) {
+  if (reset) list.innerHTML = '';
+  document.getElementById('pollsScrollSentinel')?.remove();
+
+  if (reset && !newPolls.length) {
     list.innerHTML = isFiltered
       ? `<div class="divide-empty">
           <h2 style="font-size:1.05rem;font-weight:700;color:var(--text-2);margin-bottom:6px">No polls match</h2>
@@ -323,23 +348,14 @@ function renderPolls(polls, isFiltered) {
     </div>`;
     return;
   }
-  list.innerHTML = '';
-  appendNextPollsPage();
-}
 
-function appendNextPollsPage() {
-  const list = document.getElementById('pollsList');
-  document.getElementById('pollsScrollSentinel')?.remove();
+  list.insertAdjacentHTML('beforeend', newPolls.map(renderPollCard).join(''));
 
-  const next = currentFilteredPolls.slice(renderedPollCount, renderedPollCount + POLLS_PAGE_SIZE);
-  list.insertAdjacentHTML('beforeend', next.map(renderPollCard).join(''));
-  renderedPollCount += next.length;
-
-  if (renderedPollCount < currentFilteredPolls.length) {
+  if (divideHasMore) {
     list.insertAdjacentHTML('beforeend', '<div id="pollsScrollSentinel" style="height:1px"></div>');
     if (!pollsScrollObserver) {
       pollsScrollObserver = new IntersectionObserver(entries => {
-        if (entries.some(e => e.isIntersecting)) appendNextPollsPage();
+        if (entries.some(e => e.isIntersecting)) fetchPolls(false);
       }, { rootMargin: '600px' });
     } else {
       pollsScrollObserver.disconnect();

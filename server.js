@@ -963,17 +963,17 @@ const DIVIDE_CATEGORIES = {
   general:  'General'
 };
 
-// commentCount is read live via a count() aggregation query rather than the
-// stored denormalized field on the poll doc — a hand-incremented counter
-// drifted from the real number in testing (showed 4 for 2 actual comments),
-// and a count() query is cheap (billed as a single read regardless of how
-// many comments exist) so there's no real reason to trust a value that can
-// silently go stale instead of just asking Firestore for the truth.
-async function pollDocToJson(doc) {
+// commentCount is a denormalized field on the poll doc, kept in sync by
+// FieldValue.increment(1) when a comment is created (comment deletion is a
+// soft-delete that keeps the doc in place, so no decrement is needed). This
+// used to be a live count() aggregation instead, but that meant ranking or
+// paging the poll list required one extra query per poll — with this stored
+// instead, the whole active-poll list can be ranked/paged from a single
+// query, and only the page actually being returned needs further lookups.
+function pollDocToJson(doc) {
   const d = doc.data();
   const options = Array.isArray(d.options) ? d.options : [];
   const votes = options.map((_, i) => (d.votes && d.votes[String(i)]) || 0);
-  const countSnap = await doc.ref.collection('comments').count().get();
   return {
     id: doc.id,
     question: d.question,
@@ -984,7 +984,7 @@ async function pollDocToJson(doc) {
     category: d.category || 'general',
     categoryLabel: DIVIDE_CATEGORIES[d.category] || DIVIDE_CATEGORIES.general,
     tags: Array.isArray(d.tags) ? d.tags : [],
-    commentCount: countSnap.data().count,
+    commentCount: d.commentCount || 0,
     createdAt: d.createdAt ? d.createdAt.toMillis() : null
   };
 }
@@ -1023,18 +1023,32 @@ app.get('/api/polls/featured', async (req, res) => {
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
+const DIVIDE_PAGE_SIZE = 5;
+
 app.get('/api/polls', async (req, res) => {
   const decoded = await getAuthUser(req);
   if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
   try {
     // status+createdAt would need a manual composite index, so like
-    // /api/polls/featured this fetches the active set and ranks it in JS —
-    // at this scale (a few dozen active polls) that costs nothing.
-    const snap = await fstore.collection('polls').where('status', '==', 'active').limit(50).get();
-    const allPolls = sortPollsByInteraction(await Promise.all(snap.docs.map(pollDocToJson)));
+    // /api/polls/featured this fetches the active set and ranks/filters it in
+    // JS — that query itself is a single cheap read regardless of list size.
+    // The expensive part is the per-poll votes-subcollection lookup below
+    // (for onlineCounts/myVote), so that's the part actually restricted to
+    // one page (DIVIDE_PAGE_SIZE) instead of running for every active poll.
+    const snap = await fstore.collection('polls').where('status', '==', 'active').limit(200).get();
+    let allPolls = sortPollsByInteraction(snap.docs.map(pollDocToJson));
+
+    const category = typeof req.query.category === 'string' ? req.query.category : '';
+    const search = typeof req.query.search === 'string' ? req.query.search.toLowerCase().trim() : '';
+    if (category && category !== 'all') allPolls = allPolls.filter(p => p.category === category);
+    if (search) allPolls = allPolls.filter(p => (p.question + ' ' + p.tags.join(' ')).toLowerCase().includes(search));
+
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || DIVIDE_PAGE_SIZE));
+    const pageOfPolls = allPolls.slice(offset, offset + limit);
 
     const polls = [];
-    for (const poll of allPolls) {
+    for (const poll of pageOfPolls) {
       const votesSnap = await fstore.collection('polls').doc(poll.id).collection('votes').limit(2000).get();
       const voterMap = new Map(); // userId -> optionIndex
       votesSnap.docs.forEach(v => voterMap.set(v.id, v.data().optionIndex));
@@ -1042,7 +1056,7 @@ app.get('/api/polls', async (req, res) => {
       poll.myVote = voterMap.has(decoded.uid) ? voterMap.get(decoded.uid) : null;
       polls.push(poll);
     }
-    res.json({ polls });
+    res.json({ polls, total: allPolls.length, hasMore: offset + limit < allPolls.length });
   } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -1251,7 +1265,10 @@ app.post('/api/polls/:pollId/comments', strictLimiter, async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       reactions: { sharp: 0, fairPoint: 0, sourceNeeded: 0 }
     };
-    await commentRef.set(payload);
+    await Promise.all([
+      commentRef.set(payload),
+      pollRef.update({ commentCount: admin.firestore.FieldValue.increment(1) })
+    ]);
 
     const comment = {
       id: commentRef.id, text, deleted: false, authorId: decoded.uid, authorUsername: u.username,
