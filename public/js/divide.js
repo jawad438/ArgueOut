@@ -263,19 +263,21 @@ function triggerChallenge(pollId) {
 
 // -- Poll fetch/render ----------------------------------------------------
 //
-// The server ranks polls by interaction (votes+comments) and only ever
-// returns one page (POLLS_PAGE_SIZE polls) per request — it does the
-// per-poll "who's online on each side" lookup just for that page, not the
-// whole active-poll set, so the request stays cheap as the poll count grows.
-// Scrolling near the bottom (IntersectionObserver on a sentinel) fetches and
-// appends the next page from the server; changing the search/category filter
-// resets to page one and re-fetches (the filter is applied server-side too,
-// since only one page of matching polls is ever loaded client-side).
+// Plain browsing (no search/category filter) is ranked exactly by the server
+// (most votes+comments first) and paged with a simple offset. Once a search
+// term or category filter is active, the server instead scans the active-poll
+// collection in batches of 10-50 (cheap per-batch reads) until it finds
+// enough matches, and hands back a raw cursor to resume scanning from next
+// time — that's what "cursor" tracks here. Either way, only POLLS_PAGE_SIZE
+// polls are ever rendered/fetched per request, and scrolling near the bottom
+// (IntersectionObserver on a sentinel, well before the literal end of the
+// list) fetches and appends the next page.
 
 const POLLS_PAGE_SIZE = 5;
 let allPollIds = [];
 let currentCategoryFilter = 'all';
 let divideOffset = 0;
+let divideCursor = null;
 let divideHasMore = true;
 let divideLoading = false;
 let pollsScrollObserver = null;
@@ -285,12 +287,15 @@ async function fetchPolls(reset = true) {
   if (divideLoading) return;
   if (!reset && !divideHasMore) return;
   divideLoading = true;
-  if (reset) { divideOffset = 0; divideHasMore = true; }
+  if (reset) { divideOffset = 0; divideCursor = null; divideHasMore = true; }
 
   const term = (document.getElementById('divideSearchInput')?.value || '').trim();
-  const params = new URLSearchParams({ offset: String(divideOffset), limit: String(POLLS_PAGE_SIZE) });
+  const isFiltering = !!(term || currentCategoryFilter !== 'all');
+  const params = new URLSearchParams({ limit: String(POLLS_PAGE_SIZE) });
   if (currentCategoryFilter !== 'all') params.set('category', currentCategoryFilter);
   if (term) params.set('search', term);
+  if (isFiltering) { if (divideCursor) params.set('cursor', divideCursor); }
+  else params.set('offset', String(divideOffset));
 
   try {
     const res = await fetch(`/api/polls?${params}`, { headers: { 'Authorization': 'Bearer ' + currentIdToken } });
@@ -301,10 +306,11 @@ async function fetchPolls(reset = true) {
 
     if (reset) allPollIds = [];
     allPollIds.push(...polls.map(p => p.id));
-    divideOffset += polls.length;
+    if (isFiltering) divideCursor = data.cursor || null;
+    else divideOffset += polls.length;
     divideHasMore = !!data.hasMore;
 
-    renderPolls(reset, polls, term || currentCategoryFilter !== 'all');
+    renderPolls(reset, polls, isFiltering);
   } catch {
     if (reset) {
       document.getElementById('pollsList').innerHTML =

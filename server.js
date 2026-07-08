@@ -1024,28 +1024,75 @@ app.get('/api/polls/featured', async (req, res) => {
 });
 
 const DIVIDE_PAGE_SIZE = 5;
+// Chunk size used only while scanning for a search/category match (see
+// below) — kept in the 10-50 range so a search doesn't have to read the
+// entire active-poll collection just to find its first 5 matches.
+const DIVIDE_SEARCH_SCAN_BATCH = 30;
+const DIVIDE_SEARCH_MAX_SCAN_BATCHES = 10; // safety cap: ~300 polls scanned per request
 
 app.get('/api/polls', async (req, res) => {
   const decoded = await getAuthUser(req);
   if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    // status+createdAt would need a manual composite index, so like
-    // /api/polls/featured this fetches the active set and ranks/filters it in
-    // JS — that query itself is a single cheap read regardless of list size.
-    // The expensive part is the per-poll votes-subcollection lookup below
-    // (for onlineCounts/myVote), so that's the part actually restricted to
-    // one page (DIVIDE_PAGE_SIZE) instead of running for every active poll.
-    const snap = await fstore.collection('polls').where('status', '==', 'active').limit(200).get();
-    let allPolls = sortPollsByInteraction(snap.docs.map(pollDocToJson));
-
     const category = typeof req.query.category === 'string' ? req.query.category : '';
     const search = typeof req.query.search === 'string' ? req.query.search.toLowerCase().trim() : '';
-    if (category && category !== 'all') allPolls = allPolls.filter(p => p.category === category);
-    if (search) allPolls = allPolls.filter(p => (p.question + ' ' + p.tags.join(' ')).toLowerCase().includes(search));
-
-    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || DIVIDE_PAGE_SIZE));
-    const pageOfPolls = allPolls.slice(offset, offset + limit);
+    const isFiltering = !!(search || (category && category !== 'all'));
+
+    let pageOfPolls, hasMore, nextCursor = null;
+
+    if (!isFiltering) {
+      // Plain browse: status+createdAt would need a manual composite index,
+      // so the whole active set is fetched in one cheap query and ranked in
+      // JS — that gives an exactly-correct "most interaction first" order,
+      // which a chunked scan (used below for search) can't guarantee.
+      const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+      const snap = await fstore.collection('polls').where('status', '==', 'active').limit(200).get();
+      const allPolls = sortPollsByInteraction(snap.docs.map(pollDocToJson));
+      pageOfPolls = allPolls.slice(offset, offset + limit);
+      hasMore = offset + limit < allPolls.length;
+    } else {
+      // Search/category filter: instead of loading the whole active set just
+      // to test it against the filter, scan forward through the collection
+      // in batches of DIVIDE_SEARCH_SCAN_BATCH, ranking/filtering each batch
+      // as it comes in, until there are enough matches for this page (or the
+      // collection runs out). The cursor is the raw (unfiltered) doc last
+      // read, so the next request resumes scanning from exactly there —
+      // any extra matches already found beyond this page are simply
+      // re-discovered next request rather than cached server-side.
+      let cursorDoc = null;
+      const cursorId = typeof req.query.cursor === 'string' ? safeId(req.query.cursor) : null;
+      if (cursorId) {
+        const cursorSnap = await fstore.collection('polls').doc(cursorId).get();
+        if (cursorSnap.exists) cursorDoc = cursorSnap;
+      }
+
+      const scanned = []; // { poll, rawDoc }
+      let exhausted = false;
+      for (let i = 0; i < DIVIDE_SEARCH_MAX_SCAN_BATCHES && scanned.length < limit; i++) {
+        let q = fstore.collection('polls').where('status', '==', 'active').limit(DIVIDE_SEARCH_SCAN_BATCH);
+        if (cursorDoc) q = q.startAfter(cursorDoc);
+        const snap = await q.get();
+        if (snap.empty) { exhausted = true; break; }
+        cursorDoc = snap.docs[snap.docs.length - 1];
+
+        let zipped = snap.docs.map(d => ({ poll: pollDocToJson(d), rawDoc: d }));
+        zipped.sort((a, b) => {
+          const diff = pollInteractionScore(b.poll) - pollInteractionScore(a.poll);
+          return diff !== 0 ? diff : (b.poll.createdAt || 0) - (a.poll.createdAt || 0);
+        });
+        if (category && category !== 'all') zipped = zipped.filter(z => z.poll.category === category);
+        if (search) zipped = zipped.filter(z => (z.poll.question + ' ' + z.poll.tags.join(' ')).toLowerCase().includes(search));
+        scanned.push(...zipped);
+
+        if (snap.docs.length < DIVIDE_SEARCH_SCAN_BATCH) { exhausted = true; break; }
+      }
+
+      const page = scanned.slice(0, limit);
+      pageOfPolls = page.map(z => z.poll);
+      hasMore = scanned.length > limit || !exhausted;
+      nextCursor = page.length ? page[page.length - 1].rawDoc.id : null;
+    }
 
     const polls = [];
     for (const poll of pageOfPolls) {
@@ -1056,7 +1103,7 @@ app.get('/api/polls', async (req, res) => {
       poll.myVote = voterMap.has(decoded.uid) ? voterMap.get(decoded.uid) : null;
       polls.push(poll);
     }
-    res.json({ polls, total: allPolls.length, hasMore: offset + limit < allPolls.length });
+    res.json({ polls, hasMore, cursor: nextCursor });
   } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
