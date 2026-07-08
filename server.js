@@ -1000,12 +1000,25 @@ function pollOnlineCounts(pollVoterMap, options) {
   return counts;
 }
 
+// Interaction score used to rank polls in both the featured strip and the
+// main feed: votes + comments, so a poll people are actively arguing in
+// outranks one that's merely newer. Recency is only a tie-breaker.
+function pollInteractionScore(poll) {
+  return poll.totalVotes + poll.commentCount;
+}
+
+function sortPollsByInteraction(polls) {
+  return polls.sort((a, b) => {
+    const diff = pollInteractionScore(b) - pollInteractionScore(a);
+    if (diff !== 0) return diff;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+}
+
 app.get('/api/polls/featured', async (req, res) => {
   try {
     const snap = await fstore.collection('polls').where('status', '==', 'active').limit(50).get();
-    const polls = (await Promise.all(snap.docs.map(pollDocToJson)))
-      .sort((a, b) => b.totalVotes - a.totalVotes)
-      .slice(0, 3);
+    const polls = sortPollsByInteraction(await Promise.all(snap.docs.map(pollDocToJson))).slice(0, 3);
     res.json({ polls });
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
@@ -1014,17 +1027,15 @@ app.get('/api/polls', async (req, res) => {
   const decoded = await getAuthUser(req);
   if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    // Sorted in JS instead of an .orderBy() combined with the equality filter
-    // above, which would need a manual composite index (status + createdAt)
-    // created in the Firebase console before the query would work at all. At
-    // this scale (a few dozen active polls) an in-memory sort costs nothing.
+    // status+createdAt would need a manual composite index, so like
+    // /api/polls/featured this fetches the active set and ranks it in JS —
+    // at this scale (a few dozen active polls) that costs nothing.
     const snap = await fstore.collection('polls').where('status', '==', 'active').limit(50).get();
-    const sortedDocs = snap.docs.sort((a, b) => (b.data().createdAt?.toMillis() || 0) - (a.data().createdAt?.toMillis() || 0));
+    const allPolls = sortPollsByInteraction(await Promise.all(snap.docs.map(pollDocToJson)));
 
     const polls = [];
-    for (const doc of sortedDocs) {
-      const poll = await pollDocToJson(doc);
-      const votesSnap = await fstore.collection('polls').doc(doc.id).collection('votes').limit(2000).get();
+    for (const poll of allPolls) {
+      const votesSnap = await fstore.collection('polls').doc(poll.id).collection('votes').limit(2000).get();
       const voterMap = new Map(); // userId -> optionIndex
       votesSnap.docs.forEach(v => voterMap.set(v.id, v.data().optionIndex));
       poll.onlineCounts = pollOnlineCounts(voterMap, poll.options);

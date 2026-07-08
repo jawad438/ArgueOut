@@ -296,8 +296,20 @@ function setCategoryFilter(cat) {
   applyDivideFilters();
 }
 
+// Polls are ranked by interaction server-side (most votes+comments first),
+// but the full ranked list is still fetched in one request so search/category
+// filtering has something to filter against. Rendering all of them into the
+// DOM at once is what's slow, so cards are appended in small batches as the
+// user scrolls near the bottom, via an IntersectionObserver on a sentinel.
+const POLLS_PAGE_SIZE = 5;
+let currentFilteredPolls = [];
+let renderedPollCount = 0;
+let pollsScrollObserver = null;
+
 function renderPolls(polls, isFiltered) {
   const list = document.getElementById('pollsList');
+  currentFilteredPolls = polls;
+  renderedPollCount = 0;
   if (!polls.length) {
     list.innerHTML = isFiltered
       ? `<div class="divide-empty">
@@ -311,7 +323,29 @@ function renderPolls(polls, isFiltered) {
     </div>`;
     return;
   }
-  list.innerHTML = polls.map(renderPollCard).join('');
+  list.innerHTML = '';
+  appendNextPollsPage();
+}
+
+function appendNextPollsPage() {
+  const list = document.getElementById('pollsList');
+  document.getElementById('pollsScrollSentinel')?.remove();
+
+  const next = currentFilteredPolls.slice(renderedPollCount, renderedPollCount + POLLS_PAGE_SIZE);
+  list.insertAdjacentHTML('beforeend', next.map(renderPollCard).join(''));
+  renderedPollCount += next.length;
+
+  if (renderedPollCount < currentFilteredPolls.length) {
+    list.insertAdjacentHTML('beforeend', '<div id="pollsScrollSentinel" style="height:1px"></div>');
+    if (!pollsScrollObserver) {
+      pollsScrollObserver = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting)) appendNextPollsPage();
+      }, { rootMargin: '600px' });
+    } else {
+      pollsScrollObserver.disconnect();
+    }
+    pollsScrollObserver.observe(document.getElementById('pollsScrollSentinel'));
+  }
 }
 
 function renderPollOptions(poll, justVotedIndex) {
