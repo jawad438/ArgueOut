@@ -1207,23 +1207,53 @@ async function deleteCollection(collectionRef, batchSize = 200) {
   if (snap.size >= batchSize) await deleteCollection(collectionRef, batchSize);
 }
 
+async function deletePollById(pollId) {
+  const pollRef = fstore.collection('polls').doc(pollId);
+  const doc = await pollRef.get();
+  if (!doc.exists) return false;
+  const commentsSnap = await pollRef.collection('comments').get();
+  await Promise.all(commentsSnap.docs.map(d => deleteCollection(d.ref.collection('reactorFlags'))));
+  await deleteCollection(pollRef.collection('comments'));
+  await deleteCollection(pollRef.collection('votes'));
+  await pollRef.delete();
+  io.emit('poll-deleted', { pollId });
+  return true;
+}
+
 app.delete('/api/polls/:pollId', async (req, res) => {
   const decoded = await verifyAdminBearer(req);
   if (!decoded) return res.status(403).json({ error: 'Forbidden' });
   const pollId = safeId(req.params.pollId);
   if (!pollId) return res.status(400).json({ error: 'Invalid poll' });
-  const pollRef = fstore.collection('polls').doc(pollId);
   try {
-    const doc = await pollRef.get();
-    if (!doc.exists) return res.status(404).json({ error: 'Poll not found' });
-    const commentsSnap = await pollRef.collection('comments').get();
-    await Promise.all(commentsSnap.docs.map(d => deleteCollection(d.ref.collection('reactorFlags'))));
-    await deleteCollection(pollRef.collection('comments'));
-    await deleteCollection(pollRef.collection('votes'));
-    await pollRef.delete();
-    io.emit('poll-deleted', { pollId });
+    const existed = await deletePollById(pollId);
+    if (!existed) return res.status(404).json({ error: 'Poll not found' });
     res.json({ ok: true });
   } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Bulk delete: accepts { pollIds: [...] } and deletes each independently, so
+// one bad/already-deleted id doesn't block the rest — mirrors the per-item
+// result shape used by /api/polls/bulk (import) for the same reason.
+app.post('/api/polls/bulk-delete', async (req, res) => {
+  const decoded = await verifyAdminBearer(req);
+  if (!decoded) return res.status(403).json({ error: 'Forbidden' });
+  const pollIds = Array.isArray(req.body?.pollIds)
+    ? [...new Set(req.body.pollIds.map(safeId).filter(Boolean))]
+    : [];
+  if (!pollIds.length) return res.status(400).json({ error: 'No polls provided' });
+  if (pollIds.length > 200) return res.status(400).json({ error: 'Too many polls in one batch (max 200)' });
+
+  const results = [];
+  for (const pollId of pollIds) {
+    try {
+      const existed = await deletePollById(pollId);
+      results.push({ pollId, ok: existed, error: existed ? undefined : 'Poll not found' });
+    } catch {
+      results.push({ pollId, ok: false, error: 'Server error' });
+    }
+  }
+  res.json({ results, deleted: results.filter(r => r.ok).length, failed: results.filter(r => !r.ok).length });
 });
 
 app.post('/api/polls/:pollId/vote', strictLimiter, async (req, res) => {

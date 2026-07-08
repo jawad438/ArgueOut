@@ -845,11 +845,15 @@ async function loadDividePolls() {
   }
 }
 
+let selectedPollIds = new Set();
+
 function renderDividePolls(polls) {
   const list = document.getElementById('dividePollsList');
-  if (!polls.length) { list.innerHTML = '<div class="admin-empty">No polls yet. Create one above.</div>'; return; }
+  selectedPollIds = new Set([...selectedPollIds].filter(id => polls.some(p => p.id === id)));
+  if (!polls.length) { list.innerHTML = '<div class="admin-empty">No polls yet. Create one above.</div>'; updatePollSelectionUI(); return; }
   list.innerHTML = polls.map(p => `
     <div class="user-row" id="poll-row-${p.id}" style="align-items:flex-start">
+      <input type="checkbox" class="poll-select-checkbox" data-poll-id="${p.id}" ${selectedPollIds.has(p.id) ? 'checked' : ''} onchange="togglePollSelection('${p.id}', this.checked)" style="margin-top:4px;margin-right:12px" />
       <div class="user-row-info">
         <div class="user-row-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${escapeHtml(p.question)}
@@ -870,6 +874,50 @@ function renderDividePolls(polls) {
       </div>
     </div>
   `).join('');
+  updatePollSelectionUI();
+}
+
+function togglePollSelection(pollId, checked) {
+  if (checked) selectedPollIds.add(pollId); else selectedPollIds.delete(pollId);
+  updatePollSelectionUI();
+}
+
+function toggleSelectAllPolls(checked) {
+  document.querySelectorAll('.poll-select-checkbox').forEach(cb => {
+    cb.checked = checked;
+    if (checked) selectedPollIds.add(cb.dataset.pollId); else selectedPollIds.delete(cb.dataset.pollId);
+  });
+  updatePollSelectionUI();
+}
+
+function updatePollSelectionUI() {
+  const count = selectedPollIds.size;
+  const btn = document.getElementById('deleteSelectedPollsBtn');
+  const countEl = document.getElementById('selectedPollCount');
+  if (countEl) countEl.textContent = count;
+  if (btn) btn.style.display = count ? '' : 'none';
+  const total = document.querySelectorAll('.poll-select-checkbox').length;
+  const selectAll = document.getElementById('pollSelectAllCheckbox');
+  if (selectAll) selectAll.checked = total > 0 && count === total;
+}
+
+async function deleteSelectedPolls() {
+  const ids = [...selectedPollIds];
+  if (!ids.length) return;
+  if (!confirm(`Permanently delete ${ids.length} poll(s), along with all their votes and comments? This cannot be undone.`)) return;
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/polls/bulk-delete', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pollIds: ids })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Failed to delete polls.', 'error'); return; }
+    showToast(`Deleted ${data.deleted} poll(s).${data.failed ? ` ${data.failed} failed.` : ''}`, data.failed ? 'info' : 'success');
+    selectedPollIds.clear();
+    loadDividePolls();
+  } catch { showToast('Network error.', 'error'); }
 }
 
 async function closePoll(pollId) {
