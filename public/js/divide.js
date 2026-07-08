@@ -283,11 +283,36 @@ let divideLoading = false;
 let pollsScrollObserver = null;
 let divideSearchDebounce = null;
 
+// Shimmering placeholder cards (same .skel style as the static markup
+// divide.html shows before any JS has run) — shown in place of the real
+// list while a reset fetch (search/category/initial load) is in flight, and
+// appended below the existing cards while a scroll-triggered "load more" is
+// in flight, so there's always a visible loading state instead of a blank
+// or frozen-looking feed.
+function pollSkeletonCardHtml(opacity) {
+  return `<div class="poll-card" style="opacity:${opacity}">
+    <div class="skel" style="height:20px;width:70%;border-radius:6px;margin-bottom:16px"></div>
+    <div class="skel" style="height:44px;border-radius:10px;margin-bottom:8px"></div>
+    <div class="skel" style="height:44px;border-radius:10px;margin-bottom:8px;opacity:0.6"></div>
+  </div>`;
+}
+function renderPollSkeletons(count) {
+  return Array.from({ length: count }, (_, i) => pollSkeletonCardHtml(1 - i * 0.15)).join('');
+}
+
 async function fetchPolls(reset = true) {
   if (divideLoading) return;
   if (!reset && !divideHasMore) return;
   divideLoading = true;
   if (reset) { divideOffset = 0; divideCursor = null; divideHasMore = true; }
+
+  const list = document.getElementById('pollsList');
+  if (reset) {
+    list.innerHTML = renderPollSkeletons(3);
+  } else {
+    document.getElementById('pollsScrollSentinel')?.remove();
+    list.insertAdjacentHTML('beforeend', `<div id="pollsLoadMoreSkeleton">${renderPollSkeletons(2)}</div>`);
+  }
 
   const term = (document.getElementById('divideSearchInput')?.value || '').trim();
   const isFiltering = !!(term || currentCategoryFilter !== 'all');
@@ -312,6 +337,7 @@ async function fetchPolls(reset = true) {
 
     renderPolls(reset, polls, isFiltering);
   } catch {
+    document.getElementById('pollsLoadMoreSkeleton')?.remove();
     if (reset) {
       document.getElementById('pollsList').innerHTML =
         '<div class="divide-empty">Could not load polls. <button class="btn btn-ghost btn-sm" onclick="fetchPolls()">Retry</button></div>';
@@ -340,6 +366,7 @@ function renderPolls(reset, newPolls, isFiltered) {
   const list = document.getElementById('pollsList');
   if (reset) list.innerHTML = '';
   document.getElementById('pollsScrollSentinel')?.remove();
+  document.getElementById('pollsLoadMoreSkeleton')?.remove();
 
   if (reset && !newPolls.length) {
     list.innerHTML = isFiltered
