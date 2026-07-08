@@ -293,6 +293,24 @@
           </div>
         </div>
       </div>
+      <div class="admin-card">
+        <div style="font-size:0.95rem;font-weight:700;margin-bottom:4px">Bulk Import Polls</div>
+        <div style="font-size:0.78rem;color:var(--text-3);margin-bottom:12px">
+          Upload one or more JSON files. Each file may contain a single poll object,
+          an array of poll objects, or <code>{ "polls": [...] }</code>. Each poll needs
+          <code>question</code> (string) and <code>options</code> (2&ndash;6 strings);
+          <code>category</code> (economic/social/foreign/culture/general) and
+          <code>tags</code> (array of strings) are optional.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;max-width:560px">
+          <input type="file" id="pollBulkFileInput" accept="application/json,.json" multiple />
+          <div>
+            <button class="btn btn-primary" onclick="bulkImportPolls()">Import Polls</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('pollBulkFileInput').value=''; document.getElementById('pollBulkStatus').innerHTML=''">Clear</button>
+          </div>
+          <div id="pollBulkStatus" style="font-size:0.82rem"></div>
+        </div>
+      </div>
       <div class="admin-card" style="padding:0;overflow:hidden">
         <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:0.88rem;font-weight:700">All Polls</span>

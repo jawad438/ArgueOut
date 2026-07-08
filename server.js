@@ -1062,6 +1062,51 @@ app.post('/api/polls', async (req, res) => {
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
+// Bulk import: accepts { polls: [ { question, options, category?, tags? }, ... ] },
+// validates each entry with the same rules as the single-poll route above, and
+// creates all valid ones. Per-item results are returned so a JSON file with one
+// bad entry doesn't silently fail (or block) the rest of the batch.
+app.post('/api/polls/bulk', async (req, res) => {
+  const decoded = await verifyAdminBearer(req);
+  if (!decoded) return res.status(403).json({ error: 'Forbidden' });
+  const items = Array.isArray(req.body?.polls) ? req.body.polls : [];
+  if (!items.length) return res.status(400).json({ error: 'No polls provided' });
+  if (items.length > 200) return res.status(400).json({ error: 'Too many polls in one batch (max 200)' });
+
+  const results = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i] || {};
+    const question = safeStr(item.question, 300);
+    const options = Array.isArray(item.options)
+      ? item.options.map(o => safeStr(o, 120)).filter(Boolean)
+      : [];
+    const category = DIVIDE_CATEGORIES[item.category] ? item.category : 'general';
+    const tags = Array.isArray(item.tags)
+      ? item.tags.map(t => safeStr(t, 30)).filter(Boolean).slice(0, DIVIDE_MAX_TAGS)
+      : [];
+
+    if (!question) { results.push({ index: i, ok: false, error: 'Question is required' }); continue; }
+    if (options.length < 2 || options.length > DIVIDE_MAX_OPTIONS) {
+      results.push({ index: i, ok: false, error: `Provide 2-${DIVIDE_MAX_OPTIONS} options`, question });
+      continue;
+    }
+
+    try {
+      const votes = {};
+      options.forEach((_, idx) => { votes[String(idx)] = 0; });
+      const ref = await fstore.collection('polls').add({
+        question, options, votes, status: 'active', category, tags,
+        createdBy: decoded.uid, createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      notifyRelevantUsersForNewPoll(ref.id, question, category);
+      results.push({ index: i, ok: true, id: ref.id, question });
+    } catch {
+      results.push({ index: i, ok: false, error: 'Server error', question });
+    }
+  }
+  res.json({ results, created: results.filter(r => r.ok).length, failed: results.filter(r => !r.ok).length });
+});
+
 app.get('/api/admin/polls', async (req, res) => {
   if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
   try {

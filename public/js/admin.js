@@ -760,6 +760,78 @@ async function createPoll() {
   }
 }
 
+// Accepts a single poll object, an array of poll objects, or { polls: [...] }
+// per file, since admins may export/hand-write JSON in any of those shapes.
+function extractPollsFromJson(parsed) {
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && Array.isArray(parsed.polls)) return parsed.polls;
+  if (parsed && typeof parsed === 'object') return [parsed];
+  return [];
+}
+
+async function bulkImportPolls() {
+  const input = document.getElementById('pollBulkFileInput');
+  const statusEl = document.getElementById('pollBulkStatus');
+  const files = input?.files ? [...input.files] : [];
+  if (!files.length) {
+    statusEl.textContent = 'Choose at least one JSON file.';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+
+  statusEl.textContent = 'Reading files…';
+  statusEl.style.color = 'var(--text-3)';
+
+  const polls = [];
+  const parseErrors = [];
+  for (const file of files) {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const extracted = extractPollsFromJson(parsed);
+      if (!extracted.length) parseErrors.push(`${file.name}: no polls found`);
+      polls.push(...extracted);
+    } catch (e) {
+      parseErrors.push(`${file.name}: invalid JSON`);
+    }
+  }
+
+  if (!polls.length) {
+    statusEl.innerHTML = 'No valid polls to import.' +
+      (parseErrors.length ? '<br>' + parseErrors.map(e => `&bull; ${e}`).join('<br>') : '');
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+
+  statusEl.textContent = `Importing ${polls.length} poll(s)…`;
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/polls/bulk', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ polls })
+    });
+    const data = await res.json();
+    if (!res.ok) { statusEl.textContent = data.error || 'Error importing polls.'; statusEl.style.color = 'var(--red)'; return; }
+
+    const failedLines = (data.results || [])
+      .filter(r => !r.ok)
+      .map(r => `&bull; #${r.index + 1}${r.question ? ' (' + r.question.slice(0, 40) + ')' : ''}: ${r.error}`);
+    const lines = [`Created ${data.created} of ${polls.length} poll(s).`, ...parseErrors.map(e => `&bull; ${e}`), ...failedLines];
+    statusEl.innerHTML = lines.join('<br>');
+    statusEl.style.color = data.failed || parseErrors.length ? 'orange' : 'var(--green)';
+
+    if (data.created > 0) {
+      input.value = '';
+      loadDividePolls();
+      showToast(`Imported ${data.created} poll(s).`, 'success');
+    }
+  } catch {
+    statusEl.textContent = 'Network error.';
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
 async function loadDividePolls() {
   const list = document.getElementById('dividePollsList');
   list.innerHTML = '<div class="admin-empty">Loading…</div>';
