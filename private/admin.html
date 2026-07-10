@@ -156,6 +156,7 @@
       <button class="admin-tab" onclick="switchTab('notify')">Notify</button>
       <button class="admin-tab" onclick="switchTab('whitelist')">Whitelist</button>
       <button class="admin-tab" onclick="switchTab('divide')">The Divide</button>
+      <button class="admin-tab" onclick="switchTab('contact')">Contact<span id="contactBadge" style="display:none;margin-left:6px;background:rgba(239,68,68,0.18);color:var(--red);font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:99px"></span></button>
     </div>
 
     <!-- Reports tab -->
@@ -339,6 +340,18 @@
           <div class="skel" style="height:60px;border-radius:10px;margin-bottom:8px"></div>
           <div class="skel" style="height:60px;border-radius:10px;margin-bottom:8px;opacity:0.55"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- Contact tab: messages sent via the public /contact form -->
+    <div class="admin-pane" id="pane-contact">
+      <div class="filter-row">
+        <button class="filter-btn active" id="filt-contact-pending" onclick="loadContactMessages('pending')">Pending</button>
+        <button class="filter-btn" id="filt-contact-all" onclick="loadContactMessages('all')">All</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadContactMessages(currentContactFilter)" style="margin-left:auto">&#8635; Refresh</button>
+      </div>
+      <div id="contactMessagesList">
+        <div class="admin-empty">Loading...</div>
       </div>
     </div>
 

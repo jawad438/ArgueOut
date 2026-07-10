@@ -53,6 +53,7 @@ const socket = io({ autoConnect: false });
 let currentFilter = 'pending';
 let currentAppealFilter = 'pending';
 let currentPollReportFilter = 'pending';
+let currentContactFilter = 'pending';
 let resolvedNotifUserId = null;
 let allUsersCache = [];
 
@@ -85,6 +86,14 @@ socket.on('admin-reports', ({ reports }) => {
 
 socket.on('admin-poll-reports', ({ reports }) => {
   renderPollReports(reports);
+});
+
+socket.on('admin-new-contact-message', ({ subject }) => {
+  showToast(`New contact message: "${subject}"`, 'info');
+  const badge = document.getElementById('contactBadge');
+  if (badge) { badge.style.display = ''; badge.textContent = (parseInt(badge.textContent) || 0) + 1; }
+  const contactPane = document.getElementById('pane-contact');
+  if (contactPane && contactPane.classList.contains('active')) loadContactMessages(currentContactFilter);
 });
 
 // Legacy search results
@@ -141,7 +150,7 @@ function switchTab(name) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   const pane = document.getElementById(`pane-${name}`);
   const tabs = document.querySelectorAll('.admin-tab');
-  const tabNames = ['reports','users','appeals','notify','whitelist','divide'];
+  const tabNames = ['reports','users','appeals','notify','whitelist','divide','contact'];
   if (pane) pane.classList.add('active');
   const idx = tabNames.indexOf(name);
   if (tabs[idx]) tabs[idx].classList.add('active');
@@ -150,6 +159,11 @@ function switchTab(name) {
   if (name === 'appeals') loadAppeals(currentAppealFilter);
   if (name === 'whitelist') loadWhitelist();
   if (name === 'divide') { resetPollOptionRows(); loadDividePolls(); loadPollReports(currentPollReportFilter); }
+  if (name === 'contact') {
+    const badge = document.getElementById('contactBadge');
+    if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
+    loadContactMessages(currentContactFilter);
+  }
 }
 
 // ── Whitelist ──────────────────────────────────────────────────
@@ -386,6 +400,85 @@ async function deletePollFromReport(reportId, pollId) {
     if (!res.ok && res.status !== 404) { showToast('Failed to delete poll.', 'error'); return; }
     socket.emit('admin-dismiss-poll-report', { reportId });
     showToast('Poll deleted.', 'success');
+  } catch { showToast('Network error.', 'error'); }
+}
+
+// Contact messages (from the public /contact form)
+async function loadContactMessages(filter = 'pending') {
+  currentContactFilter = filter;
+  document.getElementById('filt-contact-pending')?.classList.toggle('active', filter === 'pending');
+  document.getElementById('filt-contact-all')?.classList.toggle('active', filter === 'all');
+  const el = document.getElementById('contactMessagesList');
+  el.innerHTML = '<div class="admin-empty">Loading...</div>';
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/admin/contact-messages', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    let messages = data.messages || [];
+    if (filter === 'pending') messages = messages.filter(m => m.status === 'pending');
+    renderContactMessages(messages);
+  } catch {
+    el.innerHTML = '<div class="admin-empty">Error loading messages.</div>';
+  }
+}
+
+function renderContactMessages(messages) {
+  const el = document.getElementById('contactMessagesList');
+  if (!messages.length) { el.innerHTML = '<div class="admin-empty">No contact messages found.</div>'; return; }
+  el.innerHTML = messages.map(m => {
+    const isResolved = m.status === 'resolved';
+    const from = m.name || m.email ? [m.name, m.email].filter(Boolean).join(' · ') : 'Anonymous';
+    const attachmentsHtml = (m.attachments || []).map(a => `
+      <button class="btn btn-ghost btn-sm" onclick="viewContactAttachment('${m.id}','${a.filename}')">
+        &#128206; ${escapeHtml(a.originalName)} (${(a.size / 1024).toFixed(0)} KB)
+      </button>`).join('');
+    return `
+    <div class="report-item${isResolved ? ' report-dismissed' : ''}">
+      <div class="report-header">
+        <span class="report-parties">
+          <span style="color:var(--text-3)">From:</span> ${escapeHtml(from)}
+        </span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="report-meta">${relTime(m.createdAt)}</span>
+          ${isResolved ? '<span class="report-loc" style="color:var(--text-3)">resolved</span>' : ''}
+        </div>
+      </div>
+      <div style="font-size:0.9rem;font-weight:600;margin-bottom:6px">${escapeHtml(m.subject)}</div>
+      <div class="report-reason" style="white-space:pre-wrap">${escapeHtml(m.message)}</div>
+      ${attachmentsHtml ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">${attachmentsHtml}</div>` : ''}
+      ${!isResolved ? `
+      <div class="report-actions">
+        <button class="btn btn-ghost btn-sm" onclick="resolveContactMessage('${m.id}')">Mark resolved</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function resolveContactMessage(id) {
+  try {
+    const token = await adminToken();
+    const res = await fetch(`/api/admin/contact-messages/${id}/resolve`, {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { showToast('Failed to resolve message.', 'error'); return; }
+    showToast('Marked as resolved.', 'success');
+    loadContactMessages(currentContactFilter);
+  } catch { showToast('Network error.', 'error'); }
+}
+
+// Attachments require an admin bearer token, so a plain link/src can't carry
+// auth — fetch it as a blob and open that instead.
+async function viewContactAttachment(messageId, filename) {
+  try {
+    const token = await adminToken();
+    const res = await fetch(`/api/admin/contact-messages/${messageId}/attachments/${filename}`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { showToast('Failed to load attachment.', 'error'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch { showToast('Network error.', 'error'); }
 }
 

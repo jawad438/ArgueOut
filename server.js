@@ -8,6 +8,7 @@ const fs         = require('fs');
 const admin      = require('firebase-admin');
 const helmet     = require('helmet');
 const rateLimit  = require('express-rate-limit');
+const multer     = require('multer');
 
 // -- Firebase Admin --------------------------------------------
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
@@ -621,6 +622,132 @@ app.post('/api/admin/appeals/:id/dismiss', async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONTACT FORM — anyone (signed in or not) can message the admin with an
+// optional 3MB total of image/video attachments. Files go to local disk
+// (this app has no Firebase Storage/S3 wired up) under data/contact-uploads,
+// referenced by generated filename in the Firestore doc — never the
+// user-supplied original name, so there's no path-traversal surface.
+// ═══════════════════════════════════════════════════════════════════════
+const CONTACT_UPLOAD_DIR = path.join(__dirname, 'data', 'contact-uploads');
+fs.mkdirSync(CONTACT_UPLOAD_DIR, { recursive: true });
+const CONTACT_MAX_TOTAL_BYTES = 3 * 1024 * 1024;
+
+const contactUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, CONTACT_UPLOAD_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).slice(0, 10).replace(/[^a-zA-Z0-9.]/g, '');
+      cb(null, `${uuidv4()}${ext}`);
+    }
+  }),
+  limits: { fileSize: CONTACT_MAX_TOTAL_BYTES, files: 6 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/|^video\//.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only image or video attachments are allowed'));
+  }
+});
+
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: req => getClientIp(req),
+  message: { error: 'Too many messages sent — try again later.' }
+});
+
+app.post('/api/contact', contactLimiter, (req, res) => {
+  contactUpload.array('attachments', 6)(req, res, async (err) => {
+    const cleanup = () => (req.files || []).forEach(f => { try { fs.unlinkSync(f.path); } catch {} });
+    if (err) {
+      cleanup();
+      return res.status(400).json({ error: err.message === 'Only image or video attachments are allowed' ? err.message : 'Upload failed — check file type and size.' });
+    }
+    try {
+      const name = safeStr(req.body?.name, 100);
+      const email = safeStr(req.body?.email, 200);
+      const subject = safeStr(req.body?.subject, 150);
+      const message = safeStr(req.body?.message, 2000);
+      if (!subject || !message) { cleanup(); return res.status(400).json({ error: 'Subject and message are required' }); }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { cleanup(); return res.status(400).json({ error: 'Invalid email address' }); }
+
+      const totalSize = (req.files || []).reduce((sum, f) => sum + f.size, 0);
+      if (totalSize > CONTACT_MAX_TOTAL_BYTES) {
+        cleanup();
+        return res.status(400).json({ error: 'Attachments must total 3MB or less' });
+      }
+
+      const attachments = (req.files || []).map(f => ({
+        filename: f.filename, originalName: safeStr(f.originalname, 200), mimetype: f.mimetype, size: f.size
+      }));
+
+      const decoded = await getAuthUser(req);
+
+      const ref = await fstore.collection('contactMessages').add({
+        name: name || null, email: email || null,
+        userId: decoded?.uid || null,
+        subject, message, attachments,
+        status: 'pending',
+        ip: getClientIp(req),
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Real-time nudge to any connected admin (mirrors notifyAdminsNewAppeal)
+      const sockets = await io.fetchSockets();
+      for (const s of sockets) {
+        if (s.data?.isAdmin) s.emit('admin-new-contact-message', { subject });
+      }
+
+      res.json({ ok: true, id: ref.id });
+    } catch (e) {
+      cleanup();
+      console.error('[contact] error:', e.message);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+});
+
+app.get('/api/admin/contact-messages', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const snap = await fstore.collection('contactMessages').orderBy('createdAt', 'desc').limit(100).get();
+    const messages = snap.docs.map(d => ({
+      id: d.id, ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.()?.toISOString() || null
+    }));
+    res.json({ messages });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/admin/contact-messages/:id/resolve', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const id = safeId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    await fstore.collection('contactMessages').doc(id).update({ status: 'resolved' });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Attachment filenames are server-generated (uuid + short extension), and
+// this route only ever serves a path that's both a validated safeId *and*
+// listed on the specific message's own attachments array — a client can't
+// use it to reach any other file on disk.
+app.get('/api/admin/contact-messages/:id/attachments/:filename', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const id = safeId(req.params.id);
+    const filename = safeId(req.params.filename);
+    if (!id || !filename) return res.status(400).json({ error: 'Invalid request' });
+    const doc = await fstore.collection('contactMessages').doc(id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Not found' });
+    const match = (doc.data().attachments || []).find(a => a.filename === filename);
+    if (!match) return res.status(404).json({ error: 'Not found' });
+    const filePath = path.join(CONTACT_UPLOAD_DIR, filename);
+    if (path.dirname(filePath) !== CONTACT_UPLOAD_DIR) return res.status(400).json({ error: 'Invalid path' });
+    res.sendFile(filePath);
+  } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
 // -- Profile update endpoints (Admin SDK — bypasses Firestore security rules) ----------

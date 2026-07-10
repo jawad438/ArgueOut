@@ -6,6 +6,7 @@ server-err.txt
 .env
 .claude/
 skills-lock.json
+data/contact-uploads/
 
 # Android build
 android/local.properties

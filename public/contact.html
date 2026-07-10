@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact — ArgueOut</title>
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');document.documentElement.style.background=(t==='light'||(t!=='dark'&&window.matchMedia('(prefers-color-scheme: light)').matches))?'#e5e5f2':'#05050f';if(typeof window.AndroidAuth!=='undefined'||window.matchMedia('(max-width:1024px)').matches)document.write('<style>@view-transition{navigation:none}</style>');}());</script>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <meta name="theme-color" content="#05050f" />
+  <meta name="robots" content="index, follow" />
+  <meta name="description" content="Contact the ArgueOut team — send a message, report an issue, or ask a question." />
+  <script src="/js/page-transitions.js" defer></script>
+  <script src="/js/instant-nav.js" defer></script>
+  <script src="/js/cookie-consent.js" defer></script>
+  <style>
+    .contact-wrap { max-width: 620px; margin: 0 auto; padding: 40px 24px 80px; }
+    .contact-hero { margin-bottom: 28px; }
+    .contact-hero h1 {
+      font-size: 1.8rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--text-1) 0%, var(--purple) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 8px;
+    }
+    .contact-hero p { font-size: 0.92rem; color: var(--text-2); line-height: 1.6; }
+    .contact-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 28px; }
+    .contact-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .contact-file-input {
+      border: 1px dashed var(--border); border-radius: var(--r-md); padding: 16px;
+      text-align: center; cursor: pointer; transition: border-color 150ms, background 150ms;
+      background: var(--bg-1);
+    }
+    .contact-file-input:hover { border-color: var(--purple); }
+    .contact-file-input input[type="file"] { display: none; }
+    .contact-file-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+    .contact-file-chip {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r-sm);
+      padding: 7px 10px; font-size: 0.8rem; color: var(--text-2);
+    }
+    .contact-file-chip button { background: none; border: none; color: var(--text-3); cursor: pointer; padding: 2px; display: flex; }
+    .contact-file-chip button:hover { color: var(--red); }
+    .contact-size-meter { font-size: 0.76rem; color: var(--text-3); margin-top: 6px; }
+    .contact-size-meter.over { color: var(--red); font-weight: 600; }
+    @media (max-width: 480px) {
+      .contact-wrap { padding: 24px 16px 60px; }
+      .contact-card { padding: 20px; }
+      .contact-two-col { grid-template-columns: 1fr; }
+      .contact-hero h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <div class="nav-left">
+    <a href="#" class="nav-back-btn" aria-label="Back" onclick="event.preventDefault();if(document.referrer&&history.length>1){history.back()}else{location.href='/lobby'}">
+      <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </a>
+    <a href="/" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+  </div>
+  <div class="nav-actions">
+    <div class="theme-switcher">
+      <button class="theme-btn" id="themeBtn" onclick="themeMenuToggle(event)" aria-label="Switch theme" title="Switch theme">
+        <svg id="themeIcon" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"></svg>
+      </button>
+      <div class="theme-menu" id="themeMenu" style="display:none">
+        <button class="theme-menu-item" data-t="system" onclick="applyTheme('system')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>System</button>
+        <button class="theme-menu-item" data-t="light" onclick="applyTheme('light')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>Light</button>
+        <button class="theme-menu-item" data-t="dark" onclick="applyTheme('dark')"><svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark</button>
+      </div>
+    </div>
+    <span id="nav-auth-contact"></span>
+    <script>(function(){var el=document.getElementById('nav-auth-contact');el.innerHTML=localStorage.getItem('userId')?'<a href="/lobby" class="btn btn-ghost btn-sm">Back to Lobby</a>':'<a href="/login" class="btn btn-ghost btn-sm">Sign In</a>';}());</script>
+  </div>
+</nav>
+
+<div class="contact-wrap">
+  <div class="contact-hero">
+    <h1>Contact Us</h1>
+    <p>Report a bug, ask a question, or flag something that needs our attention. You can attach up to 3MB of images or video.</p>
+  </div>
+
+  <div class="contact-card">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="contact-two-col">
+        <div class="form-group">
+          <label class="form-label" for="contactName">Name (optional)</label>
+          <input class="form-input" id="contactName" type="text" maxlength="100" placeholder="Your name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="contactEmail">Email (optional)</label>
+          <input class="form-input" id="contactEmail" type="email" maxlength="200" placeholder="you@example.com" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="contactSubject">Subject</label>
+        <input class="form-input" id="contactSubject" type="text" maxlength="150" placeholder="What's this about?" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="contactMessage">Message</label>
+        <textarea class="form-input" id="contactMessage" maxlength="2000" placeholder="Tell us what's going on…" style="min-height:120px;resize:vertical"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Attachments (images/video, 3MB total, optional)</label>
+        <label class="contact-file-input" for="contactFiles">
+          <input type="file" id="contactFiles" accept="image/*,video/*" multiple />
+          <span style="font-size:0.85rem;color:var(--text-2)">Tap to choose files</span>
+        </label>
+        <div class="contact-file-list" id="contactFileList"></div>
+        <div class="contact-size-meter" id="contactSizeMeter"></div>
+      </div>
+      <div>
+        <button class="btn btn-primary btn-full" id="contactSubmitBtn" onclick="submitContactForm()">Send Message</button>
+        <div id="contactStatus" style="font-size:0.82rem;margin-top:10px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/bg.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/contact.js"></script>
+<script src="/js/legal-footer.js"></script>
+</body>
+</html>
