@@ -2880,6 +2880,30 @@ io.on('connection', socket => {
     }
   });
 
+  socket.on('report-poll', async ({ pollId, pollQuestion, reason, location }) => {
+    // Max 5 reports per minute per socket (abuse prevention)
+    if (!socketAllow(socket.id, 'report-poll', 5)) return;
+    const me = socketUsers.get(socket.id) || onlineUsers.get(socket.id);
+    const safePollId = safeId(pollId);
+    if (!me || !safePollId || !reason) return;
+    try {
+      await fstore.collection('pollReports').add({
+        reporterId:       me.userId,
+        reporterUsername: me.username,
+        pollId:           safePollId,
+        pollQuestion:     safeStr(pollQuestion, 300),
+        reason:           safeStr(reason, 200),
+        location:         safeStr(location, 50),
+        status:           'pending',
+        createdAt:        admin.firestore.FieldValue.serverTimestamp()
+      });
+      socket.emit('poll-report-sent');
+      console.log(`[poll-report] ${me.username} -> poll ${safePollId}: "${reason}"`);
+    } catch (err) {
+      console.error('[poll-report] error:', err.message);
+    }
+  });
+
   // -- Admin helpers --------------------------------------------
   function _isAdmin() {
     // Use the flag cached during authenticate — no Firestore round-trip needed
@@ -2908,6 +2932,30 @@ io.on('connection', socket => {
       await fstore.collection('reports').doc(reportId).update({ status: 'dismissed' });
       socket.emit('admin-action-done', { action: 'dismiss-report', reportId });
     } catch (err) { console.error('[admin-dismiss-report] error:', err.message); }
+  });
+
+  socket.on('admin-get-poll-reports', async ({ filter } = {}) => {
+    try {
+      if (!_isAdmin()) return;
+      const snap = await fstore.collection('pollReports').orderBy('createdAt', 'desc').limit(150).get();
+      let reports = snap.docs.map(d => ({
+        id: d.id, ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.()?.toISOString() || null
+      }));
+      if (filter === 'pending') reports = reports.filter(r => r.status === 'pending');
+      socket.emit('admin-poll-reports', { reports });
+    } catch (err) {
+      console.error('[admin-get-poll-reports] error:', err.message);
+      socket.emit('admin-poll-reports', { reports: [] });
+    }
+  });
+
+  socket.on('admin-dismiss-poll-report', async ({ reportId }) => {
+    try {
+      if (!_isAdmin()) return;
+      await fstore.collection('pollReports').doc(reportId).update({ status: 'dismissed' });
+      socket.emit('admin-action-done', { action: 'dismiss-poll-report', reportId });
+    } catch (err) { console.error('[admin-dismiss-poll-report] error:', err.message); }
   });
 
   socket.on('admin-search-users', async ({ query }) => {

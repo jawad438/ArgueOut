@@ -457,6 +457,9 @@ function renderPollCard(poll) {
           ? `<button class="btn btn-primary btn-sm" id="challengeBtn-${poll.id}" onclick="triggerChallenge('${poll.id}')">Challenge a debater</button>`
           : (hasVoted ? '' : `<span style="font-size:0.8rem;color:var(--text-3)">Vote to unlock challenges</span>`)}
         <button class="btn btn-ghost btn-sm" onclick="toggleComments('${poll.id}')">${opened ? 'Hide discussion' : 'Discuss'}</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--text-3)" onclick="openPollReportModal('${poll.id}', '${escapeHtml(poll.question).replace(/'/g, "\\'")}')" title="Report poll">
+          <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M4 4v16M4 4h11l-1.5 4L15 12H4"/></svg>
+        </button>
       </div>
       <div class="poll-comments-section ${opened ? 'open' : ''}" id="comments-${poll.id}">
         <div class="comment-composer">
@@ -547,6 +550,70 @@ async function submitUserPoll() {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
+
+// -- Report a poll --------------------------------------------------------
+
+let _pollReportTargetId = null;
+
+function openPollReportModal(pollId, question) {
+  _pollReportTargetId = pollId;
+  const modal = document.getElementById('pollReportModal');
+  const nameEl = document.getElementById('pollReportTargetName');
+  const errEl = document.getElementById('pollReportModalError');
+  const otherWrap = document.getElementById('pollReportOtherWrap');
+  if (nameEl) nameEl.textContent = question.length > 80 ? question.slice(0, 80) + '…' : question;
+  if (errEl) errEl.style.display = 'none';
+  if (otherWrap) otherWrap.style.display = 'none';
+  document.querySelectorAll('input[name="pollReportReason"]').forEach(r => { r.checked = false; });
+  if (modal) modal.style.display = 'flex';
+}
+
+function closePollReportModal() {
+  const modal = document.getElementById('pollReportModal');
+  if (modal) modal.style.display = 'none';
+  _pollReportTargetId = null;
+}
+
+function submitPollReport() {
+  const selected = document.querySelector('input[name="pollReportReason"]:checked');
+  const errEl = document.getElementById('pollReportModalError');
+  if (!selected) {
+    errEl.textContent = 'Please select a reason.';
+    errEl.style.display = 'block';
+    return;
+  }
+  let reason = selected.value;
+  if (reason === '__other__') {
+    const custom = (document.getElementById('pollReportOtherInput')?.value || '').trim();
+    if (!custom) {
+      errEl.textContent = 'Please describe the reason.';
+      errEl.style.display = 'block';
+      return;
+    }
+    reason = custom;
+  }
+  const poll = pollsCache[_pollReportTargetId];
+  const btn = document.getElementById('submitPollReportBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
+  socket.emit('report-poll', {
+    pollId: _pollReportTargetId,
+    pollQuestion: poll?.question || '',
+    reason,
+    location: 'divide'
+  });
+  socket.once('poll-report-sent', () => {
+    closePollReportModal();
+    showToast('Report submitted. Thank you.', 'success');
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit Report'; }
+  });
+}
+
+document.addEventListener('change', e => {
+  if (e.target.name === 'pollReportReason') {
+    const otherWrap = document.getElementById('pollReportOtherWrap');
+    if (otherWrap) otherWrap.style.display = e.target.value === '__other__' ? 'block' : 'none';
+  }
+});
 
 async function voteOnPoll(pollId, optionIndex) {
   try {

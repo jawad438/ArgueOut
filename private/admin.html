@@ -261,6 +261,19 @@
     <!-- The Divide tab: poll creation + management -->
     <div class="admin-pane" id="pane-divide">
       <div class="admin-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:0.95rem;font-weight:700">Poll Reports</div>
+          <div style="display:flex;gap:6px">
+            <button class="filter-btn active" id="filt-poll-pending" onclick="loadPollReports('pending')">Pending</button>
+            <button class="filter-btn" id="filt-poll-all" onclick="loadPollReports('all')">All</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadPollReports(currentPollReportFilter)">&#8635; Refresh</button>
+          </div>
+        </div>
+        <div id="pollReportsList">
+          <div class="admin-empty">Loading...</div>
+        </div>
+      </div>
+      <div class="admin-card">
         <div style="font-size:0.95rem;font-weight:700;margin-bottom:16px">Create Poll</div>
         <div style="display:flex;flex-direction:column;gap:12px;max-width:560px">
           <div>

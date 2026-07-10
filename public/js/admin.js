@@ -52,6 +52,7 @@ const durOptions = DURATIONS.map(d =>
 const socket = io({ autoConnect: false });
 let currentFilter = 'pending';
 let currentAppealFilter = 'pending';
+let currentPollReportFilter = 'pending';
 let resolvedNotifUserId = null;
 let allUsersCache = [];
 
@@ -80,6 +81,10 @@ socket.on('admin-new-appeal', ({ username, type }) => {
 
 socket.on('admin-reports', ({ reports }) => {
   renderReports(reports);
+});
+
+socket.on('admin-poll-reports', ({ reports }) => {
+  renderPollReports(reports);
 });
 
 // Legacy search results
@@ -116,6 +121,10 @@ socket.on('admin-action-done', ({ action, targetUserId, ip }) => {
     showToast('Report dismissed.', 'success');
     loadReports(currentFilter);
   }
+  if (action === 'dismiss-poll-report') {
+    showToast('Report dismissed.', 'success');
+    loadPollReports(currentPollReportFilter);
+  }
   if (action === 'notification') {
     showToast('Notification sent!', 'success');
     document.getElementById('notifMsg').value = '';
@@ -140,7 +149,7 @@ function switchTab(name) {
   if (name === 'users') { loadAllUsers(); loadDeletionRequests(); }
   if (name === 'appeals') loadAppeals(currentAppealFilter);
   if (name === 'whitelist') loadWhitelist();
-  if (name === 'divide') { resetPollOptionRows(); loadDividePolls(); }
+  if (name === 'divide') { resetPollOptionRows(); loadDividePolls(); loadPollReports(currentPollReportFilter); }
 }
 
 // ── Whitelist ──────────────────────────────────────────────────
@@ -324,6 +333,60 @@ function banFromReport(targetUserId) {
   socket.emit('admin-ban-user', { targetUserId, durationMs: null });
   showToast('User permanently banned.', 'success');
   setTimeout(() => loadReports(currentFilter), 500);
+}
+
+// Poll reports (The Divide)
+function loadPollReports(filter = 'pending') {
+  currentPollReportFilter = filter;
+  document.getElementById('filt-poll-pending')?.classList.toggle('active', filter === 'pending');
+  document.getElementById('filt-poll-all')?.classList.toggle('active', filter === 'all');
+  document.getElementById('pollReportsList').innerHTML = '<div class="admin-empty">Loading...</div>';
+  socket.emit('admin-get-poll-reports', { filter });
+}
+
+function renderPollReports(reports) {
+  const el = document.getElementById('pollReportsList');
+  if (!reports.length) {
+    el.innerHTML = '<div class="admin-empty">No poll reports found.</div>';
+    return;
+  }
+  el.innerHTML = reports.map(r => {
+    const isDismissed = r.status === 'dismissed';
+    return `
+    <div class="report-item${isDismissed ? ' report-dismissed' : ''}">
+      <div class="report-header">
+        <span class="report-parties">
+          <span style="color:var(--text-3)">Reported by:</span> @${escapeHtml(r.reporterUsername)}
+        </span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="report-meta">${relTime(r.createdAt)}</span>
+          ${isDismissed ? '<span class="report-loc" style="color:var(--text-3)">dismissed</span>' : ''}
+        </div>
+      </div>
+      <div style="font-size:0.85rem;color:var(--text-2);margin-bottom:6px">"${escapeHtml(r.pollQuestion || '(poll deleted)')}"</div>
+      <div class="report-reason">"${escapeHtml(r.reason)}"</div>
+      ${!isDismissed ? `
+      <div class="report-actions">
+        <button class="btn btn-ghost btn-sm" onclick="dismissPollReport('${r.id}')">Dismiss</button>
+        <button class="btn btn-sm" style="background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.25)" onclick="deletePollFromReport('${r.id}','${escapeHtml(r.pollId)}')">Delete Poll</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function dismissPollReport(reportId) {
+  socket.emit('admin-dismiss-poll-report', { reportId });
+}
+
+async function deletePollFromReport(reportId, pollId) {
+  if (!confirm('Permanently delete this poll, along with all its votes and comments? This cannot be undone.')) return;
+  try {
+    const token = await adminToken();
+    const res = await fetch(`/api/polls/${pollId}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok && res.status !== 404) { showToast('Failed to delete poll.', 'error'); return; }
+    socket.emit('admin-dismiss-poll-report', { reportId });
+    showToast('Poll deleted.', 'success');
+  } catch { showToast('Network error.', 'error'); }
 }
 
 // Users

@@ -369,6 +369,34 @@
   </div>
 </div>
 
+<!-- Report a poll -->
+<div class="modal-overlay" id="pollReportModal" style="display:none" onclick="if(event.target===this)closePollReportModal()">
+  <div class="auth-card report-card" id="pollReportCard" style="max-width:420px;width:100%;position:relative">
+    <button onclick="closePollReportModal()" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center" aria-label="Close">
+      <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div style="margin-bottom:18px">
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px">Report Poll</div>
+      <div style="font-size:0.85rem;color:var(--text-3)">Reporting: <span id="pollReportTargetName" style="color:var(--text-1);font-weight:600"></span></div>
+    </div>
+    <div style="font-size:0.88rem;font-weight:600;margin-bottom:10px;color:var(--text-2)">Select a reason:</div>
+    <div id="pollReportReasons" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+      <label class="report-reason-opt"><input type="radio" name="pollReportReason" value="Hate speech" /> Hate speech</label>
+      <label class="report-reason-opt"><input type="radio" name="pollReportReason" value="Child sexual abuse material" /> Child sexual abuse material</label>
+      <label class="report-reason-opt"><input type="radio" name="pollReportReason" value="Graphic or violent content" /> Graphic or violent content</label>
+      <label class="report-reason-opt"><input type="radio" name="pollReportReason" value="Sexually explicit content" /> Sexually explicit content</label>
+      <label class="report-reason-opt"><input type="radio" name="pollReportReason" value="Illegal where I live" /> Illegal where I live</label>
+      <label class="report-reason-opt"><input type="radio" name="pollReportReason" value="Spam or misleading" /> Spam or misleading</label>
+      <label class="report-reason-opt"><input type="radio" name="pollReportReason" value="__other__" /> Other…</label>
+    </div>
+    <div id="pollReportOtherWrap" style="display:none;margin-bottom:14px">
+      <input class="form-input" id="pollReportOtherInput" type="text" maxlength="200" placeholder="Describe the reason…" />
+    </div>
+    <div id="pollReportModalError" style="display:none;color:var(--red);font-size:0.82rem;margin-bottom:10px"></div>
+    <button class="btn btn-primary btn-full" id="submitPollReportBtn" onclick="submitPollReport()">Submit Report</button>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
