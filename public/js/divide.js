@@ -400,17 +400,22 @@ function renderPolls(reset, newPolls, isFiltered) {
 function renderPollOptions(poll, justVotedIndex) {
   const myVote = poll.myVote;
   const hasVoted = myVote != null;
+  // A closed poll shows results to everyone (not just people who already
+  // voted) and blocks further voting — "locked" covers both reasons a
+  // poll stops accepting votes, since the results view looks the same
+  // either way.
+  const locked = hasVoted || poll.status !== 'active';
   return poll.options.map((opt, i) => {
     const pct = poll.totalVotes ? Math.round((poll.votes[i] / poll.totalVotes) * 100) : 0;
     const color = OPTION_COLORS[i % OPTION_COLORS.length];
     const online = (poll.onlineCounts && poll.onlineCounts[i]) || 0;
     return `
-      <button class="poll-option-btn ${myVote === i ? 'voted-mine' : ''} ${justVotedIndex === i ? 'just-voted' : ''}" ${hasVoted ? 'disabled' : ''}
+      <button class="poll-option-btn ${myVote === i ? 'voted-mine' : ''} ${justVotedIndex === i ? 'just-voted' : ''}" ${locked ? 'disabled' : ''}
         onclick="voteOnPoll('${poll.id}', ${i})">
-        ${hasVoted ? `<span class="poll-option-fill" style="width:${pct}%;background:${color}"></span>` : ''}
+        ${locked ? `<span class="poll-option-fill" style="width:${pct}%;background:${color}"></span>` : ''}
         <span class="poll-option-label">
           <span>${escapeHtml(opt)}</span>
-          ${hasVoted ? `<span class="poll-option-pct">${pct}%</span>` : ''}
+          ${locked ? `<span class="poll-option-pct">${pct}%</span>` : ''}
         </span>
         ${hasVoted ? `<div class="poll-option-online">${online} online who voted this</div>` : ''}
       </button>`;
@@ -431,17 +436,38 @@ function updatePollVoteDisplay(pollId, justVotedIndex) {
   if (countEl) countEl.textContent = `${poll.totalVotes} vote${poll.totalVotes === 1 ? '' : 's'}`;
 }
 
-function renderPollCard(poll) {
-  const myVote = poll.myVote;
-  const hasVoted = myVote != null;
+// Shared by renderPollCard and voteOnPoll's post-vote refresh — the actions
+// row used to be duplicated between the two, which meant the report/close
+// buttons silently disappeared the moment someone voted (that rebuild only
+// ever re-added the challenge/discuss buttons).
+function renderPollActionsHtml(poll) {
+  const hasVoted = poll.myVote != null;
   const canChallenge = hasVoted && poll.status === 'active';
   const opened = openCommentPolls.has(poll.id);
+  const isMine = !!(poll.createdBy && poll.createdBy === currentUserId);
+  return `
+    ${canChallenge
+      ? `<button class="btn btn-primary btn-sm" id="challengeBtn-${poll.id}" onclick="triggerChallenge('${poll.id}')">Challenge a debater</button>`
+      : (hasVoted ? '' : `<span style="font-size:0.8rem;color:var(--text-3)">Vote to unlock challenges</span>`)}
+    <button class="btn btn-ghost btn-sm" onclick="toggleComments('${poll.id}')">${opened ? 'Hide discussion' : 'Discuss'}</button>
+    ${isMine && poll.status === 'active'
+      ? `<button class="btn btn-ghost btn-sm" style="color:var(--amber)" onclick="closeUserPoll('${poll.id}')">Close poll</button>`
+      : ''}
+    <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--text-3)" onclick="openPollReportModal('${poll.id}', '${escapeHtml(poll.question).replace(/'/g, "\\'")}')" title="Report poll">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M4 4v16M4 4h11l-1.5 4L15 12H4"/></svg>
+    </button>`;
+}
+
+function renderPollCard(poll) {
+  const opened = openCommentPolls.has(poll.id);
+  const isTrending = poll.trendingUntil && poll.trendingUntil > Date.now();
 
   const tagsHtml = (poll.tags || []).map(t => `<span class="poll-tag">#${escapeHtml(t)}</span>`).join('');
 
   return `
     <div class="poll-card" id="poll-${poll.id}">
       <div class="poll-card-top">
+        ${isTrending ? '<span class="poll-category-badge poll-trending-badge">&#128293; Trending</span>' : ''}
         <span class="poll-category-badge">${escapeHtml(poll.categoryLabel || 'General')}</span>
         ${tagsHtml}
       </div>
@@ -451,16 +477,9 @@ function renderPollCard(poll) {
         <span id="voteCountText-${poll.id}">${poll.totalVotes} vote${poll.totalVotes === 1 ? '' : 's'}</span>
         <span id="commentCountText-${poll.id}">${poll.commentCount || 0} comment${poll.commentCount === 1 ? '' : 's'}</span>
         ${poll.createdByUsername ? `<span class="poll-byline">by @${escapeHtml(poll.createdByUsername)}</span>` : ''}
+        ${poll.status !== 'active' ? '<span class="poll-byline poll-closed-indicator" style="color:var(--text-3)">&#128274; Closed — results only</span>' : ''}
       </div>
-      <div class="poll-actions" id="pollActions-${poll.id}">
-        ${canChallenge
-          ? `<button class="btn btn-primary btn-sm" id="challengeBtn-${poll.id}" onclick="triggerChallenge('${poll.id}')">Challenge a debater</button>`
-          : (hasVoted ? '' : `<span style="font-size:0.8rem;color:var(--text-3)">Vote to unlock challenges</span>`)}
-        <button class="btn btn-ghost btn-sm" onclick="toggleComments('${poll.id}')">${opened ? 'Hide discussion' : 'Discuss'}</button>
-        <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--text-3)" onclick="openPollReportModal('${poll.id}', '${escapeHtml(poll.question).replace(/'/g, "\\'")}')" title="Report poll">
-          <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M4 4v16M4 4h11l-1.5 4L15 12H4"/></svg>
-        </button>
-      </div>
+      <div class="poll-actions" id="pollActions-${poll.id}">${renderPollActionsHtml(poll)}</div>
       <div class="poll-comments-section ${opened ? 'open' : ''}" id="comments-${poll.id}">
         <div class="comment-composer">
           <textarea id="composer-${poll.id}" placeholder="Add to the discussion…" maxlength="500"></textarea>
@@ -629,12 +648,33 @@ async function voteOnPoll(pollId, optionIndex) {
     pollsCache[pollId].totalVotes = data.votes.reduce((a, b) => a + b, 0);
     updatePollVoteDisplay(pollId, optionIndex);
     const actionsEl = document.getElementById(`pollActions-${pollId}`);
-    if (actionsEl) {
-      const opened = openCommentPolls.has(pollId);
-      actionsEl.innerHTML =
-        `<button class="btn btn-primary btn-sm" id="challengeBtn-${pollId}" onclick="triggerChallenge('${pollId}')">Challenge a debater</button>` +
-        `<button class="btn btn-ghost btn-sm" onclick="toggleComments('${pollId}')">${opened ? 'Hide discussion' : 'Discuss'}</button>`;
+    if (actionsEl) actionsEl.innerHTML = renderPollActionsHtml(pollsCache[pollId]);
+  } catch { showToast('Network error.', 'error'); }
+}
+
+async function closeUserPoll(pollId) {
+  if (!confirm('Close this poll? Voting will stop and only the current results will show. This cannot be undone.')) return;
+  try {
+    const res = await fetch(`/api/polls/${pollId}/close`, {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + currentIdToken }
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Could not close poll.', 'error'); return; }
+    const poll = pollsCache[pollId];
+    if (!poll) return;
+    poll.status = 'closed';
+    // Targeted updates only — never replace the whole card here, since that
+    // would blow away an already-open, already-fetched comment thread (see
+    // the note on updatePollVoteDisplay above).
+    const optionsEl = document.getElementById(`pollOptions-${pollId}`);
+    if (optionsEl) optionsEl.innerHTML = renderPollOptions(poll, null);
+    const actionsEl = document.getElementById(`pollActions-${pollId}`);
+    if (actionsEl) actionsEl.innerHTML = renderPollActionsHtml(poll);
+    const metaEl = document.querySelector(`#poll-${pollId} .poll-meta`);
+    if (metaEl && !metaEl.querySelector('.poll-closed-indicator')) {
+      metaEl.insertAdjacentHTML('beforeend', '<span class="poll-byline poll-closed-indicator" style="color:var(--text-3)">&#128274; Closed — results only</span>');
     }
+    showToast('Poll closed.', 'success');
   } catch { showToast('Network error.', 'error'); }
 }
 

@@ -35,6 +35,8 @@
     }
     .divide-chip:hover { border-color: var(--border-bright); }
     .divide-chip.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+    .divide-chip-trending { border-color: rgba(249,115,22,0.35); color: #f97316; }
+    .divide-chip-trending.active { background: linear-gradient(135deg,#f97316,#ea580c); border-color: #ea580c; color: #fff; }
 
     .poll-card {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg);
@@ -55,6 +57,7 @@
       border-radius: 99px; padding: 2px 9px;
     }
     .poll-tag { font-size: 0.72rem; color: var(--text-3); background: var(--bg-1); border-radius: 6px; padding: 2px 8px; }
+    .poll-trending-badge { background: rgba(249,115,22,0.14); color: #f97316; border-color: rgba(249,115,22,0.3); }
     .poll-question { font-size: 1.05rem; font-weight: 700; color: var(--text-1); margin-bottom: 16px; line-height: 1.45; }
     .poll-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
     .poll-option-btn {
@@ -233,6 +236,7 @@
     <input type="text" id="divideSearchInput" class="form-input" placeholder="Search polls…" oninput="onDivideSearchInput()" />
     <div class="divide-category-chips" id="divideCategoryChips">
       <button class="divide-chip active" data-cat="all" onclick="setCategoryFilter('all')">All</button>
+      <button class="divide-chip divide-chip-trending" data-cat="trending" onclick="setCategoryFilter('trending')">&#128293; Trending</button>
       <button class="divide-chip" data-cat="economic" onclick="setCategoryFilter('economic')">Economic</button>
       <button class="divide-chip" data-cat="social" onclick="setCategoryFilter('social')">Social</button>
       <button class="divide-chip" data-cat="foreign" onclick="setCategoryFilter('foreign')">Foreign Policy</button>

@@ -150,7 +150,7 @@ function switchTab(name) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   const pane = document.getElementById(`pane-${name}`);
   const tabs = document.querySelectorAll('.admin-tab');
-  const tabNames = ['reports','users','appeals','notify','whitelist','divide','contact'];
+  const tabNames = ['reports','users','appeals','notify','whitelist','divide','contact','legal'];
   if (pane) pane.classList.add('active');
   const idx = tabNames.indexOf(name);
   if (tabs[idx]) tabs[idx].classList.add('active');
@@ -164,6 +164,7 @@ function switchTab(name) {
     if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
     loadContactMessages(currentContactFilter);
   }
+  if (name === 'legal') { loadLegalDoc('tos'); loadLegalDoc('privacy'); }
 }
 
 // ── Whitelist ──────────────────────────────────────────────────
@@ -1020,6 +1021,15 @@ function renderDividePolls(polls) {
         </div>
         <div class="user-row-sub" style="margin-top:2px">${p.totalVotes} total votes &nbsp;·&nbsp; ${p.commentCount} comments</div>
         ${(p.tags || []).length ? `<div class="user-row-sub" style="margin-top:4px">${p.tags.map(t => `<span style="background:rgba(255,255,255,0.05);border-radius:6px;padding:1px 7px;margin-right:4px;font-size:0.7rem">#${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+        ${p.trendingUntil && p.trendingUntil > Date.now()
+          ? `<div class="user-row-sub" style="margin-top:6px;display:flex;align-items:center;gap:8px;color:#f97316">
+               &#128293; Trending until ${new Date(p.trendingUntil).toLocaleDateString()}
+               <button class="btn btn-ghost btn-sm" style="padding:2px 10px;min-height:auto;font-size:0.72rem" onclick="clearPollTrending('${p.id}')">Clear</button>
+             </div>`
+          : `<div class="user-row-sub" style="margin-top:6px;display:flex;align-items:center;gap:6px">
+               <input type="number" min="1" max="30" placeholder="days" id="trend-days-${p.id}" style="width:60px;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;color:var(--text-1);padding:3px 6px;font-size:0.75rem" />
+               <button class="btn btn-ghost btn-sm" style="padding:2px 10px;min-height:auto;font-size:0.72rem;color:#f97316" onclick="setPollTrending('${p.id}')">Make Trending</button>
+             </div>`}
       </div>
       <div class="user-row-actions">
         ${p.status === 'active'
@@ -1089,6 +1099,36 @@ async function closePoll(pollId) {
   } catch { showToast('Network error.', 'error'); }
 }
 
+async function setPollTrending(pollId) {
+  const input = document.getElementById(`trend-days-${pollId}`);
+  const days = parseInt(input?.value, 10);
+  if (!days || days < 1 || days > 30) { showToast('Enter a number of days (1-30).', 'error'); return; }
+  try {
+    const token = await adminToken();
+    const res = await fetch(`/api/polls/${pollId}/trending`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ days })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Failed to set trending.', 'error'); return; }
+    showToast(`Poll trending for ${days} day(s).`, 'success');
+    loadDividePolls();
+  } catch { showToast('Network error.', 'error'); }
+}
+
+async function clearPollTrending(pollId) {
+  try {
+    const token = await adminToken();
+    const res = await fetch(`/api/polls/${pollId}/trending/clear`, {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { showToast('Failed to clear trending.', 'error'); return; }
+    showToast('Trending cleared.', 'success');
+    loadDividePolls();
+  } catch { showToast('Network error.', 'error'); }
+}
+
 async function deletePoll(pollId) {
   if (!confirm('Permanently delete this poll, along with all its votes and comments? This cannot be undone.')) return;
   try {
@@ -1100,4 +1140,90 @@ async function deletePoll(pollId) {
     showToast('Poll deleted.', 'success');
     loadDividePolls();
   } catch { showToast('Network error.', 'error'); }
+}
+
+// ── Legal doc editor (Terms of Service / Privacy Policy) ────────────────
+// document.execCommand is deprecated but still the only zero-dependency way
+// to drive a lightweight contenteditable toolbar without pulling in a full
+// rich-text library — fine here since the whole editor only needs to
+// survive in this admin panel's own browser, not arbitrary user input.
+let legalSavedRanges = { tosEditor: null, privacyEditor: null };
+
+document.querySelectorAll('.legal-editor-toolbar').forEach(toolbar => {
+  const targetId = toolbar.dataset.target;
+  toolbar.addEventListener('mousedown', () => {
+    const el = document.getElementById(targetId);
+    const sel = window.getSelection();
+    if (el && sel.rangeCount > 0 && el.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      legalSavedRanges[targetId] = sel.getRangeAt(0).cloneRange();
+    }
+  });
+});
+
+function legalRestoreAndFocus(targetId) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  el.focus();
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  if (legalSavedRanges[targetId]) sel.addRange(legalSavedRanges[targetId]);
+}
+
+function legalExec(cmd, value, targetId = 'tosEditor') {
+  legalRestoreAndFocus(targetId);
+  document.execCommand(cmd, false, value || null);
+}
+
+function legalMakeLink(targetId = 'tosEditor') {
+  const url = prompt('Link URL:');
+  if (!url) return;
+  legalRestoreAndFocus(targetId);
+  document.execCommand('createLink', false, url);
+}
+
+async function loadLegalDoc(type) {
+  const editorId = type === 'tos' ? 'tosEditor' : 'privacyEditor';
+  const updatedId = type === 'tos' ? 'tosLastUpdated' : 'privacyLastUpdated';
+  try {
+    const res = await fetch('/api/legal/' + type);
+    const data = await res.json();
+    const editor = document.getElementById(editorId);
+    if (editor) editor.innerHTML = data.html || '';
+    const updatedEl = document.getElementById(updatedId);
+    if (updatedEl) {
+      updatedEl.textContent = data.updatedAt
+        ? 'Last updated: ' + new Date(data.updatedAt).toLocaleString()
+        : 'Never edited from the admin panel — showing the default text';
+    }
+  } catch {
+    showToast('Failed to load document.', 'error');
+  }
+}
+
+async function saveLegalDoc(type) {
+  const label = type === 'tos' ? 'Terms of Service' : 'Privacy Policy';
+  if (!confirm(`Save the ${label} and notify every user that it changed?`)) return;
+  const editorId = type === 'tos' ? 'tosEditor' : 'privacyEditor';
+  const statusId = type === 'tos' ? 'tosSaveStatus' : 'privacySaveStatus';
+  const statusEl = document.getElementById(statusId);
+  const html = document.getElementById(editorId)?.innerHTML || '';
+  statusEl.textContent = 'Saving…';
+  statusEl.style.color = 'var(--text-3)';
+  try {
+    const token = await adminToken();
+    const res = await fetch(`/api/admin/legal/${type}`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html })
+    });
+    const data = await res.json();
+    if (!res.ok) { statusEl.textContent = data.error || 'Error saving.'; statusEl.style.color = 'var(--red)'; return; }
+    statusEl.textContent = 'Saved — every user has been notified.';
+    statusEl.style.color = 'var(--green)';
+    showToast(`${label} updated and users notified.`, 'success');
+    loadLegalDoc(type);
+  } catch {
+    statusEl.textContent = 'Network error.';
+    statusEl.style.color = 'var(--red)';
+  }
 }

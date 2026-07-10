@@ -84,7 +84,8 @@
   <!-- TERMS OF SERVICE -->
   <div class="legal-panel active" id="panel-tos">
     <h1 class="legal-h1">Terms of Service</h1>
-    <p class="legal-updated">Last updated: July 10, 2026</p>
+    <p class="legal-updated" id="tosUpdated">Last updated: July 10, 2026</p>
+    <div id="tosContent">
     <div class="legal-notice">
       These Terms of Service govern your use of ArgueOut, a live video debate platform. By creating an account or using the platform you agree to be bound by these terms in full.
     </div>
@@ -171,12 +172,14 @@
       <h2>12. Contact</h2>
       <p>For questions about these Terms, contact the platform owner through the website interface.</p>
     </div>
+    </div>
   </div>
 
   <!-- PRIVACY POLICY -->
   <div class="legal-panel" id="panel-privacy">
     <h1 class="legal-h1">Privacy Policy</h1>
-    <p class="legal-updated">Last updated: July 1, 2026</p>
+    <p class="legal-updated" id="privacyUpdated">Last updated: July 1, 2026</p>
+    <div id="privacyContent">
     <div class="legal-notice">
       This Privacy Policy explains how ArgueOut collects, uses, and protects your personal information. By creating an account you acknowledge this policy and agree to its terms.
     </div>
@@ -285,6 +288,7 @@
       <h2>13. Contact</h2>
       <p>For privacy-related questions, contact the platform owner through the website interface.</p>
     </div>
+    </div>
   </div>
 </div>
 
@@ -314,6 +318,23 @@
   window.addEventListener('hashchange', function() {
     switchTab(location.hash === '#privacy' ? 'privacy' : 'tos');
   });
+
+  // The markup above is a same-content fallback (fast paint, works without
+  // JS/network) — the admin-editable version lives in Firestore and is
+  // swapped in here once fetched, since admins can now rewrite these pages
+  // from the admin panel.
+  function loadLegalDoc(type, contentId, updatedId) {
+    fetch('/api/legal/' + type).then(r => r.json()).then(data => {
+      const contentEl = document.getElementById(contentId);
+      const updatedEl = document.getElementById(updatedId);
+      if (contentEl && data.html) contentEl.innerHTML = data.html;
+      if (updatedEl && data.updatedAt) {
+        updatedEl.textContent = 'Last updated: ' + new Date(data.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
+    }).catch(() => {});
+  }
+  loadLegalDoc('tos', 'tosContent', 'tosUpdated');
+  loadLegalDoc('privacy', 'privacyContent', 'privacyUpdated');
 </script>
 <script src="/js/legal-footer.js"></script>
 </body>

@@ -49,6 +49,25 @@
     .stat-label { font-size:0.72rem; color:var(--text-3); text-transform:uppercase; letter-spacing:0.07em; font-weight:600; font-family:'Space Grotesk',sans-serif; }
     .stat-val { font-size:1.6rem; font-weight:800; font-family:'Space Grotesk',sans-serif; }
 
+    /* ── Legal doc rich-text editor ── */
+    .legal-editor-toolbar { display:flex; flex-wrap:wrap; gap:4px; padding:8px; background:var(--bg-2); border:1px solid var(--border); border-bottom:none; border-radius:var(--r-md) var(--r-md) 0 0; }
+    .legal-toolbar-btn { min-width:32px; height:32px; padding:0 8px; border:1px solid transparent; background:none; color:var(--text-2); border-radius:var(--r-sm); cursor:pointer; font-size:0.85rem; font-weight:700; display:flex; align-items:center; justify-content:center; }
+    .legal-toolbar-btn:hover { background:var(--bg-card-hover); border-color:var(--border); color:var(--text-1); }
+    .legal-toolbar-sep { width:1px; background:var(--border); margin:4px 2px; }
+    .legal-toolbar-select { height:32px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--r-sm); color:var(--text-1); font-size:0.8rem; padding:0 6px; cursor:pointer; }
+    .legal-editor-content {
+      min-height:320px; max-height:520px; overflow-y:auto; padding:16px 18px;
+      background:var(--bg-2); border:1px solid var(--border); border-radius:0 0 var(--r-md) var(--r-md);
+      color:var(--text-1); font-size:0.9rem; line-height:1.7; outline:none;
+    }
+    .legal-editor-content:focus { border-color:var(--purple); }
+    .legal-editor-content h2 { font-size:1rem; font-weight:700; margin:14px 0 8px; }
+    .legal-editor-content h3 { font-size:0.92rem; font-weight:700; margin:12px 0 6px; }
+    .legal-editor-content ul, .legal-editor-content ol { padding-left:20px; margin:8px 0; }
+    .legal-editor-content li { margin-bottom:4px; }
+    .legal-editor-content p { margin:0 0 10px; }
+    .legal-editor-content a { color:var(--purple); }
+
     /* ── Mobile: prevent horizontal overflow ── */
     @media (max-width: 640px) {
       /* Scrollable tab bar instead of overflowing */
@@ -157,6 +176,7 @@
       <button class="admin-tab" onclick="switchTab('whitelist')">Whitelist</button>
       <button class="admin-tab" onclick="switchTab('divide')">The Divide</button>
       <button class="admin-tab" onclick="switchTab('contact')">Contact<span id="contactBadge" style="display:none;margin-left:6px;background:rgba(239,68,68,0.18);color:var(--red);font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:99px"></span></button>
+      <button class="admin-tab" onclick="switchTab('legal')">Legal</button>
     </div>
 
     <!-- Reports tab -->
@@ -352,6 +372,87 @@
       </div>
       <div id="contactMessagesList">
         <div class="admin-empty">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Legal tab: rich-text editor for the public Terms of Service / Privacy Policy page -->
+    <div class="admin-pane" id="pane-legal">
+      <div class="admin-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:0.95rem;font-weight:700">Terms of Service</div>
+          <div style="font-size:0.75rem;color:var(--text-3)" id="tosLastUpdated"></div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-3);margin-bottom:12px">Editing this saves to the live /legal page immediately and notifies every user that the Terms changed.</div>
+        <div class="legal-editor-toolbar" data-target="tosEditor">
+          <button type="button" class="legal-toolbar-btn" style="font-style:italic;font-weight:800" onmousedown="event.preventDefault()" onclick="legalExec('bold')" title="Bold"><b>B</b></button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('italic')" title="Italic"><i>I</i></button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('underline')" title="Underline"><u>U</u></button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('strikeThrough')" title="Strikethrough"><s>S</s></button>
+          <div class="legal-toolbar-sep"></div>
+          <select class="legal-toolbar-select" onchange="legalExec('fontSize', this.value); this.value=''" title="Font size">
+            <option value="">Size</option>
+            <option value="2">Small</option>
+            <option value="3">Normal</option>
+            <option value="5">Large</option>
+            <option value="7">Huge</option>
+          </select>
+          <select class="legal-toolbar-select" onchange="legalExec('formatBlock', this.value); this.value=''" title="Heading">
+            <option value="">Heading</option>
+            <option value="h2">Heading 2</option>
+            <option value="h3">Heading 3</option>
+            <option value="p">Paragraph</option>
+          </select>
+          <div class="legal-toolbar-sep"></div>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('insertUnorderedList')" title="Bullet list">&#8226; List</button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('insertOrderedList')" title="Numbered list">1. List</button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalMakeLink()" title="Insert link">&#128279;</button>
+          <div class="legal-toolbar-sep"></div>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('removeFormat')" title="Clear formatting">Clear</button>
+        </div>
+        <div class="legal-editor-content" id="tosEditor" contenteditable="true"></div>
+        <div style="margin-top:12px">
+          <button class="btn btn-primary" onclick="saveLegalDoc('tos')">Save &amp; Notify Everyone</button>
+          <div id="tosSaveStatus" style="font-size:0.82rem;margin-top:8px"></div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:0.95rem;font-weight:700">Privacy Policy</div>
+          <div style="font-size:0.75rem;color:var(--text-3)" id="privacyLastUpdated"></div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-3);margin-bottom:12px">Editing this saves to the live /legal page immediately and notifies every user that the Privacy Policy changed.</div>
+        <div class="legal-editor-toolbar" data-target="privacyEditor">
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('bold', null, 'privacyEditor')" title="Bold"><b>B</b></button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('italic', null, 'privacyEditor')" title="Italic"><i>I</i></button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('underline', null, 'privacyEditor')" title="Underline"><u>U</u></button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('strikeThrough', null, 'privacyEditor')" title="Strikethrough"><s>S</s></button>
+          <div class="legal-toolbar-sep"></div>
+          <select class="legal-toolbar-select" onchange="legalExec('fontSize', this.value, 'privacyEditor'); this.value=''" title="Font size">
+            <option value="">Size</option>
+            <option value="2">Small</option>
+            <option value="3">Normal</option>
+            <option value="5">Large</option>
+            <option value="7">Huge</option>
+          </select>
+          <select class="legal-toolbar-select" onchange="legalExec('formatBlock', this.value, 'privacyEditor'); this.value=''" title="Heading">
+            <option value="">Heading</option>
+            <option value="h2">Heading 2</option>
+            <option value="h3">Heading 3</option>
+            <option value="p">Paragraph</option>
+          </select>
+          <div class="legal-toolbar-sep"></div>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('insertUnorderedList', null, 'privacyEditor')" title="Bullet list">&#8226; List</button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('insertOrderedList', null, 'privacyEditor')" title="Numbered list">1. List</button>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalMakeLink('privacyEditor')" title="Insert link">&#128279;</button>
+          <div class="legal-toolbar-sep"></div>
+          <button type="button" class="legal-toolbar-btn" onmousedown="event.preventDefault()" onclick="legalExec('removeFormat', null, 'privacyEditor')" title="Clear formatting">Clear</button>
+        </div>
+        <div class="legal-editor-content" id="privacyEditor" contenteditable="true"></div>
+        <div style="margin-top:12px">
+          <button class="btn btn-primary" onclick="saveLegalDoc('privacy')">Save &amp; Notify Everyone</button>
+          <div id="privacySaveStatus" style="font-size:0.82rem;margin-top:8px"></div>
+        </div>
       </div>
     </div>
 
