@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create a Poll — ArgueOut</title>
+  <script>(function(){var t=localStorage.getItem('ao-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else if(t==='light')document.documentElement.setAttribute('data-theme','light');document.documentElement.style.background=(t==='light'||(t!=='dark'&&window.matchMedia('(prefers-color-scheme: light)').matches))?'#e5e5f2':'#05050f';if(typeof window.AndroidAuth!=='undefined'||window.matchMedia('(max-width:1024px)').matches)document.write('<style>@view-transition{navigation:none}</style>');}());</script>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <meta name="theme-color" content="#05050f" />
+  <meta name="robots" content="noindex" />
+  <script src="/js/page-transitions.js" defer></script>
+  <script src="/js/instant-nav.js" defer></script>
+  <style>
+    .create-poll-wrap { max-width: 620px; margin: 0 auto; padding: 88px 24px 100px; }
+    .create-poll-hero { margin-bottom: 24px; }
+    .create-poll-hero h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 6px; }
+    .create-poll-hero p { font-size: 0.88rem; color: var(--text-2); }
+    .poll-form-options { display: flex; flex-direction: column; gap: 8px; }
+    .poll-form-option-row { display: flex; gap: 8px; align-items: center; }
+    .poll-form-option-row .form-input { flex: 1; }
+    @media (max-width: 480px) {
+      .create-poll-wrap { padding: 76px 16px 90px; }
+    }
+  </style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div><div class="bg-orb bg-orb-4"></div>
+  <div class="bg-orb bg-orb-5"></div>
+</div>
+<nav class="navbar">
+  <div class="nav-left">
+    <a href="/divide" class="nav-back-btn" aria-label="Back to The Divide">
+      <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </a>
+    <a href="/lobby" class="nav-logo"><img src="/logo.png" alt="ArgueOut" class="nav-logo-img"></a>
+  </div>
+</nav>
+
+<div class="create-poll-wrap">
+  <div class="create-poll-hero">
+    <h1>Create a poll</h1>
+    <p>Ask a question, give people 2&ndash;6 sides to pick from.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="form-group">
+      <label class="form-label" for="createPollQuestion">Question</label>
+      <textarea class="form-input" id="createPollQuestion" placeholder="What should people vote on?" maxlength="300" style="min-height:64px;resize:vertical"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Options (2&ndash;6)</label>
+      <div class="poll-form-options" id="createPollOptionsList"></div>
+      <button class="btn btn-ghost btn-sm" id="addCreatePollOptionBtn" onclick="addCreatePollOptionRow()" style="margin-top:4px;align-self:flex-start">+ Add option</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="createPollCategorySelect">Category</label>
+      <select class="form-select" id="createPollCategorySelect">
+        <option value="general">General</option>
+        <option value="economic">Economic</option>
+        <option value="social">Social</option>
+        <option value="foreign">Foreign Policy</option>
+        <option value="culture">Culture</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="createPollTagsInput">Tags (comma-separated, optional)</label>
+      <input class="form-input" id="createPollTagsInput" type="text" placeholder="e.g. immigration, taxes, healthcare" maxlength="200" />
+    </div>
+    <div>
+      <button class="btn btn-primary btn-full" id="createPollSubmitBtn" onclick="submitUserPoll()">Post poll</button>
+      <div id="createPollStatus" style="font-size:0.82rem;margin-top:10px"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-init.js"></script>
+<script src="/js/mobile-bridge.js"></script>
+<script src="/js/bg.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/create-poll.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

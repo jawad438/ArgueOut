@@ -496,6 +496,18 @@ function renderPollCard(poll) {
 
 const CREATE_POLL_MAX_OPTIONS = 6;
 
+// Inside the Android app (window.AndroidAuth only exists there — injected by
+// MainActivity's WebView bridge, not present in a regular mobile browser) a
+// centered popup reads as cramped on a small screen, so it gets its own full
+// page instead. Everywhere else (desktop, mobile web) keeps the modal.
+function handleCreatePollFabClick() {
+  if (typeof window.AndroidAuth !== 'undefined') {
+    window.location.href = '/create-poll';
+  } else {
+    openCreatePollModal();
+  }
+}
+
 function openCreatePollModal() {
   const list = document.getElementById('createPollOptionsList');
   if (list && !list.children.length) {
