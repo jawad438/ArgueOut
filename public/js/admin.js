@@ -1023,7 +1023,7 @@ function renderDividePolls(polls) {
         ${(p.tags || []).length ? `<div class="user-row-sub" style="margin-top:4px">${p.tags.map(t => `<span style="background:rgba(255,255,255,0.05);border-radius:6px;padding:1px 7px;margin-right:4px;font-size:0.7rem">#${escapeHtml(t)}</span>`).join('')}</div>` : ''}
         ${p.trendingUntil && p.trendingUntil > Date.now()
           ? `<div class="user-row-sub" style="margin-top:6px;display:flex;align-items:center;gap:8px;color:#f97316">
-               &#128293; Trending until ${new Date(p.trendingUntil).toLocaleDateString()}
+               <img src="/icons/fire.svg" alt="" style="width:12px;height:12px;vertical-align:-1px"> Trending until ${new Date(p.trendingUntil).toLocaleDateString()}
                <button class="btn btn-ghost btn-sm" style="padding:2px 10px;min-height:auto;font-size:0.72rem" onclick="clearPollTrending('${p.id}')">Clear</button>
              </div>`
           : `<div class="user-row-sub" style="margin-top:6px;display:flex;align-items:center;gap:6px">

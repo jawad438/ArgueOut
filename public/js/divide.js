@@ -467,7 +467,7 @@ function renderPollCard(poll) {
   return `
     <div class="poll-card" id="poll-${poll.id}">
       <div class="poll-card-top">
-        ${isTrending ? '<span class="poll-category-badge poll-trending-badge">&#128293; Trending</span>' : ''}
+        ${isTrending ? '<span class="poll-category-badge poll-trending-badge"><img src="/icons/fire.svg" alt="" style="width:11px;height:11px;vertical-align:-1px;margin-right:1px"> Trending</span>' : ''}
         <span class="poll-category-badge">${escapeHtml(poll.categoryLabel || 'General')}</span>
         ${tagsHtml}
       </div>
