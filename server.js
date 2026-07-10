@@ -985,7 +985,8 @@ function pollDocToJson(doc) {
     categoryLabel: DIVIDE_CATEGORIES[d.category] || DIVIDE_CATEGORIES.general,
     tags: Array.isArray(d.tags) ? d.tags : [],
     commentCount: d.commentCount || 0,
-    createdAt: d.createdAt ? d.createdAt.toMillis() : null
+    createdAt: d.createdAt ? d.createdAt.toMillis() : null,
+    createdByUsername: d.createdByUsername || null
   };
 }
 
@@ -1128,6 +1129,47 @@ app.post('/api/polls', async (req, res) => {
     const ref = await fstore.collection('polls').add({
       question, options, votes, status: 'active', category, tags,
       createdBy: decoded.uid, createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    notifyRelevantUsersForNewPoll(ref.id, question, category);
+    res.json({ ok: true, id: ref.id });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Any signed-in user can post their own poll — same validation as the admin
+// route above, but auth is just getAuthUser (no isAdmin check) and it's
+// rate-limited (unlike the admin route, which trusts admins not to spam).
+const pollSubmitLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: req => getClientIp(req),
+  message: { error: 'Too many polls submitted — try again later.' }
+});
+
+app.post('/api/polls/submit', pollSubmitLimiter, async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const question = safeStr(req.body?.question, 300);
+  const options = Array.isArray(req.body?.options)
+    ? req.body.options.map(o => safeStr(o, 120)).filter(Boolean)
+    : [];
+  const category = DIVIDE_CATEGORIES[req.body?.category] ? req.body.category : 'general';
+  const tags = Array.isArray(req.body?.tags)
+    ? req.body.tags.map(t => safeStr(t, 30)).filter(Boolean).slice(0, DIVIDE_MAX_TAGS)
+    : [];
+  if (!question) return res.status(400).json({ error: 'Question is required' });
+  if (options.length < 2 || options.length > DIVIDE_MAX_OPTIONS)
+    return res.status(400).json({ error: `Provide 2-${DIVIDE_MAX_OPTIONS} options` });
+
+  try {
+    const userDoc = await fstore.collection('users').doc(decoded.uid).get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    const u = userDoc.data();
+    const votes = {};
+    options.forEach((_, i) => { votes[String(i)] = 0; });
+    const ref = await fstore.collection('polls').add({
+      question, options, votes, status: 'active', category, tags,
+      createdBy: decoded.uid, createdByUsername: u.username || null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
     notifyRelevantUsersForNewPoll(ref.id, question, category);
     res.json({ ok: true, id: ref.id });

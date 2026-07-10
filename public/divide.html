@@ -164,6 +164,36 @@
       .divide-wrap { padding: 88px 16px 90px; }
       .divide-hero h1 { font-size: 1.5rem; }
     }
+
+    /* ── Create poll: floating action button + form modal ─────────── */
+    .create-poll-fab {
+      position: fixed;
+      right: 24px;
+      bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+      z-index: 400;
+      width: 56px; height: 56px;
+      border-radius: var(--r-full);
+      background: var(--grad-brand);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.45);
+      border: none; cursor: pointer;
+      transition: transform 200ms var(--ease-spring), box-shadow 200ms;
+    }
+    .create-poll-fab:hover { box-shadow: 0 6px 28px rgba(139,92,246,0.65); }
+    .create-poll-fab:active { transform: scale(0.93); }
+    @media (max-width: 640px) {
+      .create-poll-fab { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: 52px; height: 52px; }
+    }
+
+    .create-poll-modal { max-width: 520px; }
+    .poll-form-options { display: flex; flex-direction: column; gap: 8px; }
+    .poll-form-option-row { display: flex; gap: 8px; align-items: center; }
+    .poll-form-option-row .form-input { flex: 1; }
+    .poll-byline { color: var(--text-3); }
+    @media (max-width: 480px) {
+      .create-poll-modal { padding: 22px; max-width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -188,6 +218,10 @@
     <a href="/lobby" class="btn btn-ghost btn-sm">Lobby</a>
   </div>
 </nav>
+
+<button class="create-poll-fab" id="createPollFab" onclick="openCreatePollModal()" aria-label="Create a poll" title="Create a poll">
+  <svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
 
 <div class="divide-wrap">
   <div class="divide-hero">
@@ -290,6 +324,46 @@
       <div class="up-tags" id="dpTags"></div>
       <div id="dpCountryRow" style="display:none;align-items:center;gap:6px;margin-top:6px;margin-bottom:4px">
         <span id="dpCountry" style="font-size:0.85rem;color:var(--text-2)"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create a poll: open to any signed-in user, not just admins -->
+<div class="modal-overlay" id="createPollModal" style="display:none" onclick="if(event.target===this)closeCreatePollModal()">
+  <div class="modal-card create-poll-modal">
+    <button class="modal-close" onclick="closeCreatePollModal()" aria-label="Close">
+      <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px">Create a poll</div>
+    <div style="font-size:0.82rem;color:var(--text-3);margin-bottom:20px">Ask a question, give people 2&ndash;6 sides to pick from.</div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group">
+        <label class="form-label" for="createPollQuestion">Question</label>
+        <textarea class="form-input" id="createPollQuestion" placeholder="What should people vote on?" maxlength="300" style="min-height:64px;resize:vertical"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Options (2&ndash;6)</label>
+        <div class="poll-form-options" id="createPollOptionsList"></div>
+        <button class="btn btn-ghost btn-sm" id="addCreatePollOptionBtn" onclick="addCreatePollOptionRow()" style="margin-top:4px;align-self:flex-start">+ Add option</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="createPollCategorySelect">Category</label>
+        <select class="form-select" id="createPollCategorySelect">
+          <option value="general">General</option>
+          <option value="economic">Economic</option>
+          <option value="social">Social</option>
+          <option value="foreign">Foreign Policy</option>
+          <option value="culture">Culture</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="createPollTagsInput">Tags (comma-separated, optional)</label>
+        <input class="form-input" id="createPollTagsInput" type="text" placeholder="e.g. immigration, taxes, healthcare" maxlength="200" />
+      </div>
+      <div>
+        <button class="btn btn-primary btn-full" id="createPollSubmitBtn" onclick="submitUserPoll()">Post poll</button>
+        <div id="createPollStatus" style="font-size:0.82rem;margin-top:10px"></div>
       </div>
     </div>
   </div>
