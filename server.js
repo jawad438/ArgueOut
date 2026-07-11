@@ -1443,9 +1443,26 @@ app.get('/api/polls', async (req, res) => {
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || DIVIDE_PAGE_SIZE));
     const isFiltering = !!(search || (category && category !== 'all'));
 
+    // Fetched once regardless of which branch below runs, so every poll in
+    // the response can carry a `saved` flag for the bookmark button.
+    const savedSnap = await fstore.collection('users').doc(decoded.uid).collection('savedPolls').get();
+    const savedIds = new Set(savedSnap.docs.map(d => d.id));
+
     let pageOfPolls, hasMore, nextCursor = null;
 
-    if (!isFiltering) {
+    if (category === 'saved') {
+      // A per-user list, not a property of the poll itself — cheaper and
+      // simpler to page through the user's own savedPolls subcollection
+      // directly (ordered by when they saved it) than to scan the whole
+      // active-poll collection looking for membership in a small set.
+      const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+      const orderedSnap = await fstore.collection('users').doc(decoded.uid)
+        .collection('savedPolls').orderBy('savedAt', 'desc').limit(200).get();
+      const pollDocs = await Promise.all(orderedSnap.docs.map(d => fstore.collection('polls').doc(d.id).get()));
+      const allPolls = pollDocs.filter(d => d.exists).map(pollDocToJson);
+      pageOfPolls = allPolls.slice(offset, offset + limit);
+      hasMore = offset + limit < allPolls.length;
+    } else if (!isFiltering) {
       // Plain browse: status+createdAt would need a manual composite index,
       // so the whole active set is fetched in one cheap query and ranked in
       // JS — that gives an exactly-correct "most interaction first" order,
@@ -1520,10 +1537,39 @@ app.get('/api/polls', async (req, res) => {
       votesSnap.docs.forEach(v => voterMap.set(v.id, v.data().optionIndex));
       poll.onlineCounts = pollOnlineCounts(voterMap, poll.options);
       poll.myVote = voterMap.has(decoded.uid) ? voterMap.get(decoded.uid) : null;
+      poll.saved = savedIds.has(poll.id);
       polls.push(poll);
     }
     res.json({ polls, hasMore, cursor: nextCursor });
   } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Bookmarking a poll: purely a per-user relation (users/{uid}/savedPolls),
+// not a field on the poll doc — a poll's save count isn't shown anywhere,
+// so there's no reason to touch the shared poll doc for this at all.
+app.post('/api/polls/:pollId/save', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const pollId = safeId(req.params.pollId);
+  if (!pollId) return res.status(400).json({ error: 'Invalid poll' });
+  try {
+    const pollDoc = await fstore.collection('polls').doc(pollId).get();
+    if (!pollDoc.exists) return res.status(404).json({ error: 'Poll not found' });
+    await fstore.collection('users').doc(decoded.uid).collection('savedPolls').doc(pollId)
+      .set({ savedAt: admin.firestore.FieldValue.serverTimestamp() });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.delete('/api/polls/:pollId/save', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const pollId = safeId(req.params.pollId);
+  if (!pollId) return res.status(400).json({ error: 'Invalid poll' });
+  try {
+    await fstore.collection('users').doc(decoded.uid).collection('savedPolls').doc(pollId).delete();
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
 app.post('/api/polls', async (req, res) => {

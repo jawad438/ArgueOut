@@ -369,7 +369,12 @@ function renderPolls(reset, newPolls, isFiltered) {
   document.getElementById('pollsLoadMoreSkeleton')?.remove();
 
   if (reset && !newPolls.length) {
-    list.innerHTML = isFiltered
+    list.innerHTML = currentCategoryFilter === 'saved'
+      ? `<div class="divide-empty">
+          <h2 style="font-size:1.05rem;font-weight:700;color:var(--text-2);margin-bottom:6px">No saved polls yet</h2>
+          <p style="font-size:0.85rem">Tap the bookmark icon on any poll to save it for later.</p>
+        </div>`
+      : isFiltered
       ? `<div class="divide-empty">
           <h2 style="font-size:1.05rem;font-weight:700;color:var(--text-2);margin-bottom:6px">No polls match</h2>
           <p style="font-size:0.85rem">Try a different search term or category.</p>
@@ -453,9 +458,35 @@ function renderPollActionsHtml(poll) {
     ${isMine && poll.status === 'active'
       ? `<button class="btn btn-ghost btn-sm" style="color:var(--amber)" onclick="closeUserPoll('${poll.id}')">Close poll</button>`
       : ''}
-    <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--text-3)" onclick="openPollReportModal('${poll.id}', '${escapeHtml(poll.question).replace(/'/g, "\\'")}')" title="Report poll">
+    <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:${poll.saved ? 'var(--purple)' : 'var(--text-3)'}" onclick="toggleSavePoll('${poll.id}')" title="${poll.saved ? 'Unsave' : 'Save'} poll">
+      <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" fill="${poll.saved ? 'currentColor' : 'none'}" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+    </button>
+    <button class="btn btn-ghost btn-sm" style="color:var(--text-3)" onclick="openPollReportModal('${poll.id}', '${escapeHtml(poll.question).replace(/'/g, "\\'")}')" title="Report poll">
       <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24"><path d="M4 4v16M4 4h11l-1.5 4L15 12H4"/></svg>
     </button>`;
+}
+
+async function toggleSavePoll(pollId) {
+  const poll = pollsCache[pollId];
+  if (!poll) return;
+  const wasSaved = !!poll.saved;
+  try {
+    const res = await fetch(`/api/polls/${pollId}/save`, {
+      method: wasSaved ? 'DELETE' : 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentIdToken }
+    });
+    if (!res.ok) { showToast('Could not update saved polls.', 'error'); return; }
+    poll.saved = !wasSaved;
+    const actionsEl = document.getElementById(`pollActions-${pollId}`);
+    if (actionsEl) actionsEl.innerHTML = renderPollActionsHtml(poll);
+    showToast(poll.saved ? 'Poll saved.' : 'Removed from saved.', 'success');
+    // If we're looking at the Saved tab itself, unsaving should drop the
+    // card out of the list immediately rather than leaving a stale entry
+    // that only disappears on the next full reload.
+    if (currentCategoryFilter === 'saved' && !poll.saved) {
+      document.getElementById(`poll-${pollId}`)?.remove();
+    }
+  } catch { showToast('Network error.', 'error'); }
 }
 
 function renderPollCard(poll) {
