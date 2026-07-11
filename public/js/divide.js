@@ -458,7 +458,7 @@ function renderPollActionsHtml(poll) {
     ${isMine && poll.status === 'active'
       ? `<button class="btn btn-ghost btn-sm" style="color:var(--amber)" onclick="closeUserPoll('${poll.id}')">Close poll</button>`
       : ''}
-    <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:${poll.saved ? 'var(--purple)' : 'var(--text-3)'}" onclick="toggleSavePoll('${poll.id}')" title="${poll.saved ? 'Unsave' : 'Save'} poll">
+    <button class="btn btn-ghost btn-sm poll-save-btn" id="saveBtn-${poll.id}" style="margin-left:auto;color:${poll.saved ? 'var(--purple)' : 'var(--text-3)'}" onclick="toggleSavePoll('${poll.id}')" title="${poll.saved ? 'Unsave' : 'Save'} poll">
       <svg style="width:14px;height:14px;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" fill="${poll.saved ? 'currentColor' : 'none'}" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
     </button>
     <button class="btn btn-ghost btn-sm" style="color:var(--text-3)" onclick="openPollReportModal('${poll.id}', '${escapeHtml(poll.question).replace(/'/g, "\\'")}')" title="Report poll">
@@ -466,27 +466,56 @@ function renderPollActionsHtml(poll) {
     </button>`;
 }
 
+// Paints the save button's fill/color instantly, independent of the actual
+// request — `animate` plays the pop-and-settle keyframe (only used when the
+// tap just filled the icon in, not when reverting from a failed request).
+function paintSaveButton(pollId, saved, animate) {
+  const btn = document.getElementById(`saveBtn-${pollId}`);
+  if (!btn) return;
+  btn.style.color = saved ? 'var(--purple)' : 'var(--text-3)';
+  btn.title = (saved ? 'Unsave' : 'Save') + ' poll';
+  const svg = btn.querySelector('svg');
+  if (svg) svg.setAttribute('fill', saved ? 'currentColor' : 'none');
+  if (animate) {
+    btn.classList.remove('save-pop');
+    void btn.offsetWidth; // restart the animation even if it's still mid-play from a fast double-tap
+    btn.classList.add('save-pop');
+  }
+}
+
 async function toggleSavePoll(pollId) {
   const poll = pollsCache[pollId];
   if (!poll) return;
   const wasSaved = !!poll.saved;
+
+  // Optimistic update: the icon fills in immediately so the tap feels
+  // instant, since the actual Firestore write below can take a moment.
+  // Only the (rare) failure path reverts it back.
+  poll.saved = !wasSaved;
+  paintSaveButton(pollId, poll.saved, !wasSaved);
+
   try {
     const res = await fetch(`/api/polls/${pollId}/save`, {
       method: wasSaved ? 'DELETE' : 'POST',
       headers: { 'Authorization': 'Bearer ' + currentIdToken }
     });
-    if (!res.ok) { showToast('Could not update saved polls.', 'error'); return; }
-    poll.saved = !wasSaved;
-    const actionsEl = document.getElementById(`pollActions-${pollId}`);
-    if (actionsEl) actionsEl.innerHTML = renderPollActionsHtml(poll);
-    showToast(poll.saved ? 'Poll saved.' : 'Removed from saved.', 'success');
+    if (!res.ok) {
+      poll.saved = wasSaved;
+      paintSaveButton(pollId, poll.saved, false);
+      showToast('Could not update saved polls.', 'error');
+      return;
+    }
     // If we're looking at the Saved tab itself, unsaving should drop the
     // card out of the list immediately rather than leaving a stale entry
     // that only disappears on the next full reload.
     if (currentCategoryFilter === 'saved' && !poll.saved) {
       document.getElementById(`poll-${pollId}`)?.remove();
     }
-  } catch { showToast('Network error.', 'error'); }
+  } catch {
+    poll.saved = wasSaved;
+    paintSaveButton(pollId, poll.saved, false);
+    showToast('Network error.', 'error');
+  }
 }
 
 function renderPollCard(poll) {

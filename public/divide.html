@@ -76,6 +76,15 @@
     .poll-option-btn:not(:disabled):active { transform: scale(0.97); border-color: var(--purple); }
     .poll-option-btn.just-voted { animation: voteFlash 480ms var(--ease-spring); }
     @keyframes voteFlash { 0% { transform: scale(1); } 35% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    .poll-save-btn svg { transition: fill 150ms ease; }
+    .poll-save-btn.save-pop svg { animation: savePop 420ms var(--ease-spring); }
+    @keyframes savePop {
+      0%   { transform: scale(1); }
+      35%  { transform: scale(1.45); }
+      65%  { transform: scale(0.9); }
+      100% { transform: scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) { .poll-save-btn.save-pop svg { animation: none; } }
     .poll-option-fill {
       position: absolute; inset: 0; z-index: 0; transition: width 500ms var(--ease-out);
       opacity: 0.22;
