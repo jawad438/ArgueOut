@@ -197,6 +197,11 @@
     @media (max-width: 480px) {
       .create-poll-modal { padding: 22px; max-width: 100%; }
     }
+
+    /* Report-poll popup: solid instead of the site-wide frosted-glass
+       (.auth-card is translucent + backdrop-blur everywhere else) — this one
+       reads better fully opaque since it's a quick, focused action. */
+    #pollReportCard { background: var(--bg-1); backdrop-filter: none; -webkit-backdrop-filter: none; }
   </style>
 </head>
 <body>
