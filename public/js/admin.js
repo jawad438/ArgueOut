@@ -1058,10 +1058,12 @@ function toggleSelectAllPolls(checked) {
 
 function updatePollSelectionUI() {
   const count = selectedPollIds.size;
-  const btn = document.getElementById('deleteSelectedPollsBtn');
   const countEl = document.getElementById('selectedPollCount');
   if (countEl) countEl.textContent = count;
-  if (btn) btn.style.display = count ? '' : 'none';
+  ['deleteSelectedPollsBtn', 'closeSelectedPollsBtn', 'trendSelectedPollsBtn', 'bulkTrendDays'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = count ? '' : 'none';
+  });
   const total = document.querySelectorAll('.poll-select-checkbox').length;
   const selectAll = document.getElementById('pollSelectAllCheckbox');
   if (selectAll) selectAll.checked = total > 0 && count === total;
@@ -1081,6 +1083,45 @@ async function deleteSelectedPolls() {
     const data = await res.json();
     if (!res.ok) { showToast(data.error || 'Failed to delete polls.', 'error'); return; }
     showToast(`Deleted ${data.deleted} poll(s).${data.failed ? ` ${data.failed} failed.` : ''}`, data.failed ? 'info' : 'success');
+    selectedPollIds.clear();
+    loadDividePolls();
+  } catch { showToast('Network error.', 'error'); }
+}
+
+async function closeSelectedPolls() {
+  const ids = [...selectedPollIds];
+  if (!ids.length) return;
+  if (!confirm(`Close ${ids.length} poll(s)? Voting will stop and only current results will show.`)) return;
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/polls/bulk-close', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pollIds: ids })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Failed to close polls.', 'error'); return; }
+    showToast(`Closed ${data.closed} poll(s).${data.failed ? ` ${data.failed} failed.` : ''}`, data.failed ? 'info' : 'success');
+    selectedPollIds.clear();
+    loadDividePolls();
+  } catch { showToast('Network error.', 'error'); }
+}
+
+async function trendSelectedPolls() {
+  const ids = [...selectedPollIds];
+  if (!ids.length) return;
+  const days = parseInt(document.getElementById('bulkTrendDays')?.value, 10);
+  if (!days || days < 1 || days > 30) { showToast('Enter a number of days (1-30).', 'error'); return; }
+  try {
+    const token = await adminToken();
+    const res = await fetch('/api/polls/bulk-trending', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pollIds: ids, days })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Failed to set trending.', 'error'); return; }
+    showToast(`${data.trending} poll(s) trending for ${days} day(s).${data.failed ? ` ${data.failed} failed.` : ''}`, data.failed ? 'info' : 'success');
     selectedPollIds.clear();
     loadDividePolls();
   } catch { showToast('Network error.', 'error'); }

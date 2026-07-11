@@ -352,6 +352,9 @@
             <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text-3);cursor:pointer">
               <input type="checkbox" id="pollSelectAllCheckbox" onchange="toggleSelectAllPolls(this.checked)" /> Select all
             </label>
+            <button class="btn btn-sm" id="closeSelectedPollsBtn" style="background:rgba(245,158,11,0.15);color:var(--amber);border:1px solid rgba(245,158,11,0.3);display:none" onclick="closeSelectedPolls()">Close selected</button>
+            <input type="number" min="1" max="30" placeholder="days" id="bulkTrendDays" style="display:none;width:60px;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;color:var(--text-1);padding:6px 8px;font-size:0.8rem" />
+            <button class="btn btn-sm" id="trendSelectedPollsBtn" style="background:rgba(249,115,22,0.15);color:#f97316;border:1px solid rgba(249,115,22,0.3);display:none" onclick="trendSelectedPolls()">Make trending</button>
             <button class="btn btn-sm" id="deleteSelectedPollsBtn" style="background:rgba(239,68,68,0.18);color:var(--red);border:1px solid rgba(239,68,68,0.35);display:none" onclick="deleteSelectedPolls()">Delete selected (<span id="selectedPollCount">0</span>)</button>
             <button class="btn btn-ghost btn-sm" onclick="loadDividePolls()">&#8635; Refresh</button>
           </div>

@@ -1752,6 +1752,55 @@ app.post('/api/polls/bulk-delete', async (req, res) => {
   res.json({ results, deleted: results.filter(r => r.ok).length, failed: results.filter(r => !r.ok).length });
 });
 
+app.post('/api/polls/bulk-close', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  const pollIds = Array.isArray(req.body?.pollIds)
+    ? [...new Set(req.body.pollIds.map(safeId).filter(Boolean))]
+    : [];
+  if (!pollIds.length) return res.status(400).json({ error: 'No polls provided' });
+  if (pollIds.length > 200) return res.status(400).json({ error: 'Too many polls in one batch (max 200)' });
+
+  const results = [];
+  for (const pollId of pollIds) {
+    try {
+      const ref = fstore.collection('polls').doc(pollId);
+      const doc = await ref.get();
+      if (!doc.exists) { results.push({ pollId, ok: false, error: 'Poll not found' }); continue; }
+      await ref.update({ status: 'closed' });
+      results.push({ pollId, ok: true });
+    } catch {
+      results.push({ pollId, ok: false, error: 'Server error' });
+    }
+  }
+  res.json({ results, closed: results.filter(r => r.ok).length, failed: results.filter(r => !r.ok).length });
+});
+
+app.post('/api/polls/bulk-trending', async (req, res) => {
+  if (!await verifyAdminBearer(req)) return res.status(403).json({ error: 'Forbidden' });
+  const pollIds = Array.isArray(req.body?.pollIds)
+    ? [...new Set(req.body.pollIds.map(safeId).filter(Boolean))]
+    : [];
+  const days = Math.min(30, Math.max(1, parseInt(req.body?.days, 10) || 0));
+  if (!pollIds.length) return res.status(400).json({ error: 'No polls provided' });
+  if (pollIds.length > 200) return res.status(400).json({ error: 'Too many polls in one batch (max 200)' });
+  if (!days) return res.status(400).json({ error: 'Provide a number of days (1-30)' });
+
+  const trendingUntil = admin.firestore.Timestamp.fromMillis(Date.now() + days * 24 * 60 * 60 * 1000);
+  const results = [];
+  for (const pollId of pollIds) {
+    try {
+      const ref = fstore.collection('polls').doc(pollId);
+      const doc = await ref.get();
+      if (!doc.exists) { results.push({ pollId, ok: false, error: 'Poll not found' }); continue; }
+      await ref.update({ trendingUntil });
+      results.push({ pollId, ok: true });
+    } catch {
+      results.push({ pollId, ok: false, error: 'Server error' });
+    }
+  }
+  res.json({ results, trending: results.filter(r => r.ok).length, failed: results.filter(r => !r.ok).length, trendingUntil: trendingUntil.toMillis() });
+});
+
 app.post('/api/polls/:pollId/vote', strictLimiter, async (req, res) => {
   const decoded = await getAuthUser(req);
   if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
