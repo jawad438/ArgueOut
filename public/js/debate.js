@@ -392,7 +392,10 @@ async function flushPendingIceCandidates() {
 }
 
 function createPeerConnection() {
-  pendingIceCandidates = [];
+  // NOTE: do not clear pendingIceCandidates here - candidates can arrive (and
+  // get queued by the 'webrtc-ice' handler above) before this function ever
+  // runs, while this side is still waiting on getUserMedia. Wiping the queue
+  // on peerConn creation would throw those away right before they're needed.
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
   pc.onicecandidate = ({ candidate }) => {
@@ -492,8 +495,12 @@ socket.on('webrtc-answer', async ({ answer })   => {
   await flushPendingIceCandidates();
 });
 socket.on('webrtc-ice', async ({ candidate }) => {
-  if (!peerConn) return;
-  if (!peerConn.remoteDescription || !peerConn.remoteDescription.type) {
+  // peerConn may not exist yet at all - e.g. this side is still awaiting a
+  // first-time getUserMedia permission prompt while the other side's ICE
+  // candidates are already trickling in. Queue in that case too (not just
+  // once peerConn exists but lacks a remote description), otherwise these
+  // candidates are lost forever and never make it into flushPendingIceCandidates().
+  if (!peerConn || !peerConn.remoteDescription || !peerConn.remoteDescription.type) {
     pendingIceCandidates.push(candidate);
     return;
   }
