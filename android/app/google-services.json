@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "666299079183",
+    "project_id": "argueout",
+    "storage_bucket": "argueout.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:666299079183:android:5bfd248ca067138c90e17a",
+        "android_client_info": {
+          "package_name": "com.argueout.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "666299079183-vquo0u1adtph3hibq3sivn6a0i5vvdpn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.argueout.app",
+            "certificate_hash": "c20f5b4dfe650a499659672186338ea9057780a0"
+          }
+        },
+        {
+          "client_id": "666299079183-aan8tvnmiecsql2v9e84eriuqh5enc9d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpLtr4zFMY2hFcoXNRuq3YrqsOD2e3QDQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "666299079183-aan8tvnmiecsql2v9e84eriuqh5enc9d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
