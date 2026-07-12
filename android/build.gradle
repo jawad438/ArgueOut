@@ -1,12 +1,12 @@
-plugins {
-    id 'com.android.application' version '8.2.2' apply false
-}
-
 buildscript {
     repositories { google(); mavenCentral() }
     dependencies {
         classpath 'com.google.gms:google-services:4.4.2'
     }
+}
+
+plugins {
+    id 'com.android.application' version '8.2.2' apply false
 }
 
 // Force all Kotlin stdlib variants to the same version to prevent duplicate class errors.
