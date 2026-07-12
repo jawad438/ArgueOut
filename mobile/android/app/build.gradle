@@ -30,12 +30,8 @@ android {
             keyPassword 'android'
         }
         release {
-            // For GitHub Actions — key info comes from env vars. An unset
-            // secret still arrives here as an empty string (not null) via
-            // `${{ secrets.KEYSTORE_FILE }}`, so check for blank too or this
-            // falls through to a bogus empty keystore path instead of the
-            // debug fallback below.
-            if (System.getenv('KEYSTORE_FILE')?.trim()) {
+            // For GitHub Actions — key info comes from env vars
+            if (System.getenv('KEYSTORE_FILE') != null) {
                 storeFile file(System.getenv('KEYSTORE_FILE'))
                 storePassword System.getenv('KEYSTORE_PASSWORD')
                 keyAlias System.getenv('KEY_ALIAS')
