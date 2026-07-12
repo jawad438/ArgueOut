@@ -39,3 +39,32 @@ export async function initPushNotifications() {
 export function onForegroundMessage(handler) {
   return messaging().onMessage(handler);
 }
+
+// Maps the server's "link" data field to a screen name in AppNavigator.
+const LINK_TO_SCREEN = {
+  '/lobby': 'Main',
+  '/notifications': 'Notifications',
+};
+
+export function screenForLink(link) {
+  return LINK_TO_SCREEN[link] || 'Main';
+}
+
+// Wires up notification-tap navigation for both cases RN Firebase splits
+// apart: tapping while the app was backgrounded (onNotificationOpenedApp)
+// and tapping while it was fully killed (getInitialNotification, checked
+// once on mount). Both hand back the same RemoteMessage shape with the
+// data payload the server sent, so both route through onOpen the same way.
+export function initNotificationOpenHandlers(onOpen) {
+  const unsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
+    if (remoteMessage?.data?.link) onOpen(remoteMessage.data.link);
+  });
+
+  messaging()
+    .getInitialNotification()
+    .then(remoteMessage => {
+      if (remoteMessage?.data?.link) onOpen(remoteMessage.data.link);
+    });
+
+  return unsubscribe;
+}

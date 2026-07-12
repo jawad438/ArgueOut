@@ -31,7 +31,8 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String APP_URL = "https://argueout.onrender.com/lobby";
+    private static final String BASE_URL = "https://argueout.onrender.com";
+    private static final String APP_URL = BASE_URL + "/lobby";
     private static final int PERMISSION_REQUEST_CODE = 1;
     private static final int IMAGE_PERMISSION_REQUEST_CODE = 2;
     private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 3;
@@ -75,8 +76,21 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         webView = findViewById(R.id.webview);
         setupWebView();
-        webView.loadUrl(APP_URL);
+        String link = getIntent() != null ? getIntent().getStringExtra("link") : null;
+        webView.loadUrl(link != null ? BASE_URL + link : APP_URL);
         requestNotificationPermissionIfNeeded();
+    }
+
+    // Fires when a notification is tapped while the app is already running
+    // (singleTask launch mode routes the tap here instead of a fresh onCreate).
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String link = intent.getStringExtra("link");
+        if (link != null && webView != null) {
+            webView.loadUrl(BASE_URL + link);
+        }
     }
 
     private void requestNotificationPermissionIfNeeded() {

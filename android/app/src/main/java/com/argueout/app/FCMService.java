@@ -39,11 +39,12 @@ public class FCMService extends FirebaseMessagingService {
             if (message.getData().containsKey("title")) title = message.getData().get("title");
             if (message.getData().containsKey("body")) body = message.getData().get("body");
         }
+        String link = message.getData().get("link"); // e.g. "/lobby" or "/notifications" — where tapping should land
 
-        showNotification(title, body);
+        showNotification(title, body, link);
     }
 
-    private void showNotification(String title, String body) {
+    private void showNotification(String title, String body, String link) {
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
 
@@ -57,6 +58,7 @@ public class FCMService extends FirebaseMessagingService {
 
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        if (link != null) intent.putExtra("link", link);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT
                 | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, flags);

@@ -923,7 +923,7 @@ async function notifyAllUsers(message) {
     await batch.commit();
   }
   io.emit('admin-notification', { message });
-  sendPushToTopic('broadcasts', { title: 'ArgueOut', body: message }, { type: 'admin' });
+  sendPushToTopic('broadcasts', { title: 'ArgueOut', body: message }, { type: 'admin', link: '/notifications' });
 }
 
 app.get('/api/legal/:type', async (req, res) => {
@@ -2751,7 +2751,7 @@ async function sendOnlineCountReminders() {
       const lastSent = data.lastReminderPushAt ? data.lastReminderPushAt.toMillis() : 0;
       if (now - lastSent < ONLINE_REMINDER_COOLDOWN_MS) continue;
 
-      const invalid = await sendPushToTokens(tokens, { title: 'ArgueOut', body: message }, { type: 'online-reminder' });
+      const invalid = await sendPushToTokens(tokens, { title: 'ArgueOut', body: message }, { type: 'online-reminder', link: '/lobby' });
       const updates = { lastReminderPushAt: admin.firestore.FieldValue.serverTimestamp() };
       if (invalid.length) updates.fcmTokens = admin.firestore.FieldValue.arrayRemove(...invalid);
       await doc.ref.update(updates).catch(() => {});
@@ -3197,7 +3197,7 @@ io.on('connection', socket => {
       fromUserId: me.userId, fromUsername: me.username, question: question || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     }).catch(err => console.error('[send-challenge] notif persist error:', err.message));
-    sendPushToUser(safeTarget, { title: 'Challenge received', body: notifMsg }, { type: 'challenge', fromUserId: me.userId });
+    sendPushToUser(safeTarget, { title: 'Challenge received', body: notifMsg }, { type: 'challenge', fromUserId: me.userId, link: '/notifications' });
   });
 
   function createDebateRoomForChallenge(challenger, me, question, s1, s2) {
@@ -3403,7 +3403,7 @@ io.on('connection', socket => {
         fromUserId: me.userId, fromUsername: me.username, question,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
-      sendPushToUser(opponent.userId, { title: 'Challenge received', body: divideNotifMsg }, { type: 'challenge', fromUserId: me.userId, pollId: cleanPollId });
+      sendPushToUser(opponent.userId, { title: 'Challenge received', body: divideNotifMsg }, { type: 'challenge', fromUserId: me.userId, pollId: cleanPollId, link: '/notifications' });
 
       socket.emit('divide-challenge-sent', { challengeId: challengeRef.id, opponent: opponentPayload(opponent) });
     } catch (err) {
