@@ -1,7 +1,7 @@
 import React from 'react';
 import {View, Text, StyleSheet} from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {createStackNavigator} from '@react-navigation/stack';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import LobbyScreen       from '../screens/LobbyScreen';
 import DebateScreen      from '../screens/DebateScreen';
@@ -12,7 +12,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import {colors, font, spacing, radii} from '../theme';
 
 const Tab   = createBottomTabNavigator();
-const Root  = createStackNavigator();
+const Root  = createNativeStackNavigator();
 
 function TabNavigator() {
   const insets = useSafeAreaInsets();

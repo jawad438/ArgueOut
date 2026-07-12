@@ -14,3 +14,12 @@ android/.gradle/
 android/app/build/
 android/build/
 android/app/src/main/res/mipmap-*/
+
+# React Native mobile app — Android build
+mobile/android/local.properties
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/gradlew
+mobile/android/gradlew.bat
+mobile/android/gradle/wrapper/gradle-wrapper.jar
