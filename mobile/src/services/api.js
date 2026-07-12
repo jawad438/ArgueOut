@@ -64,3 +64,12 @@ export async function updateCompass(x, y) {
   });
   if (!res.ok) throw new Error('Compass update failed');
 }
+
+export async function registerPushToken(token) {
+  const res = await fetch(`${BASE}/api/notifications/register-token`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({token}),
+  });
+  if (!res.ok) throw new Error('Push token registration failed');
+}

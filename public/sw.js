@@ -2,6 +2,47 @@
 const CACHE = 'argueout-v10';
 const OFFLINE_URL = '/offline.html';
 
+// -- Push notifications (Firebase Cloud Messaging) ------------------------
+// Merged into this same SW file (rather than a separate firebase-messaging-sw.js)
+// because only one service worker can control the root scope at a time —
+// registering a second one at the same scope would silently take over from
+// the caching worker above instead of running alongside it.
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+  apiKey:            'AIzaSyBFhRtNAEIg_iXwNEHCe9-ppPTQWTcn6hs',
+  authDomain:        'argueout.firebaseapp.com',
+  projectId:         'argueout',
+  storageBucket:     'argueout.firebasestorage.app',
+  messagingSenderId: '666299079183',
+  appId:             '1:666299079183:web:0af715ed65d25c9290e17a'
+});
+
+const messaging = firebase.messaging();
+
+// Fires when a push arrives while no ArgueOut tab has focus (backgrounded or closed).
+messaging.onBackgroundMessage(payload => {
+  const title = payload.notification?.title || 'ArgueOut';
+  const body  = payload.notification?.body  || '';
+  self.registration.showNotification(title, {
+    body,
+    icon: '/favicon.ico',
+    data: payload.data || {}
+  });
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = event.notification.data?.link || '/lobby';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
+});
+
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.add(OFFLINE_URL)).catch(() => {}));
   self.skipWaiting();

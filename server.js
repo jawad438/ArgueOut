@@ -835,6 +835,76 @@ const DEFAULT_PRIVACY_HTML = `
 
 const LEGAL_DOC_TYPES = { tos: DEFAULT_TOS_HTML, privacy: DEFAULT_PRIVACY_HTML };
 
+// ═══════════════════════════════════════════════════════════════════════
+// PUSH NOTIFICATIONS (FCM) — tokens are stored on users/{uid}.fcmTokens
+// (array) with a users/{uid}.hasFcmToken boolean mirror for cheap equality
+// queries (Firestore can't efficiently query "array is non-empty"). Every
+// registered token is also subscribed to the 'broadcasts' topic so admin
+// broadcasts are a single topic send instead of a per-user token fan-out.
+// ═══════════════════════════════════════════════════════════════════════
+async function sendPushToTokens(tokens, notification, data = {}) {
+  const validTokens = (tokens || []).filter(Boolean);
+  if (!validTokens.length) return [];
+  const stringData = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]));
+  try {
+    const resp = await admin.messaging().sendEachForMulticast({ tokens: validTokens, notification, data: stringData });
+    const invalid = [];
+    resp.responses.forEach((r, i) => {
+      const code = r.error?.code;
+      if (!r.success && (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token')) {
+        invalid.push(validTokens[i]);
+      }
+    });
+    return invalid;
+  } catch (e) { console.error('[push] sendEachForMulticast error:', e.message); return []; }
+}
+
+async function sendPushToUser(uid, notification, data = {}) {
+  try {
+    const doc = await fstore.collection('users').doc(uid).get();
+    const tokens = doc.exists ? (doc.data().fcmTokens || []) : [];
+    if (!tokens.length) return;
+    const invalid = await sendPushToTokens(tokens, notification, data);
+    if (invalid.length) {
+      await doc.ref.update({ fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalid) }).catch(() => {});
+    }
+  } catch (e) { console.error('[push] sendPushToUser error:', e.message); }
+}
+
+async function sendPushToTopic(topic, notification, data = {}) {
+  try {
+    const stringData = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]));
+    await admin.messaging().send({ topic, notification, data: stringData });
+  } catch (e) { console.error('[push] topic send error:', e.message); }
+}
+
+app.post('/api/notifications/register-token', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const token = String(req.body?.token || '').trim();
+  if (!token || token.length > 500) return res.status(400).json({ error: 'Invalid token' });
+  try {
+    await fstore.collection('users').doc(decoded.uid).update({
+      fcmTokens: admin.firestore.FieldValue.arrayUnion(token),
+      hasFcmToken: true
+    });
+    await admin.messaging().subscribeToTopic([token], 'broadcasts').catch(() => {});
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/notifications/unregister-token', async (req, res) => {
+  const decoded = await getAuthUser(req);
+  if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+  const token = String(req.body?.token || '').trim();
+  if (!token) return res.status(400).json({ error: 'Invalid token' });
+  try {
+    await fstore.collection('users').doc(decoded.uid).update({ fcmTokens: admin.firestore.FieldValue.arrayRemove(token) });
+    await admin.messaging().unsubscribeFromTopic([token], 'broadcasts').catch(() => {});
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
 // Broadcasts a notification to every user: a Firestore item per user (so it
 // shows up in their notification history even if they're offline right
 // now, reusing the exact same per-user delivery path admin-send-notification
@@ -853,6 +923,7 @@ async function notifyAllUsers(message) {
     await batch.commit();
   }
   io.emit('admin-notification', { message });
+  sendPushToTopic('broadcasts', { title: 'ArgueOut', body: message }, { type: 'admin' });
 }
 
 app.get('/api/legal/:type', async (req, res) => {
@@ -2555,6 +2626,140 @@ function broadcastOnlineUsers() {
   io.emit('online-users', list);
 }
 
+// -- Online-count reminder push notifications -----------------------------
+// Nudges users who are NOT currently in the app that people are online right
+// now, with copy that varies by how many. Only sent to devices with a
+// registered token, skipping anyone already connected (they don't need a
+// "come debate" nudge — they're already here) and respecting a per-user
+// cooldown so nobody gets spammed every cycle.
+const ONLINE_REMINDER_MESSAGES = {
+  '1': [
+    "Someone's waiting to debate. Join now.",
+    'A debate partner is online right now.',
+    'One person is looking for a debate.',
+    'Be the second person. Start a debate.',
+    "Someone just joined ArgueOut.",
+    'A live debate is one click away.',
+    'One challenger is waiting for you.',
+    "Ready to argue? Someone else is.",
+    'The debate floor is open.',
+    'Your next debate starts when you join.'
+  ],
+  '2-4': [
+    'A few debaters are online. Jump in.',
+    'Multiple people are waiting to debate.',
+    'Debate matches are available now.',
+    'Your next opponent is online.',
+    "There's activity on ArgueOut right now.",
+    'Find your next debate before they leave.',
+    'The debate room is warming up.',
+    'Several people are ready to argue.',
+    'Join while the debates are starting.',
+    'Live debates are waiting for you.'
+  ],
+  '5-9': [
+    'The debates are getting active.',
+    'Plenty of people are online right now.',
+    'Find a worthy opponent today.',
+    'Debate with people online now.',
+    'The community is active. Join in.',
+    'Great time to start a debate.',
+    "You'll find a match in seconds.",
+    'More debaters just joined.',
+    'Live debates are happening now.',
+    "Don't miss today's discussions."
+  ],
+  '10-24': [
+    '🔥 10+ people are debating right now.',
+    'The debate arena is buzzing.',
+    'Lots of fresh opponents are online.',
+    'Your next great debate is waiting.',
+    'Join the busiest debates happening now.',
+    'People are matching up fast.',
+    'Find challenging opponents instantly.',
+    'The conversation is heating up.',
+    "Jump into today's live debates.",
+    'This is one of the best times to join.'
+  ],
+  '25-49': [
+    '🚀 Over 25 people are online now.',
+    'The debate rooms are filling up.',
+    'Dozens of debaters are waiting.',
+    'Join the growing debate community.',
+    'New opponents are joining every minute.',
+    'The competition is getting tougher.',
+    'Meet people with different opinions.',
+    'Plenty of debates are happening now.',
+    'Find your perfect debate partner.',
+    'The community is alive. Jump in.'
+  ],
+  '50-99': [
+    '🔥 50+ people are online right now.',
+    'ArgueOut is packed with debaters.',
+    'Never a better time to debate.',
+    'Challenge someone new today.',
+    'The debate community is thriving.',
+    'Join dozens of live conversations.',
+    'Find opponents instantly.',
+    'Live debates are everywhere.',
+    'Your next challenge is waiting.',
+    'The debate floor is busy.'
+  ],
+  '100+': [
+    '🎉 Over 100 people are online!',
+    'ArgueOut is booming right now.',
+    "Hundreds of opinions. What's yours?",
+    'The biggest debates are happening now.',
+    'Find a debate in seconds.',
+    'Join one of the busiest moments on ArgueOut.',
+    'The community is more active than ever.',
+    'Step into a live debate now.',
+    'Your next opponent is already waiting.',
+    'The debate never sleeps. Join now.'
+  ]
+};
+
+function onlineCountBracket(count) {
+  if (count <= 0) return null;
+  if (count === 1) return '1';
+  if (count <= 4) return '2-4';
+  if (count <= 9) return '5-9';
+  if (count <= 24) return '10-24';
+  if (count <= 49) return '25-49';
+  if (count <= 99) return '50-99';
+  return '100+';
+}
+
+const ONLINE_REMINDER_INTERVAL_MS = 20 * 60 * 1000; // check/send every 20 min
+const ONLINE_REMINDER_COOLDOWN_MS = 2 * 60 * 60 * 1000; // at most once per 2h per user
+
+async function sendOnlineCountReminders() {
+  try {
+    const onlineUserIds = new Set([...onlineUsers.values()].map(u => u.userId));
+    const bracket = onlineCountBracket(onlineUserIds.size);
+    if (!bracket) return;
+    const pool = ONLINE_REMINDER_MESSAGES[bracket];
+    const message = pool[Math.floor(Math.random() * pool.length)];
+    const now = Date.now();
+
+    const snap = await fstore.collection('users').where('hasFcmToken', '==', true).get();
+    for (const doc of snap.docs) {
+      if (onlineUserIds.has(doc.id)) continue; // already in the app — no nudge needed
+      const data = doc.data();
+      const tokens = data.fcmTokens || [];
+      if (!tokens.length) continue;
+      const lastSent = data.lastReminderPushAt ? data.lastReminderPushAt.toMillis() : 0;
+      if (now - lastSent < ONLINE_REMINDER_COOLDOWN_MS) continue;
+
+      const invalid = await sendPushToTokens(tokens, { title: 'ArgueOut', body: message }, { type: 'online-reminder' });
+      const updates = { lastReminderPushAt: admin.firestore.FieldValue.serverTimestamp() };
+      if (invalid.length) updates.fcmTokens = admin.firestore.FieldValue.arrayRemove(...invalid);
+      await doc.ref.update(updates).catch(() => {});
+    }
+  } catch (e) { console.error('[online-reminder] error:', e.message); }
+}
+setInterval(sendOnlineCountReminders, ONLINE_REMINDER_INTERVAL_MS);
+
 // -- The Divide: challenge-expiry helpers (top-level so the sweep interval
 // below can call them without needing a live socket connection) -----------
 
@@ -2992,6 +3197,7 @@ io.on('connection', socket => {
       fromUserId: me.userId, fromUsername: me.username, question: question || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     }).catch(err => console.error('[send-challenge] notif persist error:', err.message));
+    sendPushToUser(safeTarget, { title: 'Challenge received', body: notifMsg }, { type: 'challenge', fromUserId: me.userId });
   });
 
   function createDebateRoomForChallenge(challenger, me, question, s1, s2) {
@@ -3190,12 +3396,14 @@ io.on('connection', socket => {
         challengerId: me.userId, challengerUsername: me.username, expiresAt: now + DIVIDE_CHALLENGE_TTL_MS
       };
       if (opponentEntry) io.to(opponentEntry[0]).emit('divide-challenge-received', payload);
+      const divideNotifMsg = `${me.username} challenged you to debate "${question}"`;
       fstore.collection('notifications').doc(opponent.userId).collection('items').add({
-        type: 'divide-challenge', message: `${me.username} challenged you to debate "${question}"`,
+        type: 'divide-challenge', message: divideNotifMsg,
         read: false, pollId: cleanPollId, challengeId: challengeRef.id,
         fromUserId: me.userId, fromUsername: me.username, question,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
+      sendPushToUser(opponent.userId, { title: 'Challenge received', body: divideNotifMsg }, { type: 'challenge', fromUserId: me.userId, pollId: cleanPollId });
 
       socket.emit('divide-challenge-sent', { challengeId: challengeRef.id, opponent: opponentPayload(opponent) });
     } catch (err) {

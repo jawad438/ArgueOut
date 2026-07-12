@@ -5,6 +5,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import auth from '@react-native-firebase/auth';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthScreen from './src/screens/AuthScreen';
+import {initPushNotifications} from './src/services/notifications';
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -12,6 +13,10 @@ export default function App() {
   useEffect(() => {
     return auth().onAuthStateChanged(u => setUser(u ?? null));
   }, []);
+
+  useEffect(() => {
+    if (user) initPushNotifications();
+  }, [user]);
 
   if (user === undefined) return null;
 

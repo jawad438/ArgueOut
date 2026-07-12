@@ -24,6 +24,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.messaging.FirebaseMessaging;
 import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String APP_URL = "https://argueout.onrender.com/lobby";
     private static final int PERMISSION_REQUEST_CODE = 1;
     private static final int IMAGE_PERMISSION_REQUEST_CODE = 2;
+    private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 3;
     private static final int RC_SIGN_IN = 9001;
     private static final int FILE_CHOOSER_RESULT_CODE = 9002;
 
@@ -74,6 +76,31 @@ public class MainActivity extends AppCompatActivity {
         webView = findViewById(R.id.webview);
         setupWebView();
         webView.loadUrl(APP_URL);
+        requestNotificationPermissionIfNeeded();
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 // Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(this, "android.permission.POST_NOTIFICATIONS")
+                    != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{"android.permission.POST_NOTIFICATIONS"}, NOTIFICATION_PERMISSION_REQUEST_CODE);
+        }
+    }
+
+    // Fetches this device's FCM token and hands it to the page's JS, which
+    // forwards it to the server the same way a browser's token would be
+    // (see window.onAndroidFcmToken in push-notifications.js). Called after
+    // every real page load since the user may not be signed in yet on the
+    // first load, and the JS side itself waits for auth before sending.
+    private void forwardFcmToken() {
+        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+            if (!task.isSuccessful() || task.getResult() == null) return;
+            String token = task.getResult();
+            String js = "window.onAndroidFcmToken && window.onAndroidFcmToken("
+                    + JSONObject.quote(token) + ")";
+            webView.post(() -> webView.evaluateJavascript(js, null));
+        });
     }
 
     private void setupWebView() {
@@ -113,6 +140,7 @@ public class MainActivity extends AppCompatActivity {
                 if (url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
                     forceRepaint(view);
                     syncWebViewBackgroundToTheme(view);
+                    forwardFcmToken();
                 }
             }
         });

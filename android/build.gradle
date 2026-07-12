@@ -2,6 +2,13 @@ plugins {
     id 'com.android.application' version '8.2.2' apply false
 }
 
+buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies {
+        classpath 'com.google.gms:google-services:4.4.2'
+    }
+}
+
 // Force all Kotlin stdlib variants to the same version to prevent duplicate class errors.
 // kotlin-stdlib 1.8+ merged jdk7/jdk8 into the main jar; older transitive deps still
 // reference the standalone jdk7/jdk8 artifacts, causing conflicts.
