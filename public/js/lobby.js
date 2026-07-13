@@ -24,6 +24,7 @@ const ICON_CHECK = '<svg style="width:13px;height:13px;vertical-align:-2px" view
 const ICON_X     = '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 const ICON_LINK  = '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 const ICON_BULB  = '<svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>';
+const ICON_SCALE = '<svg style="width:11px;height:11px;vertical-align:-1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3.5 7a3.5 3.5 0 0 0 7 0Z"/><path d="M19 7l-3.5 7a3.5 3.5 0 0 0 7 0Z"/><path d="M7 21h10"/></svg>';
 
 // -- Toast -----------------------------------------------------
 function showToast(message, type = 'info') {
@@ -662,7 +663,9 @@ function openUserProfile(userId) {
     const statusChip = user.inDebate
       ? `<span class="up-status-chip in-debate">In debate</span>`
       : `<span class="up-status-chip online">Online</span>`;
-    const judgeBadge = user.judgeMode ? `<span class="badge badge-purple">⚖️ Judge</span>` : '';
+    const judgeBadge = user.judgeMode
+      ? `<span class="badge badge-purple">${ICON_SCALE} Judge</span>`
+      : '';
     const winsChip    = `<span class="up-status-chip">🏆 ${user.debatesWon || 0} won</span>`;
     upBadges.innerHTML = `<span class="badge ${info.badge}">${escapeHtml(info.label)}</span>${judgeBadge}${statusChip}${winsChip}`;
   }

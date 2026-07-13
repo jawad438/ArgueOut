@@ -1733,6 +1733,15 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   justify-content: center;
   padding: 20px;
 }
+/* Judge Mode confirmation: a proper pop-in instead of appearing flat. The
+   spring easing's overshoot (scale past 1 before settling) is what reads as
+   a "pop" - display:none -> flex naturally replays this each time it opens. */
+@keyframes judgeModalPop {
+  0%   { opacity: 0; transform: scale(0.8) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+#judgeConfirmModal .auth-card { animation: judgeModalPop 420ms var(--ease-spring) both; }
+
 .modal-card {
   background: var(--bg-card);
   border: 1px solid var(--border);

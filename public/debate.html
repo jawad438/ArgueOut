@@ -567,7 +567,7 @@
     </div>
     <div class="control-wrap" id="cwJudge">
       <button class="btn-icon" id="judgeBtn" title="Request a judge" aria-label="Request a judge" onclick="openJudgePanel()">
-        <span style="font-size:1.05rem;line-height:1">⚖️</span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3.5 7a3.5 3.5 0 0 0 7 0Z"/><path d="M19 7l-3.5 7a3.5 3.5 0 0 0 7 0Z"/><path d="M7 21h10"/></svg>
       </button>
       <div class="control-label" id="judgeBtnLabel">Judge</div>
     </div>
@@ -707,7 +707,7 @@
 
     <!-- Judge already attached: option to kick -->
     <div id="judgePanelAttachedView" style="display:none">
-      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px">⚖️ Judge Watching</div>
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px"><svg style="width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3.5 7a3.5 3.5 0 0 0 7 0Z"/><path d="M19 7l-3.5 7a3.5 3.5 0 0 0 7 0Z"/><path d="M7 21h10"/></svg> Judge Watching</div>
       <div style="font-size:0.85rem;color:var(--text-2);margin-bottom:16px"><span id="judgePanelAttachedName"></span> is judging this debate and will score it at the end.</div>
       <button class="btn btn-ghost btn-full" style="color:var(--red);border-color:rgba(239,68,68,0.3)" onclick="proposeKickJudge()">Vote to Remove Judge</button>
     </div>

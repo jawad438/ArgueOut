@@ -92,7 +92,8 @@ function renderWithMentions(text) {
   });
 }
 
-const JUDGE_TAG = '<span class="spec-judge-tag" title="This spectator is judging this debate">⚖️ Judge</span>';
+const ICON_SCALE = '<svg style="width:10px;height:10px;vertical-align:-1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3.5 7a3.5 3.5 0 0 0 7 0Z"/><path d="M19 7l-3.5 7a3.5 3.5 0 0 0 7 0Z"/><path d="M7 21h10"/></svg>';
+const JUDGE_TAG = `<span class="spec-judge-tag" title="This spectator is judging this debate">${ICON_SCALE} Judge</span>`;
 
 function addSpectatorComment(payload) {
   const list = document.getElementById('specComments');
