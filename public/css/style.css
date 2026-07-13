@@ -2292,6 +2292,13 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
     -webkit-backdrop-filter: none !important;
   }
   .navbar { background: var(--bg-1); }
+  /* .auth-card relies on backdrop-filter blur behind a near-transparent fill
+     (--bg-card is ~3.5% white) to read as "glass" - without the blur removed
+     just above, that fill alone is basically see-through, which is glaring
+     wherever the card sits over real page content instead of a plain
+     background (e.g. the "Add another account" / "Switch account" modal on
+     settings/lobby). Give it a solid, still-elevated color here instead. */
+  .auth-card { background: var(--bg-2); }
 }
 
 /* ── 8. VIDEO LAYOUT + DEBATE MOBILE CLEANUP ───────────────────────────────── */
