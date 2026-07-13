@@ -201,6 +201,13 @@ function declineChallenge(notifId, fromUserId, row) {
   setTimeout(loadNotifs, 400);
 }
 
+var VERDICT_ICONS = {
+  won: '<svg style="width:100%;height:100%;color:var(--amber)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 5H4a2 2 0 0 0 2 3.5"/><path d="M17 5h3a2 2 0 0 1-2 3.5"/></svg>',
+  lost: '<svg style="width:100%;height:100%;color:var(--red)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+  draw: '<svg style="width:100%;height:100%;color:var(--text-3)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>',
+  expired: '<svg style="width:100%;height:100%;color:var(--text-3)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 7 12 12 15 15"/></svg>'
+};
+
 function renderNotifs(items) {
   var loadEl = document.getElementById('loadingState');
   var list = document.getElementById('notifListPage');
@@ -223,7 +230,20 @@ function renderNotifs(items) {
     dot.className = 'notif-dot' + (d.read ? ' read' : '');
     var msg = document.createElement('div');
     msg.className = 'notif-msg';
-    msg.textContent = d.message || 'New notification';
+    if (d.type === 'judge-verdict' && VERDICT_ICONS[d.verdict]) {
+      msg.style.display = 'flex';
+      msg.style.alignItems = 'flex-start';
+      msg.style.gap = '6px';
+      var verdictIcon = document.createElement('span');
+      verdictIcon.style.cssText = 'width:15px;height:15px;flex-shrink:0;margin-top:2px';
+      verdictIcon.innerHTML = VERDICT_ICONS[d.verdict];
+      var verdictText = document.createElement('span');
+      verdictText.textContent = d.message || 'New notification';
+      msg.appendChild(verdictIcon);
+      msg.appendChild(verdictText);
+    } else {
+      msg.textContent = d.message || 'New notification';
+    }
     var body = document.createElement('div');
     body.style.flex = '1';
     body.appendChild(msg);

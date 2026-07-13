@@ -858,7 +858,10 @@ socket.on('available-judges-list', ({ judges }) => {
     <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px">
       <div style="width:32px;height:32px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0;overflow:hidden">${j.avatarUrl ? `<img src="${j.avatarUrl}" style="width:100%;height:100%;object-fit:cover">` : (j.username || '?')[0].toUpperCase()}</div>
       <div style="flex:1;font-size:0.88rem;font-weight:600">@${j.username}</div>
-      <button class="btn btn-primary btn-sm" onclick="requestJudge('${j.userId}', '${j.username.replace(/'/g, "\\'")}')">Request</button>
+      <button class="btn btn-primary btn-sm" style="display:inline-flex;align-items:center;gap:5px" onclick="requestJudge('${j.userId}', '${j.username.replace(/'/g, "\\'")}')">
+        <svg style="width:12px;height:12px;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Request
+      </button>
     </div>
   `).join('');
 });
@@ -911,16 +914,29 @@ socket.on('judging-in-progress', () => {
   if (overlay) overlay.classList.add('active');
 });
 
+// Win/lose/draw icons shown once a verdict actually lands, replacing the
+// "still waiting" spinner in the same slot.
+const ICON_TROPHY = '<svg style="width:100%;height:100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 5H4a2 2 0 0 0 2 3.5"/><path d="M17 5h3a2 2 0 0 1-2 3.5"/></svg>';
+const ICON_LOSE   = '<svg style="width:100%;height:100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+const ICON_DRAW   = '<svg style="width:100%;height:100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>';
+
 // In case the debater stayed on the waiting screen instead of exiting.
-socket.on('judge-verdict', ({ message }) => {
+socket.on('judge-verdict', ({ message, won, draw }) => {
   const overlay = document.getElementById('judgeWaitingOverlay');
   if (overlay && overlay.classList.contains('active')) {
-    const h2 = overlay.querySelector('h2');
-    const p  = overlay.querySelector('p');
+    const h2   = overlay.querySelector('h2');
+    const p    = overlay.querySelector('p');
+    const icon = document.getElementById('judgeWaitingIcon');
     if (h2) h2.textContent = 'The Verdict Is In';
     if (p)  p.textContent  = message;
+    if (icon) {
+      icon.style.width = '48px'; icon.style.height = '48px'; icon.style.margin = '0 auto 8px';
+      if (draw) { icon.style.color = 'var(--text-3)'; icon.innerHTML = ICON_DRAW; }
+      else if (won) { icon.style.color = 'var(--amber)'; icon.innerHTML = ICON_TROPHY; }
+      else { icon.style.color = 'var(--red)'; icon.innerHTML = ICON_LOSE; }
+    }
   } else {
-    showToast(message, 'info');
+    showToast(message, draw ? 'info' : (won ? 'success' : 'error'));
   }
 });
 

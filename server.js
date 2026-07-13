@@ -1299,7 +1299,9 @@ app.get('/api/notifications', async (req, res) => {
         fromUsername: data.fromUsername || null,
         question:     data.question || null,
         // Judge-request specific
-        roomId:       data.roomId || null
+        roomId:       data.roomId || null,
+        // Judge-verdict specific: 'won' | 'lost' | 'draw' | 'expired'
+        verdict:      data.verdict || null
       };
     });
     res.json({ items });
@@ -2637,7 +2639,7 @@ setInterval(() => {
     for (const d of [pending.debaterA, pending.debaterB]) {
       const msg = 'The judge did not submit a score in time - no verdict for this debate.';
       fstore.collection('notifications').doc(d.userId).collection('items').add({
-        type: 'judge-verdict', message: msg, read: false,
+        type: 'judge-verdict', message: msg, read: false, verdict: 'expired',
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
       sendPushToUser(d.userId, { title: 'Judge verdict', body: msg }, { type: 'judge-verdict', link: '/notifications' });
@@ -3553,8 +3555,9 @@ io.on('connection', socket => {
 
       for (const [d, other] of [[pending.debaterA, pending.debaterB], [pending.debaterB, pending.debaterA]]) {
         const msg = resultFor(d.userId, other.username);
+        const verdict = !winnerId ? 'draw' : (winnerId === d.userId ? 'won' : 'lost');
         fstore.collection('notifications').doc(d.userId).collection('items').add({
-          type: 'judge-verdict', message: msg, read: false,
+          type: 'judge-verdict', message: msg, read: false, verdict,
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         }).catch(() => {});
         sendPushToUser(d.userId, { title: 'Judge verdict', body: msg }, { type: 'judge-verdict', link: '/notifications' });
