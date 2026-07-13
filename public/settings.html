@@ -157,11 +157,23 @@
         <div><div class="s-row-label">Notifications</div></div>
         <span class="s-row-chevron">›</span>
       </a>
-      <a href="/compass" class="s-row">
+      <a href="/compass" class="s-row" id="compassRow">
         <span class="s-row-icon"><svg style="width:1.1rem;height:1.1rem;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></span>
-        <div><div class="s-row-label">Political Compass</div><div class="s-row-sub">Update your position</div></div>
-        <span class="s-row-chevron">›</span>
+        <div><div class="s-row-label">Political Compass</div><div class="s-row-sub" id="compassRowSub">Update your position</div></div>
+        <span class="s-row-chevron" id="compassRowChevron">›</span>
       </a>
+    </div>
+  </div>
+
+  <!-- Judge Mode -->
+  <div class="s-section">
+    <div class="s-section-label">Judge Mode</div>
+    <div class="s-group" id="judgeGroup">
+      <div class="s-row" style="cursor:default">
+        <span class="s-row-icon">⚖️</span>
+        <div><div class="s-row-label" id="judgeRowLabel">Loading…</div><div class="s-row-sub" id="judgeRowSub"></div></div>
+        <button class="btn btn-sm btn-primary" id="judgeToggleBtn" style="display:none;flex-shrink:0" onclick="becomeJudge()">Become a Judge</button>
+      </div>
     </div>
   </div>
   <div id="acctDropdown" class="acct-dropdown" style="display:none;position:relative;margin:-4px 16px 12px;max-width:none;left:0;right:0">
@@ -341,6 +353,7 @@ firebase.auth().onAuthStateChanged(function (user) {
       el.style.removeProperty('display');
       el.style.removeProperty('margin-top');
     });
+    renderJudgeSection(d);
   });
 
   // Connect socket for invite generation
@@ -353,6 +366,64 @@ firebase.auth().onAuthStateChanged(function (user) {
     window._inviteLink = link;
   });
 });
+
+// Reused verbatim from the client-side centrist definition used everywhere
+// else (compass.js/divide.js/lobby.js): within 0.3 of true center.
+function isCentristPosition(x, y) { return Math.sqrt(x * x + y * y) < 0.3; }
+
+function renderJudgeSection(d) {
+  var label   = document.getElementById('judgeRowLabel');
+  var sub     = document.getElementById('judgeRowSub');
+  var btn     = document.getElementById('judgeToggleBtn');
+  var compassRow    = document.getElementById('compassRow');
+  var compassSub    = document.getElementById('compassRowSub');
+  var compassChev   = document.getElementById('compassRowChevron');
+
+  if (d.judgeMode) {
+    label.textContent = 'Judge Mode Active';
+    sub.textContent = 'Permanent — your political leaning is locked.';
+    btn.style.display = 'none';
+    // Lock the compass row: no more retakes once you're a judge
+    compassRow.removeAttribute('href');
+    compassRow.style.cursor = 'default';
+    compassRow.style.opacity = '0.6';
+    compassRow.onclick = function (e) { e.preventDefault(); };
+    compassSub.textContent = 'Locked — Judge Mode is on';
+    if (compassChev) compassChev.style.display = 'none';
+    return;
+  }
+
+  var centrist = d.compassSet && isCentristPosition(d.politicalX || 0, d.politicalY || 0);
+  if (!d.compassSet) {
+    label.textContent = 'Become a Judge';
+    sub.textContent = 'Take the Political Compass first to check eligibility.';
+  } else if (!centrist) {
+    label.textContent = 'Become a Judge';
+    sub.textContent = 'Only centrists can judge debates.';
+  } else {
+    label.textContent = 'Become a Judge';
+    sub.textContent = 'Score live debates on The Bench. This is permanent.';
+    btn.style.display = 'inline-flex';
+  }
+}
+
+function becomeJudge() {
+  if (!confirm(
+    'Judge Mode is permanent — once enabled it cannot be turned off, and your ' +
+    'political leaning will be locked (you won\'t be able to retake the ' +
+    'Political Compass unless you delete your account). Continue?'
+  )) return;
+  var btn = document.getElementById('judgeToggleBtn');
+  btn.disabled = true;
+  firebase.auth().currentUser.getIdToken().then(function (token) {
+    return fetch('/api/profile/judge-mode', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+  }).then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+    .then(function (res) {
+      if (!res.ok) { showToast(res.data.error || 'Could not enable Judge Mode.', 'error'); btn.disabled = false; return; }
+      showToast('Judge Mode enabled!', 'success');
+      renderJudgeSection({ judgeMode: true });
+    }).catch(function () { showToast('Error enabling Judge Mode.', 'error'); btn.disabled = false; });
+}
 
 function generateInvite() {
   if (!socket) return;

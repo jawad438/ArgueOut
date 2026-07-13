@@ -662,7 +662,9 @@ function openUserProfile(userId) {
     const statusChip = user.inDebate
       ? `<span class="up-status-chip in-debate">In debate</span>`
       : `<span class="up-status-chip online">Online</span>`;
-    upBadges.innerHTML = `<span class="badge ${info.badge}">${escapeHtml(info.label)}</span>${statusChip}`;
+    const judgeBadge = user.judgeMode ? `<span class="badge badge-purple">⚖️ Judge</span>` : '';
+    const winsChip    = `<span class="up-status-chip">🏆 ${user.debatesWon || 0} won</span>`;
+    upBadges.innerHTML = `<span class="badge ${info.badge}">${escapeHtml(info.label)}</span>${judgeBadge}${statusChip}${winsChip}`;
   }
 
   // Mini compass (draw after modal is painted)

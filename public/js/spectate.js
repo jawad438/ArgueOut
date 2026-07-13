@@ -60,6 +60,7 @@ function showDebaterStream(socketId, username, stream) {
 // ── Current user ─────────────────────────────────────────────
 let currentUsername = null;
 let currentSpecId   = null;
+let isJudge          = false;
 
 // ── Debate chat (read-only) ──────────────────────────────────
 function addDebateMessage(username, message, timestamp) {
@@ -91,6 +92,8 @@ function renderWithMentions(text) {
   });
 }
 
+const JUDGE_TAG = '<span class="spec-judge-tag" title="This spectator is judging this debate">⚖️ Judge</span>';
+
 function addSpectatorComment(payload) {
   const list = document.getElementById('specComments');
   if (!list) return;
@@ -102,6 +105,7 @@ function addSpectatorComment(payload) {
   div.innerHTML = `
     <div class="spec-comment-header">
       <span class="spec-comment-author">@${esc(payload.username)}</span>
+      ${payload.isJudge ? JUDGE_TAG : ''}
       <span class="spec-comment-time">${fmtTime(payload.timestamp)}</span>
     </div>
     <div class="spec-comment-body">${renderWithMentions(payload.message)}</div>
@@ -266,6 +270,7 @@ function showDebateUI(data) {
 
   currentUsername = data.currentUsername || null;
   currentSpecId   = data.currentSpecId   || null;
+  isJudge         = !!data.isJudge;
 
   const topicEl = document.getElementById('specTopic');
   if (topicEl) {
@@ -307,6 +312,7 @@ function showDebateUI(data) {
 
   updateSpectatorCount(data.spectatorCount || 0);
   if (currentUsername) spectatorNames.add(currentUsername);
+  if (isJudge) showToast('⚖️ You are judging this debate - you\'ll score it when it ends.', 'info');
 }
 
 function updateSpectatorCount(n) {
@@ -532,6 +538,13 @@ socket.on('question-updated', ({ question }) => {
 
 socket.on('spectator-count', ({ count }) => {
   updateSpectatorCount(count);
+});
+
+// Sent only to the judge's socket (see closeRoom in server.js) - route them
+// to The Bench instead of the normal spectator "this debate has ended"
+// overlay below, which everyone else still gets.
+socket.on('begin-judging', ({ roomId: endedRoomId }) => {
+  window.location.href = '/judge?room=' + encodeURIComponent(endedRoomId || roomId);
 });
 
 socket.on('debate-ended', () => {

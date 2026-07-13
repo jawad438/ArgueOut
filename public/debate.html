@@ -565,6 +565,12 @@
       </button>
       <div class="control-label" style="color:rgba(239,68,68,0.7)">Report</div>
     </div>
+    <div class="control-wrap" id="cwJudge">
+      <button class="btn-icon" id="judgeBtn" title="Request a judge" aria-label="Request a judge" onclick="openJudgePanel()">
+        <span style="font-size:1.05rem;line-height:1">⚖️</span>
+      </button>
+      <div class="control-label" id="judgeBtnLabel">Judge</div>
+    </div>
     <div class="control-wrap" id="cwEnd" style="margin-left:20px">
       <button class="btn-icon danger" id="endBtn" title="End debate" aria-label="End debate">
         <svg class="icon" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07C9.44 17.29 7.76 15.19 6.7 12.77a19.79 19.79 0 0 1-3-8.59 2 2 0 0 1 1.99-2.18H8.5a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L9.5 9.9"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
@@ -681,6 +687,53 @@
   <div style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800;color:var(--red)">Account Suspended</div>
   <div id="banMessage" style="font-size:0.95rem;color:var(--text-2);max-width:400px;line-height:1.6"></div>
   <a href="/login" class="btn btn-ghost btn-sm" style="margin-top:8px">Back to Sign In</a>
+</div>
+
+<!-- Judge panel: request a judge, or (once one is attached) vote to kick -->
+<div class="modal-overlay" id="judgePanelModal" style="display:none" onclick="if(event.target===this)closeJudgePanel()">
+  <div class="auth-card" style="max-width:380px;width:100%;position:relative">
+    <button onclick="closeJudgePanel()" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center" aria-label="Close">
+      <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <!-- No judge yet: pick one to request -->
+    <div id="judgePanelRequestView">
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px">Request a Judge</div>
+      <div style="font-size:0.85rem;color:var(--text-3);margin-bottom:14px">Available centrist judges online right now:</div>
+      <div id="judgePanelList" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto">
+        <div style="text-align:center;padding:16px;font-size:0.85rem;color:var(--text-3)" id="judgePanelLoading">Looking for judges…</div>
+      </div>
+    </div>
+
+    <!-- Judge already attached: option to kick -->
+    <div id="judgePanelAttachedView" style="display:none">
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px">⚖️ Judge Watching</div>
+      <div style="font-size:0.85rem;color:var(--text-2);margin-bottom:16px"><span id="judgePanelAttachedName"></span> is judging this debate and will score it at the end.</div>
+      <button class="btn btn-ghost btn-full" style="color:var(--red);border-color:rgba(239,68,68,0.3)" onclick="proposeKickJudge()">Vote to Remove Judge</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kick-judge confirmation (shown to the OTHER debater when one proposes) -->
+<div class="modal-overlay" id="kickJudgeConfirmModal" style="display:none">
+  <div class="auth-card" style="max-width:380px;width:100%">
+    <div style="font-size:1.1rem;font-weight:700;margin-bottom:8px">Remove the judge?</div>
+    <div id="kickJudgeConfirmText" style="font-size:0.88rem;color:var(--text-2);margin-bottom:18px"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary btn-full" onclick="respondKickJudge(true)">Agree, remove them</button>
+      <button class="btn btn-ghost btn-full" onclick="respondKickJudge(false)">Keep the judge</button>
+    </div>
+  </div>
+</div>
+
+<!-- Waiting-for-judge screen: replaces the normal Debate Ended overlay when a judge is attached -->
+<div class="debate-ended-overlay" id="judgeWaitingOverlay">
+  <div style="margin-bottom:8px;color:var(--purple)"><div class="spinner" style="width:40px;height:40px;border-width:3px;margin:0 auto"></div></div>
+  <h2 style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;margin-bottom:8px">Awaiting the Judge's Decision</h2>
+  <p style="color:var(--text-2);font-size:1rem;margin-bottom:32px;max-width:380px;line-height:1.7">The debate has ended and a judge is scoring it now. You'll get a notification with the result — feel free to leave.</p>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
+    <a href="/lobby" class="btn btn-primary btn-lg">Exit to Lobby</a>
+  </div>
 </div>
 
 <div id="toast-container"></div>

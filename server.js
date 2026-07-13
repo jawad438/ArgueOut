@@ -1297,7 +1297,9 @@ app.get('/api/notifications', async (req, res) => {
         // Challenge-specific fields, used to render Accept/Decline on the page
         fromUserId:   data.fromUserId || null,
         fromUsername: data.fromUsername || null,
-        question:     data.question || null
+        question:     data.question || null,
+        // Judge-request specific
+        roomId:       data.roomId || null
       };
     });
     res.json({ items });
@@ -1326,7 +1328,45 @@ app.post('/api/profile/compass', express.json(), async (req, res) => {
     const y = parseFloat(req.body?.y);
     if (isNaN(x) || isNaN(y) || x < -1 || x > 1 || y < -1 || y > 1)
       return res.status(400).json({ error: 'Invalid compass values' });
-    await fstore.collection('users').doc(decoded.uid).update({ politicalX: x, politicalY: y, compassSet: true });
+    const userRef = fstore.collection('users').doc(decoded.uid);
+    const userDoc = await userRef.get();
+    // Judges permanently commit to their centrist position when they turn
+    // judge mode on - re-taking the compass would let them drift away from
+    // centrist (or shift partisan) while still holding judge powers.
+    if (userDoc.exists && userDoc.data().judgeMode === true) {
+      return res.status(403).json({ error: 'Your political leaning is locked because Judge Mode is on. Delete your account to reset it.' });
+    }
+    await userRef.update({ politicalX: x, politicalY: y, compassSet: true });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// -- Judge Mode --------------------------------------------------
+// Centrist zone reused verbatim from the client-side definition used
+// throughout (compass.js/divide.js/lobby.js): within 0.3 of true center.
+function isCentristPosition(x, y) {
+  return Math.sqrt(x * x + y * y) < 0.3;
+}
+
+// One-directional: turns judgeMode on and nothing in the codebase ever sets
+// it back to false. This is deliberate - judges permanently commit their
+// centrist position (see the /api/profile/compass lock above) in exchange
+// for judge powers, so undoing it would let someone game both sides.
+app.post('/api/profile/judge-mode', express.json(), async (req, res) => {
+  try {
+    const decoded = await getAuthUser(req);
+    if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+    const userRef = fstore.collection('users').doc(decoded.uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    const data = userDoc.data();
+    if (data.judgeMode === true) return res.json({ ok: true }); // already on - idempotent
+    if (!data.compassSet) return res.status(400).json({ error: 'Take the Political Compass first.' });
+    const x = data.politicalX || 0, y = data.politicalY || 0;
+    if (!isCentristPosition(x, y)) return res.status(403).json({ error: 'Judge Mode is only available to centrists.' });
+    await userRef.update({ judgeMode: true });
+    const entry = [...onlineUsers.values()].find(u => u.userId === decoded.uid);
+    if (entry) entry.judgeMode = true;
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
@@ -2520,6 +2560,12 @@ const onlineUsers = new Map();
 // invite token -> { hostUserId, hostUsername, expiresAt }
 const inviteTokens = new Map();
 
+// roomId -> { debaterA, debaterB, question, judgeUserId, judgeUsername, createdAt }
+// Populated by closeRoom() when a room had a judge attached, so scoring can
+// still be resolved (and the debaters notified) even after the live room
+// itself (and the debaters' sockets) is gone - see submit-judge-scores.
+const pendingJudgments = new Map();
+
 // userId -> Set<targetUserId>  - who was suggested to whom (excluded from future suggestions)
 const suggestedMap = new Map();
 // userId -> Set<targetUserId>  - who debated whom (also excluded)
@@ -2574,9 +2620,29 @@ function advanceTurn(roomId) {
   room.turnNumber++;
   startTurn(roomId);
 }
+const JUDGMENT_EXPIRY_MS = 30 * 60 * 1000; // judge has 30 min to submit scores
 setInterval(() => {
   const now = Date.now();
   for (const [t, d] of inviteTokens) if (d.expiresAt < now) inviteTokens.delete(t);
+
+  // A judge who never submits (closed the tab, went AFK) shouldn't leave both
+  // debaters hanging forever - expire the pending judgment and let them know
+  // no verdict is coming, same "don't just go silent" spirit as the Divide
+  // challenge sweep right below.
+  for (const [roomId, pending] of pendingJudgments) {
+    if (now - pending.createdAt < JUDGMENT_EXPIRY_MS) continue;
+    pendingJudgments.delete(roomId);
+    const judgeOnline = [...onlineUsers.values()].find(u => u.userId === pending.judgeUserId);
+    if (judgeOnline) judgeOnline.judgeBusy = false;
+    for (const d of [pending.debaterA, pending.debaterB]) {
+      const msg = 'The judge did not submit a score in time - no verdict for this debate.';
+      fstore.collection('notifications').doc(d.userId).collection('items').add({
+        type: 'judge-verdict', message: msg, read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      }).catch(() => {});
+      sendPushToUser(d.userId, { title: 'Judge verdict', body: msg }, { type: 'judge-verdict', link: '/notifications' });
+    }
+  }
 
   // The Divide: sweep pending challenges past their 15-minute window. A
   // Firestore scheduled Cloud Function would run independent of this
@@ -2621,7 +2687,9 @@ function broadcastOnlineUsers() {
     religion:   u.religion,
     country:    u.country || '',
     bio:        u.bio || '',
-    inDebate:   u.inDebate || false
+    inDebate:   u.inDebate || false,
+    judgeMode:  u.judgeMode || false,
+    debatesWon: u.debatesWon || 0
   }));
   io.emit('online-users', list);
 }
@@ -2759,6 +2827,44 @@ async function sendOnlineCountReminders() {
   } catch (e) { console.error('[online-reminder] error:', e.message); }
 }
 setInterval(sendOnlineCountReminders, ONLINE_REMINDER_INTERVAL_MS);
+
+// -- Judge Mode: live-debate reminders -------------------------------------
+// Mirrors sendOnlineCountReminders above but targeted only at judge-mode
+// users, counting rooms that don't already have a judge attached (a room
+// with a judge isn't something another judge could join anyway).
+const JUDGE_REMINDER_INTERVAL_MS = 20 * 60 * 1000;
+const JUDGE_REMINDER_COOLDOWN_MS = 30 * 60 * 1000; // shorter than the general online-reminder: opt-in, higher-intent audience
+
+async function sendJudgeLiveDebateReminders() {
+  try {
+    let liveUnjudgedCount = 0;
+    for (const room of rooms.values()) {
+      if (room.startedAt && !room.judge) liveUnjudgedCount++;
+    }
+    if (!liveUnjudgedCount) return;
+    const message = liveUnjudgedCount === 1
+      ? 'A live debate is happening right now with no judge yet. Come judge it.'
+      : `${liveUnjudgedCount} live debates are happening right now with no judge yet. Come judge one.`;
+
+    const onlineUserIds = new Set([...onlineUsers.values()].map(u => u.userId));
+    const now = Date.now();
+    const snap = await fstore.collection('users').where('judgeMode', '==', true).where('hasFcmToken', '==', true).get();
+    for (const doc of snap.docs) {
+      if (onlineUserIds.has(doc.id)) continue;
+      const data = doc.data();
+      const tokens = data.fcmTokens || [];
+      if (!tokens.length) continue;
+      const lastSent = data.lastJudgeReminderPushAt ? data.lastJudgeReminderPushAt.toMillis() : 0;
+      if (now - lastSent < JUDGE_REMINDER_COOLDOWN_MS) continue;
+
+      const invalid = await sendPushToTokens(tokens, { title: 'ArgueOut', body: message }, { type: 'judge-reminder', link: '/debates' });
+      const updates = { lastJudgeReminderPushAt: admin.firestore.FieldValue.serverTimestamp() };
+      if (invalid.length) updates.fcmTokens = admin.firestore.FieldValue.arrayRemove(...invalid);
+      await doc.ref.update(updates).catch(() => {});
+    }
+  } catch (e) { console.error('[judge-reminder] error:', e.message); }
+}
+setInterval(sendJudgeLiveDebateReminders, JUDGE_REMINDER_INTERVAL_MS);
 
 // -- The Divide: challenge-expiry helpers (top-level so the sweep interval
 // below can call them without needing a live socket connection) -----------
@@ -2913,7 +3019,10 @@ io.on('connection', socket => {
       religion:   userData.religion,
       country:    userData.country || '',
       bio:        userData.bio || '',
-      inDebate:   false
+      inDebate:   false,
+      judgeMode:  userData.judgeMode === true,
+      judgeBusy:  false,
+      debatesWon: userData.debatesWon || 0
     });
     broadcastOnlineUsers();
 
@@ -3268,6 +3377,195 @@ io.on('connection', socket => {
       fstore.collection('notifications').doc(me.userId).collection('items').doc(String(notifId))
         .update({ read: true }).catch(() => {});
     }
+  });
+
+  // -- Judge Mode: request/accept/decline -------------------------
+  // A judge is just a tagged spectator (room.judge) - see join-spectate and
+  // closeRoom for how that tag changes the end-of-debate flow. Only one
+  // judge per room; a judge can't be requested while busy with another
+  // debate (debating themselves or already judging/awaiting-score elsewhere).
+  socket.on('get-available-judges', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const debaterIds = new Set(room.users.map(u => u.userId));
+    const seen = new Set();
+    const judges = [];
+    for (const u of onlineUsers.values()) {
+      if (!u.judgeMode || u.judgeBusy || u.inDebate) continue;
+      if (debaterIds.has(u.userId) || seen.has(u.userId)) continue;
+      seen.add(u.userId);
+      judges.push({ userId: u.userId, username: u.username, avatarUrl: u.avatarUrl || null });
+    }
+    socket.emit('available-judges-list', { judges });
+  });
+
+  socket.on('request-judge', async ({ roomId, judgeUserId }) => {
+    if (!socketAllow(socket.id, 'request-judge', 10)) return;
+    const me   = onlineUsers.get(socket.id);
+    const room = rooms.get(roomId);
+    if (!me || !room) return;
+    if (!room.users.some(u => u.userId === me.userId)) return; // must be a debater in this room
+    if (room.judge) { socket.emit('judge-request-error', { error: 'This debate already has a judge.' }); return; }
+
+    const judgeUid = safeId(judgeUserId);
+    const judgeEntry = [...onlineUsers.entries()].find(([, u]) => u.userId === judgeUid);
+    if (!judgeEntry || !judgeEntry[1].judgeMode || judgeEntry[1].judgeBusy || judgeEntry[1].inDebate) {
+      socket.emit('judge-request-error', { error: 'That judge is no longer available.' });
+      return;
+    }
+    const [judgeSocketId, judge] = judgeEntry;
+    const notifMsg = `${me.username} requested you to judge their debate.`;
+    let notifRef;
+    try {
+      notifRef = await fstore.collection('notifications').doc(judgeUid).collection('items').add({
+        type: 'judge-request', message: notifMsg, read: false,
+        roomId, fromUserId: me.userId, fromUsername: me.username,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) { console.error('[request-judge] notif persist error:', e.message); }
+    io.to(judgeSocketId).emit('judge-request-received', {
+      roomId, fromUserId: me.userId, fromUsername: me.username, notifId: notifRef?.id
+    });
+    sendPushToUser(judgeUid, { title: 'Judge request', body: notifMsg }, { type: 'judge-request', link: '/notifications' });
+    socket.emit('judge-request-sent', { judgeUsername: judge.username });
+  });
+
+  socket.on('accept-judge-request', ({ roomId, notifId }) => {
+    const me = onlineUsers.get(socket.id);
+    if (!me || !me.judgeMode) return;
+    const room = rooms.get(roomId);
+    if (!room) { socket.emit('judge-request-error', { error: 'This debate has already ended.' }); return; }
+    if (room.judge) { socket.emit('judge-request-error', { error: 'This debate already has a judge.' }); return; }
+    if (me.judgeBusy || me.inDebate) { socket.emit('judge-request-error', { error: 'You are already busy.' }); return; }
+
+    room.judge = { userId: me.userId, socketId: socket.id, username: me.username };
+    me.judgeBusy = true;
+    room.users.forEach(u => { if (u.socketId) io.to(u.socketId).emit('judge-joined', { judgeUsername: me.username }); });
+    socket.emit('judge-request-accepted', { roomId });
+    if (notifId) {
+      fstore.collection('notifications').doc(me.userId).collection('items').doc(String(notifId))
+        .update({ read: true }).catch(() => {});
+    }
+  });
+
+  socket.on('decline-judge-request', ({ notifId }) => {
+    const me = onlineUsers.get(socket.id);
+    if (!me || !notifId) return;
+    fstore.collection('notifications').doc(me.userId).collection('items').doc(String(notifId))
+      .update({ read: true }).catch(() => {});
+  });
+
+  // Kicking a judge needs both debaters to agree (unlike kick-spectator,
+  // which either debater can do unilaterally) - one proposes, the other
+  // must explicitly confirm before the judge is actually removed.
+  socket.on('vote-kick-judge', ({ roomId }) => {
+    const me   = onlineUsers.get(socket.id);
+    const room = rooms.get(roomId);
+    if (!me || !room || !room.judge) return;
+    if (!room.users.some(u => u.userId === me.userId)) return;
+    const other = room.users.find(u => u.userId !== me.userId);
+    if (other?.socketId) io.to(other.socketId).emit('kick-judge-vote-requested', { byUsername: me.username });
+  });
+
+  socket.on('confirm-kick-judge', ({ roomId }) => {
+    const me   = onlineUsers.get(socket.id);
+    const room = rooms.get(roomId);
+    if (!me || !room || !room.judge) return;
+    if (!room.users.some(u => u.userId === me.userId)) return;
+
+    const judge = room.judge;
+    const judgeOnline = [...onlineUsers.values()].find(u => u.userId === judge.userId);
+    if (judgeOnline) judgeOnline.judgeBusy = false;
+    io.to(judge.socketId).emit('spectator-kicked', { reason: 'judge-kicked' });
+    room.spectators = (room.spectators || []).filter(s => s.socketId !== judge.socketId);
+    room.judge = null;
+    room.users.forEach(u => { if (u.socketId) io.to(u.socketId).emit('judge-removed', {}); });
+  });
+
+  // -- Judge Mode: The Bench scoring page --------------------------
+  // These read/write pendingJudgments (populated by closeRoom once the live
+  // room is torn down), not `rooms` - the judge reaches this page after the
+  // debate itself has already ended.
+  socket.on('join-judge-session', ({ roomId }) => {
+    const me = onlineUsers.get(socket.id);
+    const pending = pendingJudgments.get(roomId);
+    if (!me || !pending || pending.judgeUserId !== me.userId) {
+      socket.emit('judge-session-error', { error: 'No pending judgment found for this debate.' });
+      return;
+    }
+    socket.emit('judge-session-joined', {
+      roomId, question: pending.question,
+      debaterA: pending.debaterA, debaterB: pending.debaterB
+    });
+  });
+
+  socket.on('submit-judge-scores', ({ roomId, scores }) => {
+    const me = onlineUsers.get(socket.id);
+    const pending = pendingJudgments.get(roomId);
+    if (!me || !pending || pending.judgeUserId !== me.userId) {
+      socket.emit('judge-session-error', { error: 'No pending judgment found for this debate.' });
+      return;
+    }
+
+    // The Bench Scoring Model: Argument Quality 30%, Responsiveness 25%,
+    // Persuasion 25%, Delivery 20%. Clamp to 1-10 so a missing/garbage slider
+    // value can't skew the weighted average unpredictably.
+    const clamp = v => Math.max(1, Math.min(10, Number(v) || 1));
+    const weighted = s => 0.30 * clamp(s?.argumentQuality)
+                        + 0.25 * clamp(s?.responsiveness)
+                        + 0.25 * clamp(s?.persuasion)
+                        + 0.20 * clamp(s?.delivery);
+    const scoresA = {
+      argumentQuality: clamp(scores?.a?.argumentQuality), responsiveness: clamp(scores?.a?.responsiveness),
+      persuasion:      clamp(scores?.a?.persuasion),      delivery:       clamp(scores?.a?.delivery)
+    };
+    const scoresB = {
+      argumentQuality: clamp(scores?.b?.argumentQuality), responsiveness: clamp(scores?.b?.responsiveness),
+      persuasion:      clamp(scores?.b?.persuasion),      delivery:       clamp(scores?.b?.delivery)
+    };
+    const avgA = weighted(scoresA);
+    const avgB = weighted(scoresB);
+    let winnerId = null;
+    if (avgA > avgB) winnerId = pending.debaterA.userId;
+    else if (avgB > avgA) winnerId = pending.debaterB.userId;
+
+    (async () => {
+      try {
+        await fstore.collection('judgments').add({
+          roomId, question: pending.question,
+          debaterA: { ...pending.debaterA, scores: scoresA, weightedAvg: avgA },
+          debaterB: { ...pending.debaterB, scores: scoresB, weightedAvg: avgB },
+          winnerId, judgeId: me.userId, judgeUsername: me.username,
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        if (winnerId) {
+          await fstore.collection('users').doc(winnerId).update({ debatesWon: admin.firestore.FieldValue.increment(1) });
+          const winnerOnline = [...onlineUsers.values()].find(u => u.userId === winnerId);
+          if (winnerOnline) winnerOnline.debatesWon = (winnerOnline.debatesWon || 0) + 1;
+        }
+      } catch (e) { console.error('[submit-judge-scores] persist error:', e.message); }
+
+      const resultFor = (userId, otherUsername) => !winnerId
+        ? `Your judged debate against ${otherUsername} ended in a draw.`
+        : (winnerId === userId
+          ? `You won your judged debate against ${otherUsername}!`
+          : `You lost your judged debate against ${otherUsername}.`);
+
+      for (const [d, other] of [[pending.debaterA, pending.debaterB], [pending.debaterB, pending.debaterA]]) {
+        const msg = resultFor(d.userId, other.username);
+        fstore.collection('notifications').doc(d.userId).collection('items').add({
+          type: 'judge-verdict', message: msg, read: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        }).catch(() => {});
+        sendPushToUser(d.userId, { title: 'Judge verdict', body: msg }, { type: 'judge-verdict', link: '/notifications' });
+        const entry = [...onlineUsers.entries()].find(([, u]) => u.userId === d.userId);
+        if (entry) io.to(entry[0]).emit('judge-verdict', { message: msg, won: winnerId === d.userId, draw: !winnerId });
+      }
+    })();
+
+    me.judgeBusy = false;
+    pendingJudgments.delete(roomId);
+    socket.emit('judge-scores-submitted', {});
   });
 
   // -- The Divide: poll-based challenge system -------------------
@@ -3938,10 +4236,12 @@ io.on('connection', socket => {
 
     if (!room.spectators) room.spectators = [];
     const specId = uuidv4().slice(0, 8);
+    const isJudge = !!(room.judge && userId && room.judge.userId === userId);
     // Don't add duplicate (e.g. reconnect)
     if (!room.spectators.some(s => s.socketId === socket.id)) {
-      room.spectators.push({ socketId: socket.id, userId, username, specId });
+      room.spectators.push({ socketId: socket.id, userId, username, specId, isJudge });
     }
+    if (isJudge) room.judge.socketId = socket.id; // keep the judge's live socket current across reconnects
     socket.join(roomId);
     socket.data.spectatingRoom = roomId;
     socket.data.specUsername = username;
@@ -3952,7 +4252,8 @@ io.on('connection', socket => {
       users:           room.users.map(u => ({ username: u.username, politicalX: u.politicalX || 0, politicalY: u.politicalY || 0 })),
       spectatorCount:  room.spectators.length,
       currentUsername: username,
-      currentSpecId:   specId
+      currentSpecId:   specId,
+      isJudge
     });
 
     room.users.forEach(u => {
@@ -3977,7 +4278,8 @@ io.on('connection', socket => {
       specId:    spec.specId,
       username:  spec.username,
       message:   clean,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isJudge:   !!spec.isJudge
     };
     // Broadcast to all sockets in the room (debaters + spectators)
     io.to(roomId).emit('spectator-comment', payload);
@@ -4268,7 +4570,32 @@ function closeRoom(roomId, bySocketId, reason) {
     }
   });
 
-  io.to(roomId).emit('debate-ended', { reason, by: bySocketId });
+  // A judged debate doesn't get the normal "Debate ended" screen for the two
+  // debaters - they get a waiting screen until the judge scores it (see
+  // pendingJudgments / submit-judge-scores), while the judge is routed to
+  // The Bench instead of the ordinary spectator "this debate has ended"
+  // overlay. Any other (non-judge) spectators are unaffected.
+  if (room.judge) {
+    const [debaterA, debaterB] = room.users;
+    pendingJudgments.set(roomId, {
+      debaterA: { userId: debaterA.userId, username: debaterA.username },
+      debaterB: { userId: debaterB.userId, username: debaterB.username },
+      question: room.question || null,
+      judgeUserId: room.judge.userId,
+      judgeUsername: room.judge.username,
+      createdAt: Date.now()
+    });
+    room.users.forEach(u => { if (u.socketId) io.to(u.socketId).emit('judging-in-progress', { roomId }); });
+    io.to(room.judge.socketId).emit('begin-judging', {
+      roomId, question: room.question || null,
+      debaterA: { username: debaterA.username }, debaterB: { username: debaterB.username }
+    });
+    (room.spectators || []).forEach(s => {
+      if (s.socketId !== room.judge.socketId) io.to(s.socketId).emit('debate-ended', { reason, by: bySocketId });
+    });
+  } else {
+    io.to(roomId).emit('debate-ended', { reason, by: bySocketId });
+  }
   io.in(roomId).socketsLeave(roomId);
   rooms.delete(roomId);
   roomDeclines.delete(roomId);

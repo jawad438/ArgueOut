@@ -154,9 +154,14 @@
       </div>
     </div>
 
-    <a href="/compass" class="btn btn-ghost btn-sm btn-full">
+    <div id="profileStatsRow" style="display:flex;gap:8px;margin-bottom:12px">
+      <span class="up-status-chip" id="profileWinsChip">🏆 0 won</span>
+      <span class="badge badge-purple" id="profileJudgeBadge" style="display:none">⚖️ Judge</span>
+    </div>
+
+    <a href="/compass" class="btn btn-ghost btn-sm btn-full" id="compassUpdateLink">
       <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></svg>
-      Update Position
+      <span id="compassUpdateLabel">Update Position</span>
     </a>
   </div>
 </div>
@@ -300,6 +305,18 @@ firebase.auth().onAuthStateChanged(async user => {
   }
 
   document.getElementById('epAcctUsername').textContent = '@' + _profile.username;
+
+  document.getElementById('profileWinsChip').textContent = `🏆 ${_profile.debatesWon || 0} won`;
+  if (_profile.judgeMode) {
+    document.getElementById('profileJudgeBadge').style.display = 'inline-flex';
+    // Judges permanently commit their centrist position - no more retakes
+    const compassLink = document.getElementById('compassUpdateLink');
+    compassLink.removeAttribute('href');
+    compassLink.style.opacity = '0.6';
+    compassLink.style.cursor = 'default';
+    compassLink.addEventListener('click', e => e.preventDefault());
+    document.getElementById('compassUpdateLabel').textContent = 'Locked (Judge Mode)';
+  }
 });
 
 // -- Bio edit -----------------------------------------------------

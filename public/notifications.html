@@ -80,6 +80,23 @@
   </div>
 </div>
 
+<!-- Challenge accepted: Join button instead of auto-redirecting -->
+<div class="challenge-notif" id="challengeAcceptedPanel">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex-shrink:0;color:var(--green)"><svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+    <div style="flex:1">
+      <div id="challengeAcceptedText" style="font-size:0.9rem;font-weight:600;margin-bottom:10px">Someone accepted your challenge!</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="joinAcceptedChallengeDebate()">Join Debate</button>
+        <button class="btn btn-ghost btn-sm" onclick="dismissChallengeAcceptedNotif()">Dismiss</button>
+      </div>
+    </div>
+    <button onclick="dismissChallengeAcceptedNotif()" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -110,16 +127,62 @@ socket.on('connect', function () {
 });
 socket.on('authenticated', function () { socketReady = true; });
 
+// Same reasoning as lobby.js/divide.js: don't auto-redirect into the debate,
+// just surface a Join button so accepting doesn't yank whoever's looking at
+// their notifications into a debate with no way to opt out.
+var pendingChallengeAcceptedRoom = null;
+var pendingChallengeAcceptedOpponent = null;
+
+function joinAcceptedChallengeDebate() {
+  if (!pendingChallengeAcceptedRoom) return;
+  localStorage.setItem('debateRoomId', pendingChallengeAcceptedRoom);
+  localStorage.setItem('debateOpponent', JSON.stringify(pendingChallengeAcceptedOpponent || {}));
+  window.location.href = '/debate?room=' + encodeURIComponent(pendingChallengeAcceptedRoom);
+}
+
+function dismissChallengeAcceptedNotif() {
+  var panel = document.getElementById('challengeAcceptedPanel');
+  if (panel) panel.classList.remove('active');
+  pendingChallengeAcceptedRoom = null;
+  pendingChallengeAcceptedOpponent = null;
+}
+
 socket.on('challenge-accepted', function (data) {
-  showToast('Challenge accepted! Starting debate…', 'success');
-  localStorage.setItem('debateRoomId', data.roomId);
-  localStorage.setItem('debateOpponent', JSON.stringify(data.opponent));
+  pendingChallengeAcceptedRoom = data.roomId;
+  pendingChallengeAcceptedOpponent = data.opponent;
   if (data.question) localStorage.setItem('debateQuestion', data.question);
   else localStorage.removeItem('debateQuestion');
-  setTimeout(function () { window.location.href = '/debate?room=' + encodeURIComponent(data.roomId); }, 500);
+  var textEl = document.getElementById('challengeAcceptedText');
+  if (textEl && data.opponent) textEl.textContent = data.opponent.username + ' accepted your challenge!';
+  var panel = document.getElementById('challengeAcceptedPanel');
+  if (panel) panel.classList.add('active');
 });
 
 socket.on('challenge-error', function (data) {
+  showToast(data.error || 'Something went wrong.', 'error');
+  loadNotifs();
+});
+
+// -- Judge Mode: accept/decline requests, and follow the judge into the debate --
+function acceptJudgeRequest(notifId, roomId, row) {
+  if (!socketReady) { showToast('Still connecting — try again in a moment.', 'info'); return; }
+  row.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+  socket.emit('accept-judge-request', { roomId: roomId, notifId: notifId });
+}
+
+function declineJudgeRequest(notifId, row) {
+  if (!socketReady) { showToast('Still connecting — try again in a moment.', 'info'); return; }
+  row.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+  socket.emit('decline-judge-request', { notifId: notifId });
+  showToast('Judge request declined.', 'info');
+  setTimeout(loadNotifs, 400);
+}
+
+socket.on('judge-request-accepted', function (data) {
+  window.location.href = '/spectate?room=' + encodeURIComponent(data.roomId);
+});
+
+socket.on('judge-request-error', function (data) {
   showToast(data.error || 'Something went wrong.', 'error');
   loadNotifs();
 });
@@ -186,6 +249,23 @@ function renderNotifs(items) {
       actions.appendChild(acceptBtn);
       actions.appendChild(declineBtn);
       body.appendChild(actions);
+    }
+    if (d.type === 'judge-request' && d.roomId && !d.read) {
+      (function (notifId, roomId) {
+        var actions = document.createElement('div');
+        actions.className = 'notif-actions';
+        var acceptBtn = document.createElement('button');
+        acceptBtn.className = 'btn btn-primary btn-sm';
+        acceptBtn.textContent = 'Accept & Watch';
+        acceptBtn.onclick = function () { acceptJudgeRequest(notifId, roomId, row); };
+        var declineBtn = document.createElement('button');
+        declineBtn.className = 'btn btn-ghost btn-sm';
+        declineBtn.textContent = 'Decline';
+        declineBtn.onclick = function () { declineJudgeRequest(notifId, row); };
+        actions.appendChild(acceptBtn);
+        actions.appendChild(declineBtn);
+        body.appendChild(actions);
+      })(d.id, d.roomId);
     }
     row.appendChild(dot);
     row.appendChild(body);

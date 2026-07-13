@@ -772,7 +772,9 @@ socket.on('question-requested', ({ fromUsername }) => {
 });
 
 // -- Debate ended ----------------------------------------------
-socket.on('debate-ended', ({ reason }) => {
+// Shared by both the normal end (debate-ended) and the judged end
+// (judging-in-progress) - only which overlay gets shown afterward differs.
+function teardownDebateMedia() {
   localStorage.removeItem('debateQuestion');
   clearInterval(timerInterval);
   clearInterval(turnCountdownInterval);
@@ -784,9 +786,11 @@ socket.on('debate-ended', ({ reason }) => {
   if (rawMicStream && rawMicStream !== localStream) rawMicStream.getTracks().forEach(t => t.stop());
   if (rnnoiseState && rnnoiseModule) { rnnoiseModule._rnnoise_destroy(rnnoiseState); rnnoiseState = null; }
   if (rnnoiseAudioCtx) { rnnoiseAudioCtx.close().catch(() => {}); rnnoiseAudioCtx = null; }
-
   markAllImagesExpired();
+}
 
+socket.on('debate-ended', ({ reason }) => {
+  teardownDebateMedia();
   const overlay  = document.getElementById('endedOverlay');
   const reasonEl = document.getElementById('endedReason');
   if (overlay)  overlay.classList.add('active');
@@ -794,6 +798,129 @@ socket.on('debate-ended', ({ reason }) => {
     reasonEl.textContent = reason === 'disconnect'
       ? 'Your opponent disconnected.'
       : 'The debate has concluded. Well argued!';
+  }
+});
+
+// -- Judge Mode --------------------------------------------------
+let currentJudgeUsername = null;
+
+function updateJudgeButtonUI() {
+  const label = document.getElementById('judgeBtnLabel');
+  const btn   = document.getElementById('judgeBtn');
+  if (!label || !btn) return;
+  if (currentJudgeUsername) {
+    label.textContent = 'Judging';
+    btn.title = `${currentJudgeUsername} is judging - tap to vote to remove`;
+  } else {
+    label.textContent = 'Judge';
+    btn.title = 'Request a judge';
+  }
+}
+
+function openJudgePanel() {
+  const modal = document.getElementById('judgePanelModal');
+  const reqView = document.getElementById('judgePanelRequestView');
+  const attView = document.getElementById('judgePanelAttachedView');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  if (currentJudgeUsername) {
+    reqView.style.display = 'none';
+    attView.style.display = 'block';
+    document.getElementById('judgePanelAttachedName').textContent = '@' + currentJudgeUsername;
+  } else {
+    reqView.style.display = 'block';
+    attView.style.display = 'none';
+    const list = document.getElementById('judgePanelList');
+    if (list) list.innerHTML = '<div style="text-align:center;padding:16px;font-size:0.85rem;color:var(--text-3)" id="judgePanelLoading">Looking for judges…</div>';
+    socket.emit('get-available-judges', { roomId });
+  }
+}
+
+function closeJudgePanel() {
+  const modal = document.getElementById('judgePanelModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function requestJudge(judgeUserId, judgeUsername) {
+  socket.emit('request-judge', { roomId, judgeUserId });
+  showToast(`Request sent to @${judgeUsername}`, 'info');
+  closeJudgePanel();
+}
+
+socket.on('available-judges-list', ({ judges }) => {
+  const list = document.getElementById('judgePanelList');
+  if (!list) return;
+  if (!judges || !judges.length) {
+    list.innerHTML = '<div style="text-align:center;padding:16px;font-size:0.85rem;color:var(--text-3)">No judges are available right now.</div>';
+    return;
+  }
+  list.innerHTML = judges.map(j => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px">
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0;overflow:hidden">${j.avatarUrl ? `<img src="${j.avatarUrl}" style="width:100%;height:100%;object-fit:cover">` : (j.username || '?')[0].toUpperCase()}</div>
+      <div style="flex:1;font-size:0.88rem;font-weight:600">@${j.username}</div>
+      <button class="btn btn-primary btn-sm" onclick="requestJudge('${j.userId}', '${j.username.replace(/'/g, "\\'")}')">Request</button>
+    </div>
+  `).join('');
+});
+
+socket.on('judge-request-sent', ({ judgeUsername }) => {
+  showToast(`Waiting for @${judgeUsername} to accept…`, 'info');
+});
+
+socket.on('judge-request-error', ({ error }) => {
+  showToast(error, 'error');
+});
+
+socket.on('judge-joined', ({ judgeUsername }) => {
+  currentJudgeUsername = judgeUsername;
+  updateJudgeButtonUI();
+  showToast(`⚖️ @${judgeUsername} has joined to judge this debate`, 'success');
+});
+
+socket.on('judge-removed', () => {
+  currentJudgeUsername = null;
+  updateJudgeButtonUI();
+  showToast('The judge has been removed from this debate.', 'info');
+});
+
+function proposeKickJudge() {
+  socket.emit('vote-kick-judge', { roomId });
+  showToast('Waiting for your opponent to confirm…', 'info');
+  closeJudgePanel();
+}
+
+socket.on('kick-judge-vote-requested', ({ byUsername }) => {
+  const modal = document.getElementById('kickJudgeConfirmModal');
+  const text  = document.getElementById('kickJudgeConfirmText');
+  if (text) text.textContent = `@${byUsername} wants to remove the judge from this debate. Do you agree?`;
+  if (modal) modal.style.display = 'flex';
+});
+
+function respondKickJudge(agree) {
+  const modal = document.getElementById('kickJudgeConfirmModal');
+  if (modal) modal.style.display = 'none';
+  if (agree) socket.emit('confirm-kick-judge', { roomId });
+}
+
+// A judged debate doesn't end with the normal "Debate Ended" screen - the
+// debaters get a waiting screen until the judge scores it (they can leave;
+// the result reaches them via push/notification either way).
+socket.on('judging-in-progress', () => {
+  teardownDebateMedia();
+  const overlay = document.getElementById('judgeWaitingOverlay');
+  if (overlay) overlay.classList.add('active');
+});
+
+// In case the debater stayed on the waiting screen instead of exiting.
+socket.on('judge-verdict', ({ message }) => {
+  const overlay = document.getElementById('judgeWaitingOverlay');
+  if (overlay && overlay.classList.contains('active')) {
+    const h2 = overlay.querySelector('h2');
+    const p  = overlay.querySelector('p');
+    if (h2) h2.textContent = 'The Verdict Is In';
+    if (p)  p.textContent  = message;
+  } else {
+    showToast(message, 'info');
   }
 });
 
