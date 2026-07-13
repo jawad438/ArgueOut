@@ -275,6 +275,24 @@
   <button class="s-sign-out" onclick="signOut()">Sign Out</button>
 </div>
 
+<!-- Judge Mode confirmation -->
+<div class="modal-overlay" id="judgeConfirmModal" style="display:none" onclick="if(event.target===this)closeJudgeConfirmModal()">
+  <div class="auth-card" style="max-width:400px;width:100%;position:relative">
+    <button onclick="closeJudgeConfirmModal()" style="position:absolute;top:14px;right:14px;background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;display:flex;align-items:center" aria-label="Close">
+      <svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div style="font-size:1.8rem;margin-bottom:10px">⚖️</div>
+    <div style="font-size:1.1rem;font-weight:700;font-family:'Space Grotesk',sans-serif;margin-bottom:10px">Become a Judge?</div>
+    <div style="font-size:0.88rem;color:var(--text-2);line-height:1.6;margin-bottom:22px">
+      This is <strong>permanent</strong> — once enabled, Judge Mode can't be turned off, and your political leaning will be locked. You won't be able to retake the Political Compass unless you delete your account.
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost btn-full" onclick="closeJudgeConfirmModal()">Cancel</button>
+      <button class="btn btn-primary btn-full" id="judgeConfirmBtn" onclick="confirmBecomeJudge()">Become a Judge</button>
+    </div>
+  </div>
+</div>
+
 <!-- Account switch / add modal -->
 <div class="modal-overlay" id="acctModal" style="display:none" onclick="if(event.target===this)closeAcctModal()">
   <div class="auth-card" style="max-width:380px;width:100%;position:relative">
@@ -408,21 +426,33 @@ function renderJudgeSection(d) {
 }
 
 function becomeJudge() {
-  if (!confirm(
-    'Judge Mode is permanent — once enabled it cannot be turned off, and your ' +
-    'political leaning will be locked (you won\'t be able to retake the ' +
-    'Political Compass unless you delete your account). Continue?'
-  )) return;
-  var btn = document.getElementById('judgeToggleBtn');
-  btn.disabled = true;
+  document.getElementById('judgeConfirmModal').style.display = 'flex';
+}
+
+function closeJudgeConfirmModal() {
+  document.getElementById('judgeConfirmModal').style.display = 'none';
+}
+
+function confirmBecomeJudge() {
+  var confirmBtn = document.getElementById('judgeConfirmBtn');
+  var toggleBtn  = document.getElementById('judgeToggleBtn');
+  confirmBtn.disabled = true;
+  toggleBtn.disabled  = true;
   firebase.auth().currentUser.getIdToken().then(function (token) {
     return fetch('/api/profile/judge-mode', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
   }).then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
     .then(function (res) {
-      if (!res.ok) { showToast(res.data.error || 'Could not enable Judge Mode.', 'error'); btn.disabled = false; return; }
+      closeJudgeConfirmModal();
+      confirmBtn.disabled = false;
+      if (!res.ok) { showToast(res.data.error || 'Could not enable Judge Mode.', 'error'); toggleBtn.disabled = false; return; }
       showToast('Judge Mode enabled!', 'success');
       renderJudgeSection({ judgeMode: true });
-    }).catch(function () { showToast('Error enabling Judge Mode.', 'error'); btn.disabled = false; });
+    }).catch(function () {
+      closeJudgeConfirmModal();
+      confirmBtn.disabled = false;
+      showToast('Error enabling Judge Mode.', 'error');
+      toggleBtn.disabled = false;
+    });
 }
 
 function generateInvite() {
