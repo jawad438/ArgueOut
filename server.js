@@ -1144,6 +1144,26 @@ app.post('/api/profile/avatar', async (req, res) => {
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
+// Serves a user's avatar as a real image response (decoded from the
+// data:image/...;base64,... stored on their profile) instead of the raw
+// base64 string - lets push notifications (FCM data payloads are capped
+// around 4KB) and native Android reference it by a small URL rather than
+// embedding the image itself. No auth: avatars are already broadcast to
+// every online user via the lobby directory, so this exposes nothing new.
+app.get('/api/avatar/:userId', async (req, res) => {
+  try {
+    const uid = safeId(req.params.userId);
+    if (!uid) return res.status(400).end();
+    const doc = await fstore.collection('users').doc(uid).get();
+    const avatarUrl = doc.exists ? doc.data().avatarUrl : null;
+    const match = typeof avatarUrl === 'string' && avatarUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) return res.status(404).end();
+    res.set('Content-Type', match[1]);
+    res.set('Cache-Control', 'public, max-age=300');
+    res.send(Buffer.from(match[2], 'base64'));
+  } catch (e) { res.status(500).end(); }
+});
+
 app.post('/api/profile/username', async (req, res) => {
   const decoded = await getAuthUser(req);
   if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
@@ -3330,7 +3350,7 @@ io.on('connection', socket => {
     // them if they're actively looking at the site right now.
     sendPushToUser(challenger.userId,
       { title: 'Challenge accepted', body: `${me.username} accepted your challenge! Tap to join.` },
-      { type: 'challenge-accepted', link: `/debate?room=${roomId}` });
+      { type: 'challenge-accepted', fromUserId: me.userId, link: `/debate?room=${roomId}` });
   }
 
   socket.on('accept-challenge', ({ challengerSocketId }) => {
@@ -3428,7 +3448,7 @@ io.on('connection', socket => {
     io.to(judgeSocketId).emit('judge-request-received', {
       roomId, fromUserId: me.userId, fromUsername: me.username, notifId: notifRef?.id
     });
-    sendPushToUser(judgeUid, { title: 'Judge request', body: notifMsg }, { type: 'judge-request', link: '/notifications' });
+    sendPushToUser(judgeUid, { title: 'Judge request', body: notifMsg }, { type: 'judge-request', fromUserId: me.userId, link: '/notifications' });
     socket.emit('judge-request-sent', { judgeUsername: judge.username });
   });
 
@@ -3558,9 +3578,10 @@ io.on('connection', socket => {
         const verdict = !winnerId ? 'draw' : (winnerId === d.userId ? 'won' : 'lost');
         fstore.collection('notifications').doc(d.userId).collection('items').add({
           type: 'judge-verdict', message: msg, read: false, verdict,
+          fromUserId: pending.judgeUserId,
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         }).catch(() => {});
-        sendPushToUser(d.userId, { title: 'Judge verdict', body: msg }, { type: 'judge-verdict', link: '/notifications' });
+        sendPushToUser(d.userId, { title: 'Judge verdict', body: msg }, { type: 'judge-verdict', fromUserId: pending.judgeUserId, link: '/notifications' });
         const entry = [...onlineUsers.entries()].find(([, u]) => u.userId === d.userId);
         if (entry) io.to(entry[0]).emit('judge-verdict', { message: msg, won: winnerId === d.userId, draw: !winnerId });
       }
@@ -3594,7 +3615,7 @@ io.on('connection', socket => {
     s2.emit('divide-challenge-accepted', { roomId, question, opponent: { username: userA.username, politicalX: userA.politicalX, politicalY: userA.politicalY } });
     sendPushToUser(userA.userId,
       { title: 'Challenge accepted', body: `${userB.username} accepted your challenge! Tap to join.` },
-      { type: 'challenge-accepted', link: `/debate?room=${roomId}` });
+      { type: 'challenge-accepted', fromUserId: userB.userId, link: `/debate?room=${roomId}` });
     return roomId;
   }
 

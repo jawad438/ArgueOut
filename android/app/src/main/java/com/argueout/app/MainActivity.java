@@ -31,7 +31,7 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String BASE_URL = "https://argueout.onrender.com";
+    static final String BASE_URL = "https://argueout.onrender.com"; // package-visible: FCMService reuses this for avatar fetches
     private static final String APP_URL = BASE_URL + "/lobby";
     private static final int PERMISSION_REQUEST_CODE = 1;
     private static final int IMAGE_PERMISSION_REQUEST_CODE = 2;
