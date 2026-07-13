@@ -292,6 +292,23 @@
   </div>
 </div>
 
+<!-- Divide challenge accepted: Join button instead of auto-redirecting -->
+<div class="challenge-notif" id="divideChallengeAcceptedPanel">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex-shrink:0;color:var(--green)"><svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+    <div style="flex:1">
+      <div id="divideChallengeAcceptedText" style="font-size:0.9rem;font-weight:600;margin-bottom:10px">Someone accepted your challenge!</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="joinAcceptedDivideDebate()">Join Debate</button>
+        <button class="btn btn-ghost btn-sm" onclick="dismissDivideAcceptedNotif()">Dismiss</button>
+      </div>
+    </div>
+    <button onclick="dismissDivideAcceptedNotif()" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:2px;display:flex;align-items:center;flex-shrink:0">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+
 <!-- Challenge recommendation: shows who the server picked *before* anything is
      sent, so the challenger can confirm or ask for someone else rather than a
      challenge firing off automatically the instant the button is tapped -->

@@ -827,14 +827,48 @@ socket.on('challenge-received', ({ from, question }) => {
   }, 30000);
 });
 
+// Challenge acceptance used to auto-redirect into the debate after a short
+// delay, which yanked the challenger away from whatever they were doing on
+// the site with no way to opt out. Now it just surfaces a Join Debate
+// button (same pattern as invite-accepted below) so joining is a deliberate
+// click; the phone push (sent server-side alongside this socket event)
+// covers the case where they're not even looking at the site.
+let pendingChallengeAcceptedRoom     = null;
+let pendingChallengeAcceptedOpponent = null;
+
+function joinAcceptedChallengeDebate() {
+  if (!pendingChallengeAcceptedRoom) return;
+  localStorage.setItem('debateRoomId', pendingChallengeAcceptedRoom);
+  localStorage.setItem('debateOpponent', JSON.stringify(pendingChallengeAcceptedOpponent || {}));
+  window.location.href = `/debate?room=${encodeURIComponent(pendingChallengeAcceptedRoom)}`;
+}
+
+function dismissChallengeAcceptedNotif() {
+  const panel = document.getElementById('challengeAcceptedPanel');
+  if (panel) panel.classList.remove('active');
+  pendingChallengeAcceptedRoom     = null;
+  pendingChallengeAcceptedOpponent = null;
+}
+
 socket.on('challenge-accepted', ({ roomId, opponent, question }) => {
   addToNotifHistory({ icon: ICON_CHECK, text: `${opponent.username} accepted your challenge!` });
-  showToast(`Challenge accepted! Starting debate...`, 'success');
-  localStorage.setItem('debateRoomId', roomId);
-  localStorage.setItem('debateOpponent', JSON.stringify(opponent));
+  pendingChallengeAcceptedRoom     = roomId;
+  pendingChallengeAcceptedOpponent = opponent;
   if (question) localStorage.setItem('debateQuestion', question);
   else          localStorage.removeItem('debateQuestion');
-  setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
+
+  if (Notification.permission === 'granted') {
+    const n = new Notification('ArgueOut', {
+      body: `${opponent.username} accepted your challenge! Click to join.`,
+      icon: '/logo.png'
+    });
+    n.onclick = () => { window.focus(); joinAcceptedChallengeDebate(); };
+  }
+
+  const notifText = document.getElementById('challengeAcceptedText');
+  if (notifText) notifText.textContent = `${opponent.username} accepted your challenge!`;
+  const panel = document.getElementById('challengeAcceptedPanel');
+  if (panel) panel.classList.add('active');
 });
 
 // -- Invite link events ----------------------------------------

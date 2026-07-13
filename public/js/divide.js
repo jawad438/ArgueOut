@@ -208,12 +208,41 @@ socket.on('divide-challenge-received', (payload) => {
   startDivideCountdown(payload.expiresAt);
 });
 
+// Same reasoning as the main challenge system's challenge-accepted handler
+// in lobby.js: don't auto-redirect into the debate, just surface a Join
+// button (phone push, sent server-side, covers the not-looking-at-the-site case).
+let pendingDivideAcceptedRoom     = null;
+let pendingDivideAcceptedOpponent = null;
+
+function joinAcceptedDivideDebate() {
+  if (!pendingDivideAcceptedRoom) return;
+  localStorage.setItem('debateRoomId', pendingDivideAcceptedRoom);
+  localStorage.setItem('debateOpponent', JSON.stringify(pendingDivideAcceptedOpponent || {}));
+  window.location.href = `/debate?room=${encodeURIComponent(pendingDivideAcceptedRoom)}`;
+}
+
+function dismissDivideAcceptedNotif() {
+  document.getElementById('divideChallengeAcceptedPanel')?.classList.remove('active');
+  pendingDivideAcceptedRoom     = null;
+  pendingDivideAcceptedOpponent = null;
+}
+
 socket.on('divide-challenge-accepted', ({ roomId, opponent, question }) => {
-  showToast('Challenge accepted! Starting debate...', 'success');
-  localStorage.setItem('debateRoomId', roomId);
-  localStorage.setItem('debateOpponent', JSON.stringify(opponent));
+  pendingDivideAcceptedRoom     = roomId;
+  pendingDivideAcceptedOpponent = opponent;
   if (question) localStorage.setItem('debateQuestion', question); else localStorage.removeItem('debateQuestion');
-  setTimeout(() => { window.location.href = `/debate?room=${encodeURIComponent(roomId)}`; }, 600);
+
+  if (Notification.permission === 'granted') {
+    const n = new Notification('ArgueOut', {
+      body: `${opponent.username} accepted your challenge! Click to join.`,
+      icon: '/logo.png'
+    });
+    n.onclick = () => { window.focus(); joinAcceptedDivideDebate(); };
+  }
+
+  const textEl = document.getElementById('divideChallengeAcceptedText');
+  if (textEl) textEl.textContent = `${opponent.username} accepted your challenge!`;
+  document.getElementById('divideChallengeAcceptedPanel')?.classList.add('active');
 });
 
 function startDivideCountdown(expiresAt) {

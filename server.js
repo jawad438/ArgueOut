@@ -3215,6 +3215,11 @@ io.on('connection', socket => {
     addDebated(challenger.userId, me.userId);
     s1.emit('challenge-accepted', { roomId, question, opponent: { username: me.username,         politicalX: me.politicalX,         politicalY: me.politicalY         } });
     s2.emit('challenge-accepted', { roomId, question, opponent: { username: challenger.username, politicalX: challenger.politicalX, politicalY: challenger.politicalY } });
+    // Push to the challenger's phone too - the socket event above only reaches
+    // them if they're actively looking at the site right now.
+    sendPushToUser(challenger.userId,
+      { title: 'Challenge accepted', body: `${me.username} accepted your challenge! Tap to join.` },
+      { type: 'challenge-accepted', link: `/debate?room=${roomId}` });
   }
 
   socket.on('accept-challenge', ({ challengerSocketId }) => {
@@ -3286,6 +3291,9 @@ io.on('connection', socket => {
     addDebated(userA.userId, userB.userId);
     s1.emit('divide-challenge-accepted', { roomId, question, opponent: { username: userB.username, politicalX: userB.politicalX, politicalY: userB.politicalY } });
     s2.emit('divide-challenge-accepted', { roomId, question, opponent: { username: userA.username, politicalX: userA.politicalX, politicalY: userA.politicalY } });
+    sendPushToUser(userA.userId,
+      { title: 'Challenge accepted', body: `${userB.username} accepted your challenge! Tap to join.` },
+      { type: 'challenge-accepted', link: `/debate?room=${roomId}` });
     return roomId;
   }
 
