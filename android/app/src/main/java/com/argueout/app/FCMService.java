@@ -102,10 +102,14 @@ public class FCMService extends FirebaseMessagingService {
     private Bitmap fetchAvatar(String userId) {
         HttpURLConnection conn = null;
         try {
+            // Firebase gives onMessageReceived-triggered background work roughly
+            // 10s total before the process can be frozen, so this can't be pushed
+            // much further - it helps a merely-slow response, not a genuine Render
+            // free-tier cold start (30-60s), which no client-side timeout can cover.
             URL url = new URL(MainActivity.BASE_URL + "/api/avatar/" + userId);
             conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(4000);
-            conn.setReadTimeout(4000);
+            conn.setConnectTimeout(6000);
+            conn.setReadTimeout(6000);
             if (conn.getResponseCode() != 200) return null;
             try (InputStream in = conn.getInputStream()) {
                 return BitmapFactory.decodeStream(in);
