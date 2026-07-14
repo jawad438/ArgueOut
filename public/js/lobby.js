@@ -1772,7 +1772,7 @@ async function requestDeletion() {
   if (!btn) return;
   const user = auth.currentUser;
   if (!user) return;
-  if (!confirm('Request account deletion?\n\nYour request will be reviewed by an admin. Once approved your account and all data will be permanently removed. This cannot be undone.')) return;
+  if (!(await appConfirm('Your request will be reviewed by an admin. Once approved your account and all data will be permanently removed. This cannot be undone.', { title: 'Request account deletion?' }))) return;
   btn.disabled = true;
   statusEl.style.display = 'none';
   try {

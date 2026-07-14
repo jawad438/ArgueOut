@@ -251,7 +251,7 @@ async function createWl() {
 }
 
 async function revokeWl(username) {
-  if (!confirm(`Revoke whitelist link for @${username}?\n\nThis will remove their account and the link will stop working.`)) return;
+  if (!(await appConfirm('This will remove their account and the link will stop working.', { title: `Revoke whitelist link for @${username}?` }))) return;
   try {
     const token = await adminToken();
     const res = await fetch('/api/admin/whitelist/' + encodeURIComponent(username), {
@@ -343,8 +343,8 @@ function timeoutFromReport(reportId, targetUserId) {
   setTimeout(() => loadReports(currentFilter), 500);
 }
 
-function banFromReport(targetUserId) {
-  if (!confirm('Permanently ban this user?')) return;
+async function banFromReport(targetUserId) {
+  if (!(await appConfirm('Permanently ban this user?'))) return;
   socket.emit('admin-ban-user', { targetUserId, durationMs: null });
   showToast('User permanently banned.', 'success');
   setTimeout(() => loadReports(currentFilter), 500);
@@ -394,7 +394,7 @@ function dismissPollReport(reportId) {
 }
 
 async function deletePollFromReport(reportId, pollId) {
-  if (!confirm('Permanently delete this poll, along with all its votes and comments? This cannot be undone.')) return;
+  if (!(await appConfirm('This cannot be undone.', { title: 'Permanently delete this poll, along with all its votes and comments?' }))) return;
   try {
     const token = await adminToken();
     const res = await fetch(`/api/polls/${pollId}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
@@ -563,8 +563,8 @@ function timeoutUser(uid) {
   socket.emit('admin-ban-user', { targetUserId: uid, durationMs });
 }
 
-function banUser(uid) {
-  if (!confirm('Permanently ban this user?')) return;
+async function banUser(uid) {
+  if (!(await appConfirm('Permanently ban this user?'))) return;
   socket.emit('admin-ban-user', { targetUserId: uid, durationMs: null });
 }
 
@@ -572,8 +572,8 @@ function unbanUser(uid) {
   socket.emit('admin-unban-user', { targetUserId: uid });
 }
 
-function ipBanUser(uid, username) {
-  if (!confirm(`IP ban @${username}? This permanently blocks their network.\nUser must be currently online for this to work.`)) return;
+async function ipBanUser(uid, username) {
+  if (!(await appConfirm('This permanently blocks their network. User must be currently online for this to work.', { title: `IP ban @${username}?` }))) return;
   socket.emit('admin-ip-ban', { targetUserId: uid });
 }
 
@@ -710,7 +710,7 @@ async function loadDeletionRequests() {
 }
 
 async function confirmDeleteUser(uid, username) {
-  if (!confirm(`Permanently delete @${username}?\n\nThis will:\n• Remove their Firebase Auth account\n• Delete their Firestore profile\n• Free up their username\n\nThis CANNOT be undone.`)) return;
+  if (!(await appConfirm('This will:\n• Remove their Firebase Auth account\n• Delete their Firestore profile\n• Free up their username\n\nThis CANNOT be undone.', { title: `Permanently delete @${username}?` }))) return;
   try {
     const token = await adminToken();
     const res   = await fetch('/api/admin/deletion-requests/' + encodeURIComponent(uid), {
@@ -786,7 +786,7 @@ function renderAppeals(appeals) {
 }
 
 async function approveAppeal(id) {
-  if (!confirm('Approve this appeal and lift the restriction?')) return;
+  if (!(await appConfirm('Approve this appeal and lift the restriction?'))) return;
   try {
     const token = await adminToken();
     const res = await fetch('/api/admin/appeals/' + encodeURIComponent(id) + '/approve', {
@@ -1072,7 +1072,7 @@ function updatePollSelectionUI() {
 async function deleteSelectedPolls() {
   const ids = [...selectedPollIds];
   if (!ids.length) return;
-  if (!confirm(`Permanently delete ${ids.length} poll(s), along with all their votes and comments? This cannot be undone.`)) return;
+  if (!(await appConfirm('This cannot be undone.', { title: `Permanently delete ${ids.length} poll(s), along with all their votes and comments?` }))) return;
   try {
     const token = await adminToken();
     const res = await fetch('/api/polls/bulk-delete', {
@@ -1091,7 +1091,7 @@ async function deleteSelectedPolls() {
 async function closeSelectedPolls() {
   const ids = [...selectedPollIds];
   if (!ids.length) return;
-  if (!confirm(`Close ${ids.length} poll(s)? Voting will stop and only current results will show.`)) return;
+  if (!(await appConfirm('Voting will stop and only current results will show.', { title: `Close ${ids.length} poll(s)?` }))) return;
   try {
     const token = await adminToken();
     const res = await fetch('/api/polls/bulk-close', {
@@ -1128,7 +1128,7 @@ async function trendSelectedPolls() {
 }
 
 async function closePoll(pollId) {
-  if (!confirm('Close this poll? It will stop accepting votes and challenges.')) return;
+  if (!(await appConfirm('It will stop accepting votes and challenges.', { title: 'Close this poll?' }))) return;
   try {
     const token = await adminToken();
     const res = await fetch(`/api/polls/${pollId}/close`, {
@@ -1171,7 +1171,7 @@ async function clearPollTrending(pollId) {
 }
 
 async function deletePoll(pollId) {
-  if (!confirm('Permanently delete this poll, along with all its votes and comments? This cannot be undone.')) return;
+  if (!(await appConfirm('This cannot be undone.', { title: 'Permanently delete this poll, along with all its votes and comments?' }))) return;
   try {
     const token = await adminToken();
     const res = await fetch(`/api/polls/${pollId}`, {
@@ -1243,7 +1243,7 @@ async function loadLegalDoc(type) {
 
 async function saveLegalDoc(type) {
   const label = type === 'tos' ? 'Terms of Service' : 'Privacy Policy';
-  if (!confirm(`Save the ${label} and notify every user that it changed?`)) return;
+  if (!(await appConfirm(`Save the ${label} and notify every user that it changed?`, { danger: false, confirmText: 'Save' }))) return;
   const editorId = type === 'tos' ? 'tosEditor' : 'privacyEditor';
   const statusId = type === 'tos' ? 'tosSaveStatus' : 'privacySaveStatus';
   const statusEl = document.getElementById(statusId);

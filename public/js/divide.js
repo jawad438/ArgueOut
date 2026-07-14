@@ -52,7 +52,12 @@ const REACTION_META = [
 ];
 
 const OPTION_COLORS = ['var(--red)', 'var(--blue)', 'var(--green)', 'var(--amber)', 'var(--purple)', '#06b6d4'];
-const MAX_VISUAL_REPLY_DEPTH = 4;
+
+// Reply-to indicator — every comment renders at the same width/indent
+// regardless of thread depth (nesting-based indent used to shrink deep
+// replies down to almost nothing); this arrow + name is how a reply still
+// shows who it's answering instead.
+const ICON_REPLY_ARROW = '<svg style="width:11px;height:11px;vertical-align:-1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></svg>';
 
 let currentIdToken = null;
 let currentUserId  = null;
@@ -754,7 +759,7 @@ async function voteOnPoll(pollId, optionIndex) {
 }
 
 async function closeUserPoll(pollId) {
-  if (!confirm('Close this poll? Voting will stop and only the current results will show. This cannot be undone.')) return;
+  if (!(await appConfirm('Voting will stop and only the current results will show. This cannot be undone.', { title: 'Close this poll?' }))) return;
   try {
     const res = await fetch(`/api/polls/${pollId}/close`, {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + currentIdToken }
@@ -830,10 +835,29 @@ function buildCommentTree(flat) {
   flat.forEach(c => byId.set(c.id, { ...c, children: [] }));
   const roots = [];
   byId.forEach(node => {
-    if (node.parentId && byId.has(node.parentId)) byId.get(node.parentId).children.push(node);
-    else roots.push(node);
+    if (node.parentId && byId.has(node.parentId)) {
+      const parent = byId.get(node.parentId);
+      node.replyToUsername = parent.authorUsername;
+      parent.children.push(node);
+    } else {
+      roots.push(node);
+    }
   });
   return roots;
+}
+
+// Depth-first flatten — a reply still appears right after the comment it's
+// answering (so the thread reads in order), but every node comes out as a
+// sibling at the same level so none of them get visually squeezed.
+function flattenCommentTree(nodes) {
+  const out = [];
+  (function walk(list) {
+    list.forEach(n => {
+      out.push(n);
+      if (n.children.length) walk(n.children);
+    });
+  })(nodes);
+  return out;
 }
 
 function renderCommentTree(pollId) {
@@ -842,12 +866,12 @@ function renderCommentTree(pollId) {
   const flat = commentsCache[pollId] || [];
   if (!flat.length) { list.innerHTML = '<div class="comments-empty">No comments yet — start the discussion.</div>'; return; }
   const tree = buildCommentTree(flat);
-  list.innerHTML = tree.map(node => renderComment(pollId, node, 0)).join('');
+  const ordered = flattenCommentTree(tree);
+  list.innerHTML = ordered.map(node => renderComment(pollId, node)).join('');
   lastPoppedReaction = null; // one-shot — consumed by this render pass
 }
 
-function renderComment(pollId, node, depth) {
-  const visualDepth = Math.min(depth, MAX_VISUAL_REPLY_DEPTH);
+function renderComment(pollId, node) {
   const avatarHtml = node.authorAvatarUrl
     ? `<img src="${escapeHtml(node.authorAvatarUrl)}" alt="">`
     : escapeHtml((node.authorUsername || 'U')[0].toUpperCase());
@@ -861,10 +885,6 @@ function renderComment(pollId, node, depth) {
         ${r.icon}<span>${count > 0 ? count : ''}</span>
       </button>`;
   }).join('');
-
-  const childrenHtml = node.children.length
-    ? `<div class="comment-replies">${node.children.map(c => renderComment(pollId, c, depth + 1)).join('')}</div>`
-    : '';
 
   // A deleted comment keeps its slot in the tree (so replies underneath it
   // stay properly nested) but loses reactions/reply/delete controls — there's
@@ -880,14 +900,18 @@ function renderComment(pollId, node, depth) {
           <button class="btn btn-primary btn-sm" onclick="submitComment('${pollId}', '${node.id}')" style="flex-shrink:0;align-self:flex-end">Reply</button>
         </div>`;
 
+  const replyTagHtml = node.replyToUsername
+    ? `<div class="comment-reply-tag">${ICON_REPLY_ARROW} Replying to <span>@${escapeHtml(node.replyToUsername)}</span></div>`
+    : '';
+
   return `
-    <div class="comment-item ${depth > 0 ? 'is-reply' : ''}" style="margin-left:${visualDepth * 16}px" id="comment-${node.id}">
+    <div class="comment-item" id="comment-${node.id}">
       <div class="comment-avatar" onclick="openDivideProfile('${node.authorId}')">${avatarHtml}</div>
       <div class="comment-body">
+        ${replyTagHtml}
         <span class="comment-author" onclick="openDivideProfile('${node.authorId}')">${escapeHtml(node.authorUsername)}</span><span class="comment-time">${timeAgo(node.createdAt)}</span>
         <div class="comment-text ${node.deleted ? 'comment-deleted-text' : ''}">${escapeHtml(node.text)}</div>
         ${actionsHtml}
-        ${childrenHtml}
       </div>
     </div>`;
 }
@@ -978,7 +1002,7 @@ socket.on('poll-comment-reaction', ({ pollId, commentId, reactions }) => {
 });
 
 async function deleteComment(pollId, commentId) {
-  if (!confirm('Delete this comment? This can\'t be undone.')) return;
+  if (!(await appConfirm("This can't be undone.", { title: 'Delete this comment?' }))) return;
   try {
     const res = await fetch(`/api/polls/${pollId}/comments/${commentId}`, {
       method: 'DELETE',

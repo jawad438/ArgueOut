@@ -1741,6 +1741,9 @@ html[data-theme="light"] .spark-suggest-input { background: rgba(255,255,255,0.7
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 #judgeConfirmModal .auth-card { animation: judgeModalPop 420ms var(--ease-spring) both; }
+/* Generic version of the same pop, reused by the shared appConfirm() modal
+   (js/confirm-modal.js) and any other one-off modal that wants it. */
+.modal-pop-in { animation: judgeModalPop 420ms var(--ease-spring) both; }
 
 .modal-card {
   background: var(--bg-card);

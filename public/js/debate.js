@@ -1010,15 +1010,15 @@ function addSpecComment(payload) {
   }
 }
 
-function kickSpectator(specId, username, btn) {
-  if (!specId || !confirm(`Remove @${username} from watching this debate?`)) return;
+async function kickSpectator(specId, username, btn) {
+  if (!specId || !(await appConfirm(`Remove @${username} from watching this debate?`))) return;
   socket.emit('kick-spectator', { roomId, specId });
   const row = btn?.closest('.spec-panel-comment-actions');
   if (row) row.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.opacity = '0.4'; });
 }
 
-function banSpectator(specId, username, btn) {
-  if (!specId || !confirm(`Ban @${username} from watching this debate?\nThey won't be able to rejoin.`)) return;
+async function banSpectator(specId, username, btn) {
+  if (!specId || !(await appConfirm(`@${username} won't be able to rejoin.`, { title: `Ban @${username} from watching this debate?` }))) return;
   socket.emit('ban-spectator', { roomId, specId });
   const row = btn?.closest('.spec-panel-comment-actions');
   if (row) row.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.opacity = '0.4'; });

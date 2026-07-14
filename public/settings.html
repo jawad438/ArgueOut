@@ -329,6 +329,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 <script src="/js/firebase-init.js"></script>
 <script src="/js/push-notifications.js"></script>
+<script src="/js/confirm-modal.js"></script>
 <script src="/js/account-switcher.js"></script>
 <script>
 function showToast(message, type) {
@@ -480,12 +481,14 @@ function copyInvite() {
 }
 
 function requestDeletion() {
-  if (!confirm('Submit a deletion request? Your account will be reviewed and deleted within 48 hours.')) return;
-  firebase.auth().currentUser.getIdToken().then(function (token) {
-    return fetch('/api/request-deletion', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
-  }).then(function (r) { return r.json(); }).then(function (data) {
-    showStatus(data.error || 'Deletion request submitted.');
-  }).catch(function () { showStatus('Error submitting request.'); });
+  appConfirm('Your account will be reviewed and deleted within 48 hours.', { title: 'Submit a deletion request?' }).then(function (ok) {
+    if (!ok) return;
+    firebase.auth().currentUser.getIdToken().then(function (token) {
+      return fetch('/api/request-deletion', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      showStatus(data.error || 'Deletion request submitted.');
+    }).catch(function () { showStatus('Error submitting request.'); });
+  });
 }
 
 function signOut() {
